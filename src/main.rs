@@ -1,5 +1,8 @@
+use std::f32::consts::PI;
+
 use bevy::app::*;
 use bevy::prelude::*;
+use bevy::render::camera::NormalizedRenderTarget;
 use bevy::render::render_resource::*;
 use bevy::window::PresentMode;
 use bevy_fps_counter::FpsCounterPlugin;
@@ -7,15 +10,26 @@ use rand::Rng;
 
 
 const WINDOW_WIDTH: usize = 2000;
-const WINDOW_HEIGHT: usize = 1300;
-const TOTAL_PIXELS: usize = WINDOW_WIDTH * WINDOW_HEIGHT;
-const HEIGHT_OF_SKY_IN_PIXELS: usize = 600;
+const WINDOW_HEIGHT: f32 = 1300.;
+const SKY_HEIGHT: f32 = 600.;
+const GROUND_HEIGHT: f32 = WINDOW_HEIGHT - SKY_HEIGHT;
 const MIN_CLOUD_HEIGHT: usize = 30;
 const MAX_CLOUD_HEIGHT: usize = 80;
 const MAX_CLOUD_SPEED: f32 = 20.;
+const SUN_SIZE: usize = 100;
+const MOON_SIZE: usize = 50;
 
 #[derive(Component)]
 struct Cloud;
+
+#[derive(Component)]
+struct Sky;
+
+#[derive(Component)]
+struct Sun;
+
+#[derive(Component)]
+struct Moon;
 
 #[derive(Component)]
 struct Speed{
@@ -23,10 +37,14 @@ struct Speed{
 }
 
 #[derive(Component)]
+struct Angle{
+    angle: f32
+}
+
+#[derive(Component)]
 struct Size{
     size: Vec2
 }
-
 
 fn main() {
     App::new()
@@ -48,38 +66,91 @@ fn main() {
 fn setup(mut commands: Commands, assets: Res<AssetServer>) {
     let mut rng = rand::thread_rng();
     commands.spawn(Camera2dBundle::default());
-    let mut raw_data: Vec<u8> = Vec::with_capacity(4 * TOTAL_PIXELS as usize);
-    generate_sky(&mut raw_data);
-    generate_ground(&mut raw_data);
-    // for _ in 0..=rng.gen_range(0..10){
-    for _ in 0..=20{
+    let sky_image = generate_sky();
+    let (sun_image, moon_image, angle) = generate_sun_moon();
+    commands.spawn((
+        SpriteBundle{
+        texture: assets.add(sun_image),
+        transform: Transform { translation: Vec3 { x: 1000. * f32::cos(angle.angle.clone()), y: 650. * f32::sin(angle.angle.clone()), z: 1. }, ..default()},
+        ..default()},
+        Sun,
+        Angle{angle: angle.angle.clone()},
+    ));
+    commands.spawn((
+        SpriteBundle{
+        texture: assets.add(moon_image),
+        transform: Transform { translation: Vec3 { x: 1000. * f32::cos(angle.angle.clone() + PI), y: 650. * f32::sin(angle.angle.clone() + PI), z: 1. }, ..default()},
+        ..default()},
+        Moon,
+        angle,
+    ));
+    for _ in 0..=rng.gen_range(0..13){
         let (cloud_image, speed, size) = generate_cloud();
         commands.spawn((
             SpriteBundle{
             texture: assets.add(cloud_image),
-            transform: Transform { translation: Vec3 { x: rng.gen_range(-(WINDOW_WIDTH as f32)/2. ..=WINDOW_WIDTH as f32/2.) as f32, y: rng.gen_range((WINDOW_HEIGHT / 2 - 300) as f32 ..= (WINDOW_HEIGHT/2) as f32), z: 1. }, ..default()},
+            transform: Transform { translation: Vec3 { x: rng.gen_range(-(WINDOW_WIDTH as f32)/2. ..=WINDOW_WIDTH as f32/2.) as f32, y: rng.gen_range((WINDOW_HEIGHT / 2. - 300.)..= WINDOW_HEIGHT / 2.), z: 1. }, ..default()},
             ..default()},
             Cloud,
             speed,
             size,
         ));
     }
-    let grid_data = Image::new(
-        Extent3d {
-            width: WINDOW_WIDTH as u32,
-            height: WINDOW_HEIGHT as u32,
-            depth_or_array_layers: 1,
-        },
-        TextureDimension::D2,
-        raw_data,
-        TextureFormat::Rgba8UnormSrgb 
-    );
-    let handle = assets.add(grid_data);
+    
+    commands.spawn((SpriteBundle {
+        texture: assets.add(sky_image),
+        transform: Transform::from_xyz(0., (WINDOW_HEIGHT - SKY_HEIGHT) as f32/2., -2.),
+        ..default()
+    },
+    Sky
+    ));
+
+    let ground_image = generate_ground();
     commands.spawn(SpriteBundle {
-        texture: handle,
-        transform: Transform::from_xyz(0., 0., 0.1),
+        texture: assets.add(ground_image),
+        transform: Transform::from_xyz(0., (-(WINDOW_HEIGHT as f32) + GROUND_HEIGHT as f32)/2., 3.),
         ..default()
     });
+}
+
+fn generate_sun_moon() -> (Image, Image, Angle){
+    let mut sun_data: Vec<u8> = Vec::with_capacity(4 * SUN_SIZE * SUN_SIZE);
+    for _ in 0..SUN_SIZE * SUN_SIZE{
+        sun_data.push(255);
+        sun_data.push(255);
+        sun_data.push(102);
+        sun_data.push(255);
+    }
+    let mut moon_data: Vec<u8> = Vec::with_capacity(4 * MOON_SIZE * MOON_SIZE);
+    for _ in 0..MOON_SIZE * MOON_SIZE{
+        moon_data.push(255);
+        moon_data.push(255);
+        moon_data.push(255);
+        moon_data.push(255);
+    }
+    (
+        Image::new(
+            Extent3d {
+                width: SUN_SIZE as u32,
+                height: SUN_SIZE as u32,
+                depth_or_array_layers: 1,
+            },
+            TextureDimension::D2,
+            sun_data,
+            TextureFormat::Rgba8UnormSrgb
+        ),
+        Image::new(
+            Extent3d {
+                width: MOON_SIZE as u32,
+                height: MOON_SIZE as u32,
+                depth_or_array_layers: 1,
+            },
+            TextureDimension::D2,
+            moon_data,
+            TextureFormat::Rgba8UnormSrgb
+        ),
+        Angle{angle: 0.}
+        )
 }
 
 fn generate_cloud() -> (Image, Speed, Size){
@@ -111,43 +182,83 @@ fn generate_cloud() -> (Image, Speed, Size){
     )
 }
 
-fn update(time: Res<Time>, mut c: Query<(&mut Transform, &Speed, &Size), With<Cloud>>) {
+fn update(time: Res<Time>, mut c: Query<(&mut Transform, &Speed, &Size), (With<Cloud>, Without<Sun>, Without<Moon>)>,
+mut s: Query<(&mut Transform, &mut Angle), (With<Sun>, Without<Cloud>, Without<Moon>)>,
+mut m: Query<&mut Transform, (With<Moon>, Without<Cloud>, Without<Sun>)>,
+mut sky_query: Query<&mut Sprite, (With<Sky>, Without<Moon>, Without<Cloud>, Without<Sun>)>
+){
     for (mut cloud, speed, size) in c.iter_mut(){
         cloud.translation.x += speed.speed.x * time.delta_seconds();
         if cloud.translation.x - size.size.x/2.> (WINDOW_WIDTH / 2) as f32{
             cloud.translation.x *= -1.;
         }
     }
-}
-
-fn generate_sky(raw_data: &mut Vec<u8>) {
-    for _ in 0..WINDOW_WIDTH as usize * HEIGHT_OF_SKY_IN_PIXELS{
-        raw_data.push(135);
-        raw_data.push(206);
-        raw_data.push(235);
-        raw_data.push(255);
+    let (mut sun, mut angle) = s.single_mut();
+    let mut moon = m.single_mut();
+    angle.angle += 0.05 * time.delta_seconds();
+    if angle.angle > 2. * PI{
+        angle.angle = 0.;
     }
+    sun.translation.x = 1000. * f32::cos(angle.angle);
+    sun.translation.y = 650. * f32::sin(angle.angle);
+    moon.translation.x = 1000. * f32::cos(angle.angle + PI);
+    moon.translation.y = 650. * f32::sin(angle.angle + PI);
+
+    let mut sky = sky_query.single_mut();
+    let normalized_theta = 0.5+f32::sin(angle.angle)/2.;
+    sky.color = Color::Rgba { red: 1., green: 1., blue: 1., alpha: normalized_theta}
+
 }
 
-fn generate_ground(raw_data: &mut Vec<u8>) {
+fn generate_sky() -> Image {
+    let mut data_buffer: Vec<u8> = Vec::with_capacity(4 * WINDOW_WIDTH as usize * SKY_HEIGHT as usize);
+    for _ in 0..WINDOW_WIDTH as usize * SKY_HEIGHT as usize{
+        data_buffer.push(135);
+        data_buffer.push(206);
+        data_buffer.push(235);
+        data_buffer.push(255);
+    }
+    Image::new(
+        Extent3d {
+            width: WINDOW_WIDTH as u32,
+            height: SKY_HEIGHT as u32,
+            depth_or_array_layers: 1,
+        },
+        TextureDimension::D2,
+        data_buffer,
+        TextureFormat::Rgba8UnormSrgb 
+    )
+}
+
+fn generate_ground() -> Image{
     let mut rng = rand::thread_rng();
     let mut chance_of_stone = 0.;
-    let start_pixel_count =  raw_data.len()/4;
-    for i in start_pixel_count..TOTAL_PIXELS as usize{
+    let mut data_buffer: Vec<u8> = Vec::with_capacity(4 * GROUND_HEIGHT as usize * WINDOW_WIDTH as usize);
+    for i in 0..GROUND_HEIGHT as usize * WINDOW_WIDTH as usize{
         if i % WINDOW_WIDTH as usize == 0{
             chance_of_stone += 0.01;
         }
         if rng.gen_range(0..=100) as f32 <= chance_of_stone{
-            raw_data.push(192);
-            raw_data.push(192);
-            raw_data.push(192);
+            data_buffer.push(192);
+            data_buffer.push(192);
+            data_buffer.push(192);
         } else {
-            raw_data.push(155);
-            raw_data.push(118);
-            raw_data.push(83);
+            data_buffer.push(155);
+            data_buffer.push(118);
+            data_buffer.push(83);
         }
-        raw_data.push(255);
+        data_buffer.push(255);
     }
+    Image::new(
+        Extent3d {
+            width: WINDOW_WIDTH as u32,
+            height: GROUND_HEIGHT as u32,
+            depth_or_array_layers: 1,
+        },
+        TextureDimension::D2,
+        data_buffer,
+        TextureFormat::Rgba8UnormSrgb 
+    )
 }
 
 fn index(mut x: i32, y: i32) -> usize{
