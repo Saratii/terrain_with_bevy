@@ -10,11 +10,23 @@ const WINDOW_WIDTH: usize = 2000;
 const WINDOW_HEIGHT: usize = 1300;
 const TOTAL_PIXELS: usize = WINDOW_WIDTH * WINDOW_HEIGHT;
 const HEIGHT_OF_SKY_IN_PIXELS: usize = 600;
-const CLOUD_HEIGHT: i32 = 50;
-const CLOUD_WIDTH: i32 = 100;
+const MIN_CLOUD_HEIGHT: usize = 30;
+const MAX_CLOUD_HEIGHT: usize = 80;
+const MAX_CLOUD_SPEED: f32 = 20.;
 
 #[derive(Component)]
 struct Cloud;
+
+#[derive(Component)]
+struct Speed{
+    speed: Vec2
+}
+
+#[derive(Component)]
+struct Size{
+    size: Vec2
+}
+
 
 fn main() {
     App::new()
@@ -39,13 +51,17 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
     let mut raw_data: Vec<u8> = Vec::with_capacity(4 * TOTAL_PIXELS as usize);
     generate_sky(&mut raw_data);
     generate_ground(&mut raw_data);
-    for _ in 0..=rng.gen_range(0..10){
+    // for _ in 0..=rng.gen_range(0..10){
+    for _ in 0..=20{
+        let (cloud_image, speed, size) = generate_cloud();
         commands.spawn((
             SpriteBundle{
-            texture: assets.add(generate_cloud()),
+            texture: assets.add(cloud_image),
             transform: Transform { translation: Vec3 { x: rng.gen_range(-(WINDOW_WIDTH as f32)/2. ..=WINDOW_WIDTH as f32/2.) as f32, y: rng.gen_range((WINDOW_HEIGHT / 2 - 300) as f32 ..= (WINDOW_HEIGHT/2) as f32), z: 1. }, ..default()},
             ..default()},
             Cloud,
+            speed,
+            size,
         ));
     }
     let grid_data = Image::new(
@@ -66,29 +82,41 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
     });
 }
 
-fn generate_cloud() -> Image{
-    let mut cloud_data: Vec<u8> = Vec::with_capacity(4 * CLOUD_HEIGHT as usize * CLOUD_WIDTH as usize);
-    for _ in 0..CLOUD_HEIGHT as usize * CLOUD_WIDTH as usize{
+fn generate_cloud() -> (Image, Speed, Size){
+    let mut rng = rand::thread_rng();
+    let cloud_height = rng.gen_range(MIN_CLOUD_HEIGHT..MAX_CLOUD_HEIGHT);
+    let cloud_width = cloud_height*2;
+    let normalized = (cloud_height as f32 - MIN_CLOUD_HEIGHT as f32)/(MAX_CLOUD_HEIGHT - MIN_CLOUD_HEIGHT) as f32;
+    let mut cloud_data: Vec<u8> = Vec::with_capacity(4 * cloud_height * cloud_width);
+    let transparency = 255. * normalized;
+    for _ in 0..cloud_height * cloud_width{
         cloud_data.push(255);
         cloud_data.push(255);
         cloud_data.push(255);
-        cloud_data.push(255);
+        cloud_data.push(transparency as u8);
     }
+    (
     Image::new(
         Extent3d {
-            width: CLOUD_WIDTH as u32,
-            height: CLOUD_HEIGHT as u32,
+            width: cloud_width as u32,
+            height: cloud_height as u32,
             depth_or_array_layers: 1,
         },
         TextureDimension::D2,
         cloud_data,
         TextureFormat::Rgba8UnormSrgb
+    ),
+        Speed{speed: Vec2 { x: normalized * MAX_CLOUD_SPEED, y: 0.}},
+        Size{size: Vec2 {x: cloud_width as f32, y: cloud_height as f32}}
     )
 }
 
-fn update(time: Res<Time>, mut c: Query<&mut Transform, With<Cloud>>) {
-    for mut cloud in c.iter_mut(){
-        cloud.translation.x += 10. * time.delta_seconds();
+fn update(time: Res<Time>, mut c: Query<(&mut Transform, &Speed, &Size), With<Cloud>>) {
+    for (mut cloud, speed, size) in c.iter_mut(){
+        cloud.translation.x += speed.speed.x * time.delta_seconds();
+        if cloud.translation.x - size.size.x/2.> (WINDOW_WIDTH / 2) as f32{
+            cloud.translation.x *= -1.;
+        }
     }
 }
 
