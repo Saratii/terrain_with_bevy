@@ -234,12 +234,18 @@ fn generate_sky() -> Image {
 fn generate_ground() -> Image{
     let mut rng = rand::thread_rng();
     let mut chance_of_stone = 0.;
+    let mut chance_of_grass = 0.;
     let mut data_buffer: Vec<u8> = Vec::with_capacity(4 * GROUND_HEIGHT as usize * WINDOW_WIDTH as usize);
     for i in 0..GROUND_HEIGHT as usize * WINDOW_WIDTH as usize{
         if i % WINDOW_WIDTH as usize == 0{
             chance_of_stone += 0.01;
+            chance_of_grass += 0.6;
         }
-        if rng.gen_range(0..=100) as f32 <= chance_of_stone{
+        if rng.gen_range(0..=100) as f32 >= chance_of_grass{
+            data_buffer.push(38);
+            data_buffer.push(139);
+            data_buffer.push(7);
+        } else if rng.gen_range(0..=100) as f32 <= chance_of_stone{
             data_buffer.push(192);
             data_buffer.push(192);
             data_buffer.push(192);
