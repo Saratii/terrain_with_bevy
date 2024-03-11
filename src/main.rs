@@ -1,6 +1,3 @@
-use std::cmp::max;
-use std::cmp::min;
-
 use bevy::app::*;
 use bevy::prelude::*;
 use bevy::render::render_resource::*;
@@ -15,18 +12,9 @@ const TOTAL_PIXELS: usize = WINDOW_WIDTH * WINDOW_HEIGHT;
 const HEIGHT_OF_SKY_IN_PIXELS: usize = 600;
 const CLOUD_HEIGHT: i32 = 50;
 const CLOUD_WIDTH: i32 = 100;
-struct Position{
-    x: i32,
-    y: i32
-}
+
 #[derive(Component)]
-struct Clouds{
-    positions: Vec<Position>,
-}
-#[derive(Component)]
-struct Scene{
-    clouds: Clouds
-}
+struct Cloud;
 
 fn main() {
     App::new()
@@ -46,13 +34,20 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, assets: Res<AssetServer>) {
+    let mut rng = rand::thread_rng();
     commands.spawn(Camera2dBundle::default());
     let mut raw_data: Vec<u8> = Vec::with_capacity(4 * TOTAL_PIXELS as usize);
     generate_sky(&mut raw_data);
     generate_ground(&mut raw_data);
-    commands.spawn(Scene{
-        clouds: Clouds{positions: generate_clouds(&mut raw_data)}
-    });
+    for _ in 0..=rng.gen_range(0..10){
+        commands.spawn((
+            SpriteBundle{
+            texture: assets.add(generate_cloud()),
+            transform: Transform { translation: Vec3 { x: rng.gen_range(-(WINDOW_WIDTH as f32)/2. ..=WINDOW_WIDTH as f32/2.) as f32, y: rng.gen_range((WINDOW_HEIGHT / 2 - 300) as f32 ..= (WINDOW_HEIGHT/2) as f32), z: 1. }, ..default()},
+            ..default()},
+            Cloud,
+        ));
+    }
     let grid_data = Image::new(
         Extent3d {
             width: WINDOW_WIDTH as u32,
@@ -71,43 +66,29 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
     });
 }
 
-fn update(mut q: Query<&Handle<Image>>, mut thingy: ResMut<Assets<Image>>, mut c: Query<&mut Scene>
-) {
-    let handle = q.single_mut();
-    let image = thingy.get_mut(handle).unwrap();
-    let mut scene = c.single_mut();
-    move_clouds( &mut scene.clouds, &mut image.data);
+fn generate_cloud() -> Image{
+    let mut cloud_data: Vec<u8> = Vec::with_capacity(4 * CLOUD_HEIGHT as usize * CLOUD_WIDTH as usize);
+    for _ in 0..CLOUD_HEIGHT as usize * CLOUD_WIDTH as usize{
+        cloud_data.push(255);
+        cloud_data.push(255);
+        cloud_data.push(255);
+        cloud_data.push(255);
+    }
+    Image::new(
+        Extent3d {
+            width: CLOUD_WIDTH as u32,
+            height: CLOUD_HEIGHT as u32,
+            depth_or_array_layers: 1,
+        },
+        TextureDimension::D2,
+        cloud_data,
+        TextureFormat::Rgba8UnormSrgb
+    )
 }
 
-fn move_clouds(clouds: &mut Clouds, raw_data: &mut Vec<u8>){
-    let mut white_to_blue = Vec::new();
-    for i in 0..clouds.positions.len(){
-        for y in clouds.positions[i].y as i32..clouds.positions[i].y as i32 + CLOUD_HEIGHT{
-            white_to_blue.push((clouds.positions[i].x as i32 - CLOUD_WIDTH, y));
-        }
-    }
-    for i in 0..clouds.positions.len(){
-        let cloud = &clouds.positions[i];
-        for y in cloud.y as i32..cloud.y as i32 + CLOUD_HEIGHT{
-            set(raw_data, index(cloud.x as i32 + CLOUD_WIDTH, y), 255, 255, 255);
-        }
-        let mut j = 0;
-        while j < white_to_blue.len(){
-            let (x, y) = white_to_blue[j];
-            if y > cloud.y && y < cloud.y + CLOUD_HEIGHT &&
-                    ((x <= cloud.x + CLOUD_WIDTH  && x > cloud.x - CLOUD_WIDTH) || (x + WINDOW_WIDTH as i32 <= cloud.x + CLOUD_WIDTH  && x + WINDOW_WIDTH as i32 > cloud.x - CLOUD_WIDTH)) {
-                white_to_blue.remove(j);
-            } else {
-                j += 1;
-            }
-        }
-        clouds.positions[i].x += 1;
-        if clouds.positions[i].x == WINDOW_WIDTH as i32{
-            clouds.positions[i].x = 0;
-        }
-    }
-    for (x, y) in white_to_blue{
-        set(raw_data, index(x, y), 135, 206, 235);
+fn update(time: Res<Time>, mut c: Query<&mut Transform, With<Cloud>>) {
+    for mut cloud in c.iter_mut(){
+        cloud.translation.x += 10. * time.delta_seconds();
     }
 }
 
@@ -158,34 +139,4 @@ fn set(raw_data: &mut Vec<u8>, i: usize, r: u8, g: u8, b: u8){
     raw_data[i] = r;
     raw_data[i+1] = g;
     raw_data[i+2] = b;
-}
-
-fn generate_clouds(raw_data: &mut Vec<u8>) -> Vec<Position>{
-    let mut rng = rand::thread_rng();
-    let mut positions = vec![];
-    for _ in 0..=0{
-        // let top_y = rng.gen_range(0..=HEIGHT_OF_SKY_IN_PIXELS / 2) as i32;
-        // let center_x = rng.gen_range(0..=WINDOW_WIDTH) as i32;
-        let top_y = 100;
-        let center_x = 1000;
-        positions.push(Position{x: center_x, y: top_y});
-        for y in top_y as usize..(top_y + CLOUD_HEIGHT) as usize{
-            for x  in max(0, (center_x - CLOUD_WIDTH) as usize)..min((center_x + CLOUD_WIDTH) as usize, WINDOW_WIDTH){
-                set(raw_data, index(x as i32, y as i32), 255, 255, 255)
-            }
-        }
-    }
-    for _ in 0..=0{
-        // let top_y = rng.gen_range(0..=HEIGHT_OF_SKY_IN_PIXELS / 2) as i32;
-        // let center_x = rng.gen_range(0..=WINDOW_WIDTH) as i32;
-        let top_y = 120;
-        let center_x = 1200;
-        positions.push(Position{x: center_x, y: top_y});
-        for y in top_y as usize..(top_y + CLOUD_HEIGHT) as usize{
-            for x  in max(0, (center_x - CLOUD_WIDTH) as usize)..min((center_x + CLOUD_WIDTH) as usize, WINDOW_WIDTH){
-                set(raw_data, index(x as i32, y as i32), 255, 255, 255)
-            }
-        }
-    }
-    positions
 }
