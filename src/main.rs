@@ -185,7 +185,7 @@ fn generate_cloud() -> (Image, Speed, Size){
 fn update(time: Res<Time>, mut c: Query<(&mut Transform, &Speed, &Size), (With<Cloud>, Without<Sun>, Without<Moon>)>,
 mut s: Query<(&mut Transform, &mut Angle), (With<Sun>, Without<Cloud>, Without<Moon>)>,
 mut m: Query<&mut Transform, (With<Moon>, Without<Cloud>, Without<Sun>)>,
-mut sky_query: Query<&mut Sprite, (With<Sky>, Without<Moon>, Without<Cloud>, Without<Sun>)>
+mut sky_query: Query<&mut Sprite, (Or<(With<Cloud>, With<Sky>)>, Without<Moon>, Without<Sun>)>
 ){
     for (mut cloud, speed, size) in c.iter_mut(){
         cloud.translation.x += speed.speed.x * time.delta_seconds();
@@ -195,7 +195,7 @@ mut sky_query: Query<&mut Sprite, (With<Sky>, Without<Moon>, Without<Cloud>, Wit
     }
     let (mut sun, mut angle) = s.single_mut();
     let mut moon = m.single_mut();
-    angle.angle += 0.05 * time.delta_seconds();
+    angle.angle += 0.03 * time.delta_seconds();
     if angle.angle > 2. * PI{
         angle.angle = 0.;
     }
@@ -204,9 +204,10 @@ mut sky_query: Query<&mut Sprite, (With<Sky>, Without<Moon>, Without<Cloud>, Wit
     moon.translation.x = 1000. * f32::cos(angle.angle + PI);
     moon.translation.y = 650. * f32::sin(angle.angle + PI);
 
-    let mut sky = sky_query.single_mut();
     let normalized_theta = 0.5+f32::sin(angle.angle)/2.;
-    sky.color = Color::Rgba { red: 1., green: 1., blue: 1., alpha: normalized_theta}
+    for mut cloud_or_sky in sky_query.iter_mut(){
+        cloud_or_sky.color = Color::Rgba { red: 1., green: 1., blue: 1., alpha: normalized_theta}
+    }
 
 }
 
