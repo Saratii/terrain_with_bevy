@@ -9,7 +9,7 @@ pub struct Position {
     pub y: f32,
 }
 
-#[derive(Component)]
+#[derive(Component, Debug)]
 pub struct Velocity {
     pub vx: f32,
     pub vy: f32,

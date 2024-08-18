@@ -1,6 +1,6 @@
-use bevy::{input::ButtonInput, prelude::{Image, KeyCode, MouseButton, Mut, Query, Res, With}, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}, time::Time, window::{PrimaryWindow, Window}};
+use bevy::{input::ButtonInput, math::Vec3, prelude::{Image, KeyCode, MouseButton, Mut, Query, Res, Transform, With}, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}, time::Time, window::{PrimaryWindow, Window}};
 
-use crate::{components::{Position, Velocity}, constants::{CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, MAX_LAYERS, MAX_PLAYER_SPEED, PLAYER_COLOR, PLAYER_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, PLAYER_WIDTH, SKY_HEIGHT, WINDOW_WIDTH}, world_generation::{does_gravity_apply_to_entity, flatten_index, Pixel}};
+use crate::{components::Velocity, constants::{CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, MAX_PLAYER_SPEED, PLAYER_COLOR, PLAYER_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, PLAYER_WIDTH, SKY_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH}, world_generation::{does_gravity_apply_to_entity, flatten_index, Pixel}};
 
 pub fn generate_player_image() -> Image{
     let mut data_buffer: Vec<u8> = Vec::with_capacity(4 * PLAYER_WIDTH * PLAYER_HEIGHT);
@@ -24,109 +24,114 @@ pub fn generate_player_image() -> Image{
     )
 }
 
-// pub fn move_player(grid: &mut Vec<Pixel>, keys: Res<ButtonInput<KeyCode>>, player: &mut (Mut<Position>, Mut<Velocity>), time: Res<Time>){
-//     if player.0.x <= 0.0 || player.0.x >= (WINDOW_WIDTH - PLAYER_WIDTH) as f32 { //check if its trying to move off the screen
-//         player.1.vx = 0.;
-//     }
-//     if does_gravity_apply_to_entity(player.0.x as usize,  player.0.y as usize, PLAYER_WIDTH, PLAYER_HEIGHT, grid) {
-//         player.1.vy += 1.;
-//     } else {
-//         player.1.vy = 0.;
-//     }
-//     if keys.pressed(KeyCode::KeyA) {
-//         if player.1.vx * -1. < MAX_PLAYER_SPEED {
-//             player.1.vx -= 1.;
-//         }
-//     } else if keys.pressed(KeyCode::KeyD) {
-//          if player.1.vx < MAX_PLAYER_SPEED {
-//             player.1.vx += 1.;
-//         }
-//     }
-//     if keys.pressed(KeyCode::Space){
-//         match grid[flatten_index(player.0.x as usize, player.0.y as usize + PLAYER_HEIGHT, WINDOW_WIDTH)] {
-//             Pixel::Ground => {
-//                 player.1.vy = -300.;
-//             },
-//             _ => {}
-//         }
-//     }
-//     let start_x = player.0.x as usize;
-//     let start_y = player.0.y as usize;
-//     apply_velocity(&mut player.0, &player.1, &time);
-//     // move_rect(&start_x, &start_y, PLAYER_WIDTH, PLAYER_HEIGHT, player.0.x as usize, player.0.y as usize, grid, WINDOW_WIDTH);
-// }
+pub fn generate_cursor_image() -> Image{
+    let mut data_buffer: Vec<u8> = Vec::with_capacity(4 * CURSOR_RADIUS * 2 * CURSOR_RADIUS * 2);
+    for y in 0..CURSOR_RADIUS * 2 {
+        for x in 0..CURSOR_RADIUS * 2 {
+            let dx = x as isize - CURSOR_RADIUS as isize;
+            let dy = y as isize - CURSOR_RADIUS as isize;
+            let distance_squared = dx * dx + dy * dy;
+            if distance_squared >= (CURSOR_RADIUS as isize - 1).pow(2) 
+                && distance_squared <= (CURSOR_RADIUS as isize).pow(2) {
+                data_buffer.push(255);
+                data_buffer.push(255);
+                data_buffer.push(255);
+                data_buffer.push(255);
+            } else {
+                data_buffer.push(0);
+                data_buffer.push(0);
+                data_buffer.push(0);
+                data_buffer.push(0);
+            }
+        }
+    }
+    Image::new(
+        Extent3d {
+            width: CURSOR_RADIUS as u32*2,
+            height: CURSOR_RADIUS as u32*2,
+            depth_or_array_layers: 1,
+        },
+        TextureDimension::D2,
+        data_buffer,
+        TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::RENDER_WORLD | RenderAssetUsages::MAIN_WORLD
+    )
+}
 
-fn apply_velocity(position: &mut Mut<Position>, velocity: &Mut<Velocity>, time: &Res<Time>) {
-    position.y += velocity.vy * time.delta_seconds();
-    position.x += velocity.vx * time.delta_seconds();
-    if position.x < 0.0 {
-        position.x = 0.0;
-    } else if position.x > (WINDOW_WIDTH - PLAYER_WIDTH) as f32 {
-        position.x = (WINDOW_WIDTH - PLAYER_WIDTH) as f32;
+pub fn move_player(grid: &Vec<Pixel>, keys: Res<ButtonInput<KeyCode>>, transform: &mut Mut<Transform>, velocity: &mut Mut<Velocity>, time: Res<Time>){
+    let does_gravity_apply = does_gravity_apply_to_entity(transform.translation.x as i32,  transform.translation.y as i32, PLAYER_WIDTH as i32, PLAYER_HEIGHT as i32, grid);
+    if does_gravity_apply {
+        velocity.vy -= 1. * time.delta_seconds();
+    } else {
+        velocity.vy = 0.;
+    }
+    if keys.pressed(KeyCode::KeyA) {
+        if velocity.vx * -1. < MAX_PLAYER_SPEED {
+            velocity.vx -= 1. * time.delta_seconds();
+        }
+    } else if keys.pressed(KeyCode::KeyD) {
+         if velocity.vx < MAX_PLAYER_SPEED {
+            velocity.vx += 1. * time.delta_seconds();
+        }
+    }
+    if keys.pressed(KeyCode::Space){
+        if !does_gravity_apply{
+            velocity.vy += 150. * time.delta_seconds();
+        }
+    }
+    apply_velocity(&mut transform.translation, velocity);
+}
+
+fn apply_velocity(position: &mut Vec3, velocity: &mut Mut<Velocity>) {
+    position.y += velocity.vy;
+    position.x += velocity.vx;
+
+    let min_x = -1. * WINDOW_WIDTH as f32 / 2. + PLAYER_WIDTH as f32 / 2.;
+    let max_x = WINDOW_WIDTH as f32 / 2. - PLAYER_WIDTH as f32 / 2.;
+
+    if position.x < min_x {
+        position.x = min_x;
+        velocity.vx = 0.;
+    } else if position.x > max_x {
+        position.x = max_x;
+        velocity.vx = 0.;
     }
 }
 
-pub fn draw_cursor(grid: &mut Vec<Pixel>, q_windows: Query<&Window, With<PrimaryWindow>>, player: &mut (Mut<Position>, Mut<Velocity>), cursor_position: &mut Mut<Position>){
+
+pub fn update_cursor(q_windows: Query<&Window, With<PrimaryWindow>>, player: &mut Mut<Transform>, cursor_position: &mut Mut<Transform>){
     if let Some(position) = q_windows.single().cursor_position() {
-        // draw_circle(cursor_position.x as usize, cursor_position.y as usize, CURSOR_RADIUS, grid);
-        let angle = (position.y - (player.0.y + PLAYER_HEIGHT as f32/2.)).atan2(position.x - (player.0.x + PLAYER_WIDTH as f32/2.));
-        cursor_position.x = player.0.x + PLAYER_WIDTH as f32/2. + CURSOR_ORBITAL_RADIUS * angle.cos();
-        cursor_position.y = player.0.y + PLAYER_HEIGHT as f32/2. + CURSOR_ORBITAL_RADIUS * angle.sin();
-        // draw_circle(cursor_position.x as usize, cursor_position.y as usize, CURSOR_RADIUS, grid);
+        let converted_position_x = position.x - WINDOW_WIDTH as f32 / 2.;
+        let converted_position_y = (position.y - WINDOW_HEIGHT as f32 / 2.) * -1.;
+        let angle = (converted_position_y - player.translation.y).atan2(converted_position_x - player.translation.x);
+        cursor_position.translation.x = player.translation.x + CURSOR_ORBITAL_RADIUS * angle.cos();
+        cursor_position.translation.y = player.translation.y + CURSOR_ORBITAL_RADIUS * angle.sin();
     }
 }
 
-pub fn distance(x1: usize, y1: usize, x2: usize, y2: usize) -> f32 {
+pub fn distance(x1: i32, y1: i32, x2: i32, y2: i32) -> f32 {
     ((x1 as f32 - x2 as f32).powi(2) + (y1 as f32 - y2 as f32).powi(2)).sqrt()
 }
 
-// pub fn draw_circle(x0: usize, y0: usize, radius: usize, grid: &mut Vec<ArrayVec<Entity, MAX_LAYERS>>) {
-//     let mut x = 0;
-//     let mut y = radius;
-//     let mut d: i32 = 3 - 2 * radius as i32;
-//     while y >= x as usize {
-//         let mut i = flatten_index(x0 + x, y0 + y, WINDOW_WIDTH);
-//         grid[i].push(Entity::Shovel);
-//         i = flatten_index(x0 - x, y0 + y, WINDOW_WIDTH);
-//         grid[i].push(Entity::Shovel);
-//         i = flatten_index(x0 + x, y0 - y, WINDOW_WIDTH);
-//         grid[i].push(Entity::Shovel);
-//         i = flatten_index(x0 - x, y0 - y, WINDOW_WIDTH);
-//         grid[i].push(Entity::Shovel);
-//         i = flatten_index(x0 + y, y0 + x, WINDOW_WIDTH);
-//         grid[i].push(Entity::Shovel);
-//         i = flatten_index(x0 - y, y0 + x, WINDOW_WIDTH);
-//         grid[i].push(Entity::Shovel);
-//         i = flatten_index(x0 + y, y0 - x, WINDOW_WIDTH);
-//         grid[i].push(Entity::Shovel);
-//         i = flatten_index(x0 - y, y0 - x, WINDOW_WIDTH);
-//         grid[i].push(Entity::Shovel);
-//         if d > 0{
-//             y -= 1;
-//             d = d + 4 * (x as i32 - y as i32) + 10;
-//         } else {
-//             d = d + 4 * x as i32 + 6;
-//         }
-//         x += 1;
-//     }
-// }
-
-pub fn check_mouse_click(buttons: Res<ButtonInput<MouseButton>>, cursor_position: &Mut<Position>, grid: &mut Vec<Vec<u8>>){
+pub fn check_mouse_click(buttons: Res<ButtonInput<MouseButton>>, cursor_position: &Mut<Transform>, grid: &mut Vec<Pixel>){
     let mut count = 0;
     if buttons.just_pressed(MouseButton::Left){
-        let left = cursor_position.x as usize - CURSOR_RADIUS;
-        let right = cursor_position.x as usize + CURSOR_RADIUS;
-        let top = cursor_position.y as usize - CURSOR_RADIUS;
-        let bottom = cursor_position.y as usize + CURSOR_RADIUS;
-        for y in top..bottom{
+        let left = cursor_position.translation.x as i32 - CURSOR_RADIUS as i32;
+        let right = cursor_position.translation.x as i32 + CURSOR_RADIUS as i32;
+        let top = cursor_position.translation.y as i32 + CURSOR_RADIUS as i32; 
+        let bottom = cursor_position.translation.y as i32 - CURSOR_RADIUS as i32;
+        for y in bottom..top{
             for x in left..right{
-                if distance(x, y, cursor_position.x as usize, cursor_position.y as usize) < CURSOR_RADIUS as f32 {
-                    let index = flatten_index(x, y, WINDOW_WIDTH);
-                    if grid[index][0] == 155{
-                        grid[index][0] = 135;
-                        grid[index + 1][0] = 206;
-                        grid[index + 2][0] = 235;
-                        count += 1;
+                if distance(x, y, cursor_position.translation.x as i32, cursor_position.translation.y as i32) < CURSOR_RADIUS as f32 {
+                    let index = flatten_index(x as i32, y as i32);
+                    match grid[index] {
+                        Pixel::Ground => {
+                            count += 1;
+                            grid[index] = Pixel::Sky;
+                        },
+                        _ => {
+
+                        }
                     }
                 }
             }

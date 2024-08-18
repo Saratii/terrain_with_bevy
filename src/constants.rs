@@ -1,4 +1,4 @@
-pub const MAX_PLAYER_SPEED: f32 = 300.;
+pub const MAX_PLAYER_SPEED: f32 = 0.5;
 pub const SHOW_COLLISION_BOX: bool = true;
 pub const WINDOW_WIDTH: usize = 900;
 pub const WINDOW_HEIGHT: usize = 900;
@@ -11,8 +11,8 @@ pub const SUN_SIZE: usize = 100;
 pub const MOON_SIZE: usize = 50;
 pub const PLAYER_WIDTH: usize = 10;
 pub const PLAYER_HEIGHT: usize = 30;
-pub const PLAYER_SPAWN_X: usize = WINDOW_WIDTH / 2 - PLAYER_WIDTH / 2;
-pub const PLAYER_SPAWN_Y: usize = WINDOW_HEIGHT / 8;
+pub const PLAYER_SPAWN_X: usize = 0;
+pub const PLAYER_SPAWN_Y: usize = 400;
 pub const GRAVITY: f32 = 10.;
 pub const PLAYER_COLOR: [u8; 4] = [210, 180, 140, 255];
 pub const CURSOR_ORBITAL_RADIUS: f32 = 50.;
