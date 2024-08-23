@@ -1,10 +1,10 @@
 mod world_generation;
 mod layer_map;
 pub mod constants;
-pub mod test_util;
 pub mod player;
 pub mod components;
 pub mod render;
+pub mod util;
 
 use bevy::app::*;
 use bevy::diagnostic::EntityCountDiagnosticsPlugin;

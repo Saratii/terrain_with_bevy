@@ -3,8 +3,6 @@ use std::collections::HashSet;
 
 use bevy::{prelude::Component, time::Timer};
 
-use crate::world_generation::Pixel;
-
 #[derive(Component, Debug, Clone)]
 pub struct Position {
     pub x: f32,
@@ -49,4 +47,13 @@ pub struct TerrainPositionsAffectedByGravity{
 #[derive(Component)]
 pub struct GravityTick{
     pub timer: Timer,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Pixel {
+    Ground, 
+    Sky,
+    White,
+    TranslucentGrey,
+    Clear,
 }

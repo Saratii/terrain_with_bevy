@@ -2,7 +2,7 @@ use std::{cmp::min, collections::HashSet};
 
 use bevy::{input::ButtonInput, math::Vec3, prelude::{Image, KeyCode, MouseButton, Mut, Query, Res, Transform, With}, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}, time::Time, window::{PrimaryWindow, Window}};
 
-use crate::{components::{Count, Velocity}, constants::{CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, MAX_PLAYER_SPEED, MAX_SHOVEL_CAPACITY, PLAYER_COLOR, PLAYER_HEIGHT, PLAYER_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, world_generation::{does_gravity_apply_to_entity, flatten_index, Pixel}};
+use crate::{components::{Count, Pixel, Velocity}, constants::{CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, MAX_PLAYER_SPEED, MAX_SHOVEL_CAPACITY, PLAYER_COLOR, PLAYER_HEIGHT, PLAYER_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index, flatten_index_standard_grid}, world_generation::does_gravity_apply_to_entity};
 
 pub fn generate_player_image() -> Image{
     let mut data_buffer: Vec<u8> = vec![255; 4 * PLAYER_WIDTH * PLAYER_HEIGHT];
@@ -105,10 +105,6 @@ fn apply_velocity(entity_position_c: &mut Vec3, velocity: &mut Mut<Velocity>, gr
     entity_position_c.x += velocity.vx;
 }
 
-fn c_to_tl(entity_position_c: &Vec3, width: f32, height: f32) -> (f32, f32){
-    (entity_position_c.x + (WINDOW_HEIGHT/2) as f32 - width/2., (entity_position_c.y - (WINDOW_WIDTH/2) as f32) * -1. - height/2.)
-}
-
 fn horizontal_collision(velocity: &f32, grid: &Vec<Pixel>, entity_position_tl: &(f32, f32)) -> bool{
     if velocity < &0.{
         for y in 0..PLAYER_HEIGHT{
@@ -138,14 +134,6 @@ pub fn update_cursor(q_windows: Query<&Window, With<PrimaryWindow>>, player: &mu
         cursor_position.translation.x = player.translation.x + min_distance * angle.cos();
         cursor_position.translation.y = player.translation.y + min_distance * angle.sin();
     }
-}
-
-pub fn distance(x1: i32, y1: i32, x2: i32, y2: i32) -> f32 {
-    ((x1 as f32 - x2 as f32).powi(2) + (y1 as f32 - y2 as f32).powi(2)).sqrt()
-}
-
-pub fn flatten_index_standard_grid(x: &usize, y: &usize, grid_width: usize) -> usize {
-    y * grid_width + x
 }
 
 pub fn check_mouse_click(buttons: Res<ButtonInput<MouseButton>>, cursor_position: &Mut<Transform>, grid: &mut Vec<Pixel>, cursor_content_count: &mut Count, shovel_grid: &mut Vec<Pixel>, gravity_affected_columns: &mut HashSet<usize>){

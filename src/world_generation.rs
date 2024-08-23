@@ -7,23 +7,14 @@ use bevy::prelude::{KeyCode, MouseButton, Query, ResMut, With, Without};
 use bevy::time::{Time, Timer, TimerMode};
 use bevy::window::{PrimaryWindow, Window};
 use iyes_perf_ui::entries::PerfUiBundle;
-use bevy::render::render_asset::RenderAssetUsages;
 use bevy::utils::default;
 
-use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, render::{render_resource::{Extent3d, TextureDimension, TextureFormat}, texture::Image}, sprite::SpriteBundle, transform::components::Transform};
-use crate::components::{Count, CursorTag, GravityTick, Grid, ImageBuffer, PlayerTag, Position, TerrainGridTag, TerrainPositionsAffectedByGravity, Velocity};
+use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, render::texture::Image, sprite::SpriteBundle, transform::components::Transform};
+use crate::components::{Count, CursorTag, GravityTick, Grid, ImageBuffer, Pixel, PlayerTag, Position, TerrainGridTag, TerrainPositionsAffectedByGravity, Velocity};
 use crate::constants::{CURSOR_RADIUS, GROUND_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, SKY_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
-use crate::player::{check_mouse_click, flatten_index_standard_grid, generate_cursor_grid, generate_player_image, move_player, update_cursor};
+use crate::player::{check_mouse_click, generate_cursor_grid, generate_player_image, move_player, update_cursor};
 use crate::render::render_grid;
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum Pixel {
-    Ground, 
-    Sky,
-    White,
-    TranslucentGrey,
-    Clear,
-}
+use crate::util::{flatten_index, flatten_index_standard_grid, grid_to_image};
 
 pub fn setup_world(mut commands: Commands, assets: Res<AssetServer>) {
     commands.spawn(PerfUiBundle::default());
@@ -71,22 +62,6 @@ fn generate_terrain_grid() -> Vec<Pixel> {
         grid.push(Pixel::Ground);
     }
     grid
-}
-
-fn grid_to_image(grid: &Vec<Pixel>, width: u32, height: u32) -> Image {
-    let mut image_buffer: Vec<u8> = vec![255; WINDOW_WIDTH * WINDOW_HEIGHT * 4];
-    render_grid(grid, &mut image_buffer);    
-    Image::new(
-        Extent3d {
-            width,
-            height,
-            depth_or_array_layers: 1,
-        },
-        TextureDimension::D2,
-        image_buffer,
-        TextureFormat::Rgba8UnormSrgb,
-        RenderAssetUsages::RENDER_WORLD | RenderAssetUsages::MAIN_WORLD
-    )
 }
 
 pub fn update(
@@ -139,11 +114,6 @@ pub fn does_gravity_apply_to_entity(entity_x: i32, entity_y: i32, entity_width: 
         }
     }
     true
-}
-
-pub fn flatten_index(x: i32, y: i32) -> usize {
-    let index = ((WINDOW_HEIGHT as i32 / 2) - y) * WINDOW_WIDTH as i32 + (x + WINDOW_WIDTH as i32 / 2);
-    return index as usize;
 }
 
 fn tick_terrain_gravity(columns: &mut HashSet<usize>, grid: &mut Vec<Pixel>, timer: &mut Timer, time: &Res<Time>){

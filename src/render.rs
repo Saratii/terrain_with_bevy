@@ -1,4 +1,4 @@
-use crate::world_generation::Pixel;
+use crate::components::Pixel;
 
 pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>) {
     for i in 0..grid.len() {
