@@ -1,4 +1,6 @@
-use crate::components::Pixel;
+use bevy::{asset::{Assets, Handle}, prelude::{Image, Query, ResMut, With, Without}};
+
+use crate::components::{CursorTag, Grid, ImageBuffer, Pixel, TerrainGridTag};
 
 pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>) {
     for i in 0..grid.len() {
@@ -34,5 +36,28 @@ pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>) {
                 image_buffer[4*i+3] = 255;
             },
         };
+    }
+}
+
+pub fn render_scene(
+    mut grid_query: Query<&mut Grid, (With<TerrainGridTag>, Without<CursorTag>)>,
+    mut shovel_grid_query: Query<&mut Grid, (With<CursorTag>, Without<TerrainGridTag>)>,
+    mut grid_image_buffer_query: Query<&mut ImageBuffer, Without<CursorTag>>,
+    mut cursor_image_buffer_query: Query<&mut ImageBuffer, With<CursorTag>>,
+    mut images: ResMut<Assets<Image>>,
+    mut grid_image_query: Query<&Handle<Image>, With<TerrainGridTag>>,
+    mut cursor_image_query: Query<&Handle<Image>, With<CursorTag>>,
+){
+    let mut grid_image_buffer = grid_image_buffer_query.get_single_mut().unwrap();
+    let mut cursor_image_buffer = cursor_image_buffer_query.get_single_mut().unwrap();
+    let shovel_grid = shovel_grid_query.get_single_mut().unwrap();
+    let grid = grid_query.get_single_mut().unwrap();
+    render_grid(&grid.data, &mut grid_image_buffer.data);
+    render_grid(&shovel_grid.data, &mut cursor_image_buffer.data);
+    if let Some(image) = images.get_mut(grid_image_query.single_mut()) {
+        image.data = grid_image_buffer.data.clone();
+    }
+    if let Some(image) = images.get_mut(cursor_image_query.single_mut()) {
+        image.data = cursor_image_buffer.data.clone()
     }
 }

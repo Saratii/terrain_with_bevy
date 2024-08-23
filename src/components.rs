@@ -57,3 +57,8 @@ pub enum Pixel {
     TranslucentGrey,
     Clear,
 }
+
+#[derive(Component)]
+pub struct ErosionColumns{
+    pub columns: HashSet<usize>
+}

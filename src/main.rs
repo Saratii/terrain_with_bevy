@@ -15,8 +15,12 @@ use bevy::prelude::*;
 use bevy::window::PresentMode;
 use constants::WINDOW_HEIGHT;
 use iyes_perf_ui::PerfUiPlugin;
+use player::check_mouse_click;
+use player::move_player;
+use player::update_cursor;
+use render::render_scene;
 use world_generation::setup_world;
-use world_generation::update;
+use world_generation::grid_tick;
 use crate::constants::WINDOW_WIDTH;
 
 fn main() {
@@ -43,6 +47,6 @@ fn main() {
           });
         })
         .add_systems(Startup, (apply_deferred, setup_world).chain())
-        .add_systems(Update, update)
+        .add_systems(Update, (grid_tick, move_player, check_mouse_click, update_cursor, render_scene))
         .run();
 }

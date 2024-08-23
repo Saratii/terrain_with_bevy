@@ -1,8 +1,8 @@
-use std::{cmp::min, collections::HashSet};
+use std::cmp::min;
 
-use bevy::{input::ButtonInput, math::Vec3, prelude::{Image, KeyCode, MouseButton, Mut, Query, Res, Transform, With}, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}, time::Time, window::{PrimaryWindow, Window}};
+use bevy::{input::ButtonInput, math::Vec3, prelude::{Image, KeyCode, MouseButton, Mut, Query, Res, Transform, With, Without}, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}, time::Time, window::{PrimaryWindow, Window}};
 
-use crate::{components::{Count, Pixel, Velocity}, constants::{CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, MAX_PLAYER_SPEED, MAX_SHOVEL_CAPACITY, PLAYER_COLOR, PLAYER_HEIGHT, PLAYER_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index, flatten_index_standard_grid}, world_generation::does_gravity_apply_to_entity};
+use crate::{components::{Count, CursorTag, Grid, Pixel, PlayerTag, TerrainGridTag, TerrainPositionsAffectedByGravity, Velocity}, constants::{CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, MAX_PLAYER_SPEED, MAX_SHOVEL_CAPACITY, PLAYER_COLOR, PLAYER_HEIGHT, PLAYER_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index, flatten_index_standard_grid}, world_generation::does_gravity_apply_to_entity};
 
 pub fn generate_player_image() -> Image{
     let mut data_buffer: Vec<u8> = vec![255; 4 * PLAYER_WIDTH * PLAYER_HEIGHT];
@@ -62,28 +62,35 @@ pub fn generate_cursor_grid() -> Vec<Pixel>{
     data_buffer
 }
 
-pub fn move_player(grid: &Vec<Pixel>, keys: Res<ButtonInput<KeyCode>>, transform: &mut Mut<Transform>, velocity: &mut Mut<Velocity>, time: &Res<Time>){
-    let does_gravity_apply = does_gravity_apply_to_entity(transform.translation.x as i32 - PLAYER_WIDTH as i32/2,  transform.translation.y as i32, PLAYER_WIDTH as i32, PLAYER_HEIGHT as i32, grid);
+pub fn move_player(
+    mut grid_query: Query<&mut Grid, (With<TerrainGridTag>, Without<CursorTag>)>,
+    keys: Res<ButtonInput<KeyCode>>,
+    mut player_query: Query<(&mut Transform, &mut Velocity), (With<PlayerTag>, Without<CursorTag>)>,
+    time: Res<Time>
+){
+    let grid = grid_query.get_single_mut().unwrap();
+    let mut player = player_query.get_single_mut().unwrap();
+    let does_gravity_apply = does_gravity_apply_to_entity(player.0.translation.x as i32 - PLAYER_WIDTH as i32/2,  player.0.translation.y as i32, PLAYER_WIDTH as i32, PLAYER_HEIGHT as i32, &grid.data);
     if does_gravity_apply {
-        velocity.vy -= 1. * time.delta_seconds();
+        player.1.vy -= 1. * time.delta_seconds();
     } else {
-        velocity.vy = 0.;
+        player.1.vy = 0.;
     }
     if keys.pressed(KeyCode::KeyA) {
-        if velocity.vx * -1. < MAX_PLAYER_SPEED {
-            velocity.vx -= 1. * time.delta_seconds();
+        if player.1.vx * -1. < MAX_PLAYER_SPEED {
+            player.1.vx -= 1. * time.delta_seconds();
         }
     } else if keys.pressed(KeyCode::KeyD) {
-         if velocity.vx < MAX_PLAYER_SPEED {
-            velocity.vx += 1. * time.delta_seconds();
+         if player.1.vx < MAX_PLAYER_SPEED {
+            player.1.vx += 1. * time.delta_seconds();
         }
     }
     if keys.pressed(KeyCode::Space){
         if !does_gravity_apply{
-            velocity.vy += 150. * time.delta_seconds();
+            player.1.vy += 150. * time.delta_seconds();
         }
     }
-    apply_velocity(&mut transform.translation, velocity, grid);
+    apply_velocity(&mut player.0.translation, &mut player.1, &grid.data);
 }
 
 fn apply_velocity(entity_position_c: &mut Vec3, velocity: &mut Mut<Velocity>, grid: &Vec<Pixel>) {
@@ -124,36 +131,54 @@ fn horizontal_collision(velocity: &f32, grid: &Vec<Pixel>, entity_position_tl: &
     false
 }
 
-pub fn update_cursor(q_windows: Query<&Window, With<PrimaryWindow>>, player: &mut Mut<Transform>, cursor_position: &mut Mut<Transform>){
+pub fn update_cursor(
+    q_windows: Query<&Window, With<PrimaryWindow>>,
+    mut player_query: Query<(&mut Transform, &mut Velocity), (With<PlayerTag>, Without<CursorTag>)>,
+    mut cursor_query: Query<&mut Transform, (With<CursorTag>, Without<PlayerTag>)>,
+){
+    let player = player_query.get_single_mut().unwrap();
+    let mut cursor_position = cursor_query.get_single_mut().unwrap();
     if let Some(position) = q_windows.single().cursor_position() {
         let converted_position_x = position.x - WINDOW_WIDTH as f32 / 2.;
         let converted_position_y = (position.y - WINDOW_HEIGHT as f32 / 2.) * -1.;
-        let angle = (converted_position_y - player.translation.y).atan2(converted_position_x - player.translation.x);
-        let distance_from_player = distance(player.translation.x as i32, player.translation.y as i32, converted_position_x as i32, converted_position_y as i32);
+        let angle = (converted_position_y - player.0.translation.y).atan2(converted_position_x - player.0.translation.x);
+        let distance_from_player = distance(player.0.translation.x as i32, player.0.translation.y as i32, converted_position_x as i32, converted_position_y as i32);
         let min_distance = min(CURSOR_ORBITAL_RADIUS as usize, distance_from_player as usize) as f32;
-        cursor_position.translation.x = player.translation.x + min_distance * angle.cos();
-        cursor_position.translation.y = player.translation.y + min_distance * angle.sin();
+        cursor_position.translation.x = player.0.translation.x + min_distance * angle.cos();
+        cursor_position.translation.y = player.0.translation.y + min_distance * angle.sin();
     }
 }
 
-pub fn check_mouse_click(buttons: Res<ButtonInput<MouseButton>>, cursor_position: &Mut<Transform>, grid: &mut Vec<Pixel>, cursor_content_count: &mut Count, shovel_grid: &mut Vec<Pixel>, gravity_affected_columns: &mut HashSet<usize>){
+pub fn check_mouse_click(
+    buttons: Res<ButtonInput<MouseButton>>,
+    mut cursor_query: Query<&mut Transform, (With<CursorTag>, Without<PlayerTag>)>,
+    mut grid_query: Query<&mut Grid, (With<TerrainGridTag>, Without<CursorTag>)>,
+    mut cursor_content_count_query: Query<&mut Count, With<CursorTag>>,
+    mut shovel_grid_query: Query<&mut Grid, (With<CursorTag>, Without<TerrainGridTag>)>,
+    mut gravity_columns_query: Query<&mut TerrainPositionsAffectedByGravity>,
+){
+    let mut cursor_content_count = cursor_content_count_query.get_single_mut().unwrap();
+    let mut grid = grid_query.get_single_mut().unwrap();
+    let cursor_position = cursor_query.get_single_mut().unwrap();
+    let mut shovel_grid = shovel_grid_query.get_single_mut().unwrap();
+    let mut gravity_columns = gravity_columns_query.get_single_mut().unwrap();
     if buttons.just_pressed(MouseButton::Middle) {
     }
     if buttons.just_pressed(MouseButton::Right) {
         for y in 0..CURSOR_RADIUS * 2 {
             for x in 0..CURSOR_RADIUS * 2 {
                 let shovel_grid_index = flatten_index_standard_grid(&x, &y, CURSOR_RADIUS * 2);
-                if shovel_grid[shovel_grid_index] == Pixel::Ground {
+                if shovel_grid.data[shovel_grid_index] == Pixel::Ground {
                     let main_grid_index = flatten_index(cursor_position.translation.x as i32 - CURSOR_RADIUS as i32 + x as i32, cursor_position.translation.y as i32 - CURSOR_RADIUS as i32 + (CURSOR_RADIUS * 2 - y - 1) as i32);
-                    if grid[main_grid_index] == Pixel::Sky {
-                        grid[main_grid_index] = Pixel::Ground;
+                    if grid.data[main_grid_index] == Pixel::Sky {
+                        grid.data[main_grid_index] = Pixel::Ground;
                         cursor_content_count.count -= 1;
-                        gravity_affected_columns.insert(main_grid_index % WINDOW_WIDTH);
+                        gravity_columns.positions.insert(main_grid_index % WINDOW_WIDTH);
                     }
                 }
             }
         }
-        update_shovel_content_visual(shovel_grid, cursor_content_count.count);
+        update_shovel_content_visual(&mut shovel_grid.data, cursor_content_count.count);
     }
     if buttons.just_pressed(MouseButton::Left) && cursor_content_count.count < MAX_SHOVEL_CAPACITY {
         let left = cursor_position.translation.x as i32 - CURSOR_RADIUS as i32;
@@ -164,13 +189,13 @@ pub fn check_mouse_click(buttons: Res<ButtonInput<MouseButton>>, cursor_position
             for x in left..right{
                 if distance(x, y, cursor_position.translation.x as i32, cursor_position.translation.y as i32) < CURSOR_RADIUS as f32 - CURSOR_BORDER_WIDTH {
                     let index = flatten_index(x as i32, y as i32);
-                    match grid[index] {
+                    match grid.data[index] {
                         Pixel::Ground => {
                             cursor_content_count.count += 1;
-                            grid[index] = Pixel::Sky;
-                            gravity_affected_columns.insert(index % WINDOW_WIDTH);
+                            grid.data[index] = Pixel::Sky;
+                            gravity_columns.positions.insert(index % WINDOW_WIDTH);
                             if cursor_content_count.count == MAX_SHOVEL_CAPACITY {
-                                update_shovel_content_visual(shovel_grid, cursor_content_count.count);
+                                update_shovel_content_visual(&mut shovel_grid.data, cursor_content_count.count);
                                 return
                             }
                         },
@@ -181,7 +206,7 @@ pub fn check_mouse_click(buttons: Res<ButtonInput<MouseButton>>, cursor_position
                 }
             }
         }
-        update_shovel_content_visual(shovel_grid, cursor_content_count.count);
+        update_shovel_content_visual(&mut shovel_grid.data, cursor_content_count.count);
     }
 }
 
