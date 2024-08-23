@@ -63,7 +63,7 @@ pub fn generate_cursor_grid() -> Vec<Pixel>{
 }
 
 pub fn move_player(grid: &Vec<Pixel>, keys: Res<ButtonInput<KeyCode>>, transform: &mut Mut<Transform>, velocity: &mut Mut<Velocity>, time: &Res<Time>){
-    let does_gravity_apply = does_gravity_apply_to_entity(transform.translation.x as i32,  transform.translation.y as i32, PLAYER_WIDTH as i32, PLAYER_HEIGHT as i32, grid);
+    let does_gravity_apply = does_gravity_apply_to_entity(transform.translation.x as i32 - PLAYER_WIDTH as i32/2,  transform.translation.y as i32, PLAYER_WIDTH as i32, PLAYER_HEIGHT as i32, grid);
     if does_gravity_apply {
         velocity.vy -= 1. * time.delta_seconds();
     } else {
