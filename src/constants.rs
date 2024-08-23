@@ -18,3 +18,5 @@ pub const PLAYER_COLOR: [u8; 4] = [210, 180, 140, 255];
 pub const CURSOR_ORBITAL_RADIUS: f32 = 50.;
 pub const CURSOR_RADIUS: usize = 10;
 pub const MAX_LAYERS: usize = 4;
+pub const MAX_SHOVEL_CAPACITY: usize = 225;
+pub const CURSOR_BORDER_WIDTH: f32 = 1.5;

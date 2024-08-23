@@ -1,38 +1,48 @@
+use std::collections::HashSet;
+use std::time::Duration;
+
 use bevy::asset::{Assets, Handle};
 use bevy::input::ButtonInput;
-use bevy::prelude::{KeyCode, MouseButton, Or, Query, ResMut, With, Without};
-use bevy::time::Time;
+use bevy::prelude::{KeyCode, MouseButton, Query, ResMut, With, Without};
+use bevy::time::{Time, Timer, TimerMode};
 use bevy::window::{PrimaryWindow, Window};
 use iyes_perf_ui::entries::PerfUiBundle;
 use bevy::render::render_asset::RenderAssetUsages;
 use bevy::utils::default;
 
 use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, render::{render_resource::{Extent3d, TextureDimension, TextureFormat}, texture::Image}, sprite::SpriteBundle, transform::components::Transform};
-use crate::components::{CursorTag, Grid, GridImageTag, ImageBuffer, PlayerTag, Position, Velocity};
-use crate::constants::{GROUND_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, SKY_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
-use crate::player::{check_mouse_click, generate_cursor_image, generate_player_image, move_player, update_cursor};
+use crate::components::{Count, CursorTag, GravityTick, Grid, ImageBuffer, PlayerTag, Position, TerrainGridTag, TerrainPositionsAffectedByGravity, Velocity};
+use crate::constants::{CURSOR_RADIUS, GROUND_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, SKY_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::player::{check_mouse_click, flatten_index_standard_grid, generate_cursor_grid, generate_player_image, move_player, update_cursor};
 use crate::render::render_grid;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Pixel {
     Ground, 
-    Sky, 
+    Sky,
+    White,
+    TranslucentGrey,
+    Clear,
 }
 
 pub fn setup_world(mut commands: Commands, assets: Res<AssetServer>) {
     commands.spawn(PerfUiBundle::default());
     commands.spawn(Camera2dBundle::default());
-    let grid_data = generate_grid();
-    let image_buffer = grid_to_image(&grid_data);
-    commands.spawn((
+    let terrain_grid = generate_terrain_grid();
+    let shovel_grid = generate_cursor_grid();
+    let terrain_image = grid_to_image(&terrain_grid, WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32);
+    let shovel_image = grid_to_image(&shovel_grid, CURSOR_RADIUS as u32 * 2, CURSOR_RADIUS as u32 * 2);
+    commands.spawn(TerrainGridTag)
+            .insert(Grid{data: terrain_grid})
+            .insert(
         SpriteBundle{
-            texture: assets.add(image_buffer.clone()),
-            transform: Transform { translation: Vec3 { x: 0., y: 0., z: 0. }, ..default()},
-            ..default()
-        },
-    )).insert(GridImageTag);
-    commands.spawn(ImageBuffer{data: image_buffer.data});
-    commands.spawn(Grid{data: grid_data});
+                    texture: assets.add(terrain_image.clone()),
+                    transform: Transform { translation: Vec3 { x: 0., y: 0., z: 0. }, ..default()},
+                    ..default()
+                }
+            )
+            .insert(ImageBuffer{data: terrain_image.data})
+            .insert(TerrainPositionsAffectedByGravity{positions: HashSet::new()});
     commands.spawn(PlayerTag)
             .insert(Position{x: PLAYER_SPAWN_X as f32, y: PLAYER_SPAWN_Y as f32})
             .insert(Velocity{vx: 0.0, vy: 0.0})
@@ -43,13 +53,16 @@ pub fn setup_world(mut commands: Commands, assets: Res<AssetServer>) {
             });
     commands.spawn(CursorTag)
             .insert(SpriteBundle{
-                texture: assets.add(generate_cursor_image()),
+                texture: assets.add(grid_to_image(&shovel_grid.clone(), CURSOR_RADIUS as u32 * 2, CURSOR_RADIUS as u32 * 2)),
                 transform: Transform { translation: Vec3 { x: PLAYER_SPAWN_X as f32, y: PLAYER_SPAWN_Y as f32, z: 1. }, ..default()},
-                ..default()
-            });
+                ..default()})
+            .insert(Count{count: 0})
+            .insert(Grid{data: shovel_grid})
+            .insert(ImageBuffer{data: shovel_image.data});
+    commands.spawn(GravityTick{timer: Timer::new(Duration::from_millis(20), TimerMode::Repeating)});
 }
 
-fn generate_grid() -> Vec<Pixel> {
+fn generate_terrain_grid() -> Vec<Pixel> {
     let mut grid: Vec<Pixel> = Vec::with_capacity(4 * WINDOW_WIDTH * WINDOW_HEIGHT);
     for _ in 0..SKY_HEIGHT * WINDOW_WIDTH{
         grid.push(Pixel::Sky);
@@ -60,26 +73,13 @@ fn generate_grid() -> Vec<Pixel> {
     grid
 }
 
-fn grid_to_image(grid: &Vec<Pixel>) -> Image {
+fn grid_to_image(grid: &Vec<Pixel>, width: u32, height: u32) -> Image {
     let mut image_buffer: Vec<u8> = vec![255; WINDOW_WIDTH * WINDOW_HEIGHT * 4];
-    for i in 0..grid.len() {
-        match grid[i] {
-            Pixel::Ground => {
-                image_buffer[4*i] = 88;
-                image_buffer[4*i+1] = 57;
-                image_buffer[4*i+2] = 39;
-            },
-            Pixel::Sky => {
-                image_buffer[4*i] = 135;
-                image_buffer[4*i+1] = 206;
-                image_buffer[4*i+2] = 235;
-            },
-        };
-    }
+    render_grid(grid, &mut image_buffer);    
     Image::new(
         Extent3d {
-            width: WINDOW_WIDTH as u32,
-            height: WINDOW_HEIGHT as u32,
+            width,
+            height,
             depth_or_array_layers: 1,
         },
         TextureDimension::D2,
@@ -90,27 +90,43 @@ fn grid_to_image(grid: &Vec<Pixel>) -> Image {
 }
 
 pub fn update(
-    mut grid_query: Query<&mut Grid>,
+    mut grid_query: Query<&mut Grid, (With<TerrainGridTag>, Without<CursorTag>)>,
     mut images: ResMut<Assets<Image>>,
-    mut image_query: Query<&Handle<Image>, With<GridImageTag>>, 
+    mut image_query: Query<&Handle<Image>, With<TerrainGridTag>>,
+    mut cursor_image_query: Query<&Handle<Image>, With<CursorTag>>,
     keys: Res<ButtonInput<KeyCode>>,
     mut player_query: Query<(&mut Transform, &mut Velocity), (With<PlayerTag>, Without<CursorTag>)>,
     time: Res<Time>,
     q_windows: Query<&Window, With<PrimaryWindow>>,
     mut cursor_query: Query<&mut Transform, (With<CursorTag>, Without<PlayerTag>)>,
     buttons: Res<ButtonInput<MouseButton>>,
-    mut image_buffer_query: Query<&mut ImageBuffer>,
+    mut image_buffer_query: Query<&mut ImageBuffer, Without<CursorTag>>,
+    mut cursor_image_buffer_query: Query<&mut ImageBuffer, With<CursorTag>>,
+    mut cursor_capacity_count_query: Query<&mut Count, With<CursorTag>>,
+    mut shovel_grid_query: Query<&mut Grid, (With<CursorTag>, Without<TerrainGridTag>)>,
+    mut gravity_tick_timer_quiery: Query<&mut GravityTick>,
+    mut gravity_columns_query: Query<&mut TerrainPositionsAffectedByGravity>,
 ) {
     let mut grid = grid_query.get_single_mut().unwrap();
     let mut image_buffer = image_buffer_query.get_single_mut().unwrap();
+    let mut cursor_image_buffer = cursor_image_buffer_query.get_single_mut().unwrap();
+    let mut cursor_position = cursor_query.get_single_mut().unwrap();
+    let mut cursor_capacity_count = cursor_capacity_count_query.get_single_mut().unwrap();
+    let mut player = player_query.get_single_mut().unwrap();
+    let mut gravity_tick_timer = gravity_tick_timer_quiery.get_single_mut().unwrap();
+    let mut gravity_columns = gravity_columns_query.get_single_mut().unwrap();
+    move_player(&grid.data, keys, &mut player.0, &mut player.1, &time);
+    update_cursor(q_windows, &mut player.0, &mut cursor_position);
+    let mut shovel_grid = shovel_grid_query.get_single_mut().unwrap();
+    check_mouse_click(buttons, &cursor_position, &mut grid.data, &mut cursor_capacity_count, &mut shovel_grid.data, &mut gravity_columns.positions);
+    tick_terrain_gravity(&mut gravity_columns.positions, &mut grid.data, &mut gravity_tick_timer.timer, &time);
+    render_grid(&grid.data, &mut image_buffer.data);
+    render_grid(&shovel_grid.data, &mut cursor_image_buffer.data);
     if let Some(image) = images.get_mut(image_query.single_mut()) {
-        let mut player = player_query.get_single_mut().unwrap();
-        let mut cursor_position = cursor_query.get_single_mut().unwrap();
-        move_player(&grid.data, keys, &mut player.0, &mut player.1, time);
-        update_cursor(q_windows, &mut player.0, &mut cursor_position);
-        check_mouse_click(buttons, &cursor_position, &mut grid.data);
-        render_grid(&grid.data, &mut image_buffer.data); //makes vec instead of image
         image.data = image_buffer.data.clone();
+    }
+    if let Some(image) = images.get_mut(cursor_image_query.single_mut()) {
+        image.data = cursor_image_buffer.data.clone()
     }
 }
 
@@ -130,65 +146,23 @@ pub fn flatten_index(x: i32, y: i32) -> usize {
     return index as usize;
 }
 
-// pub fn move_rect(start_x: &usize, start_y: &usize, width: usize, height: usize, end_x: usize, end_y: usize, grid: &mut Vec<Pixel>, window_width: usize) {
-//     let rect = remove_rect(start_x, start_y, width, height, grid, window_width);
-//     draw_rect(end_x, end_y, width, height, rect, grid, window_width);
-// }
-
-// pub fn remove_rect(start_x: &usize, start_y: &usize, width: usize, height: usize, grid: &mut Vec<Pixel>, window_width: usize) -> Vec<u8> {
-//     let mut rect: Vec<u8> = Vec::with_capacity(width * height * 4);
-//     for y in *start_y..start_y + height {
-//         for x in *start_x..start_x + width {
-//             let i = flatten_index(x, y, window_width);
-//             rect.push(grid[i].pop().unwrap());
-//             rect.push(grid[i + 1].pop().unwrap());
-//             rect.push(grid[i + 2].pop().unwrap());
-//             rect.push(grid[i + 3].pop().unwrap());
-//         }
-//     }
-//     rect
-// }
-
-// pub fn draw_rect(x_pos: i32, y_pos: i32, width: i32, height: i32, rect: Vec<u8>, grid: &mut Vec<Vec<u8>>) {
-//     let mut rect_index = 0;
-//     for y in 0..height {
-//         for x in 0..width {
-//             grid[flatten_index(x_pos + x, y_pos + y)][0] = rect[rect_index];
-//             grid[flatten_index(x_pos + x, y_pos + y) + 1][0] = rect[rect_index + 1];
-//             grid[flatten_index(x_pos + x, y_pos + y) + 2][0] = rect[rect_index + 2];
-//             grid[flatten_index(x_pos + x, y_pos + y) + 3][0] = rect[rect_index + 3];
-//             rect_index += 4;
-//         }
-//     }
-// }
-
-// pub fn unflatten_grid(grid: &Vec<u8>, width: usize, height: usize) -> Vec<Vec<Vec<u8>>> {
-//     let mut result: Vec<Vec<Vec<u8>>> = Vec::with_capacity(height);
-//     for y in 0..height {
-//         let mut row: Vec<u8> = Vec::with_capacity(width);
-//         for x in 0..width {
-//             let i = flatten_index(x, y, width);
-//             row.push(grid[i]);
-//             row.push(grid[i + 1]);
-//             row.push(grid[i + 2]);
-//             row.push(grid[i + 3]);
-//         }
-//         result.push(row);
-//     }
-//     result
-// }
-
-// pub fn display_2d_grid(grid: &Vec<Vec<Vec<u8>>>) {
-//     for row in grid {
-//         for pixel in row {
-//             for layer_value in pixel{
-//                 if *layer_value as u32 == 0 {
-//                     print!("000 ")
-//                 } else {
-//                     print!("{:?} ", pixel);
-//                 }
-//             }
-//         }
-//         println!();
-//     }
-// }
+fn tick_terrain_gravity(columns: &mut HashSet<usize>, grid: &mut Vec<Pixel>, timer: &mut Timer, time: &Res<Time>){
+    timer.tick(time.delta());
+    if timer.finished(){
+        columns.retain(|column| {
+            let mut have_any_moved = false;
+            for y in (0..WINDOW_HEIGHT-1).rev() {
+                let index = flatten_index_standard_grid(*column, y, WINDOW_WIDTH);
+                if grid[index] == Pixel::Ground{
+                    let below_index = flatten_index_standard_grid(*column, y + 1, WINDOW_WIDTH);
+                    if grid[below_index] == Pixel::Sky{
+                        have_any_moved = true;
+                        grid[below_index] = Pixel::Ground;
+                        grid[index] = Pixel::Sky;
+                    }
+                }
+            }
+            have_any_moved
+        })
+    }
+}

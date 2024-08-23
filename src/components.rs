@@ -1,5 +1,7 @@
 
-use bevy::prelude::Component;
+use std::collections::HashSet;
+
+use bevy::{prelude::Component, time::Timer};
 
 use crate::world_generation::Pixel;
 
@@ -32,4 +34,19 @@ pub struct ImageBuffer{
 }
 
 #[derive(Component)]
-pub struct GridImageTag;
+pub struct TerrainGridTag;
+
+#[derive(Component, Debug)]
+pub struct Count{
+    pub count: usize
+}
+
+#[derive(Component, Debug)]
+pub struct TerrainPositionsAffectedByGravity{
+    pub positions: HashSet<usize>
+}
+
+#[derive(Component)]
+pub struct GravityTick{
+    pub timer: Timer,
+}
