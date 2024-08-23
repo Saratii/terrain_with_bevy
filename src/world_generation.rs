@@ -152,9 +152,9 @@ fn tick_terrain_gravity(columns: &mut HashSet<usize>, grid: &mut Vec<Pixel>, tim
         columns.retain(|column| {
             let mut have_any_moved = false;
             for y in (0..WINDOW_HEIGHT-1).rev() {
-                let index = flatten_index_standard_grid(*column, y, WINDOW_WIDTH);
+                let index = flatten_index_standard_grid(column, &y, WINDOW_WIDTH);
                 if grid[index] == Pixel::Ground{
-                    let below_index = flatten_index_standard_grid(*column, y + 1, WINDOW_WIDTH);
+                    let below_index = flatten_index_standard_grid(column, &(y + 1), WINDOW_WIDTH);
                     if grid[below_index] == Pixel::Sky{
                         have_any_moved = true;
                         grid[below_index] = Pixel::Ground;

@@ -9,28 +9,28 @@ pub fn generate_player_image() -> Image{
     for y in 0..PLAYER_HEIGHT {
         for x in 0..PLAYER_WIDTH {
             if y < 15 {
-                data_buffer[flatten_index_standard_grid(x, y, PLAYER_WIDTH) * 4] = PLAYER_COLOR[0];
-                data_buffer[flatten_index_standard_grid(x, y, PLAYER_WIDTH) * 4 + 1] = PLAYER_COLOR[1];
-                data_buffer[flatten_index_standard_grid(x, y, PLAYER_WIDTH) * 4 + 2] = PLAYER_COLOR[2];
+                data_buffer[flatten_index_standard_grid(&x, &y, PLAYER_WIDTH) * 4] = PLAYER_COLOR[0];
+                data_buffer[flatten_index_standard_grid(&x, &y, PLAYER_WIDTH) * 4 + 1] = PLAYER_COLOR[1];
+                data_buffer[flatten_index_standard_grid(&x, &y, PLAYER_WIDTH) * 4 + 2] = PLAYER_COLOR[2];
             } else {
-                data_buffer[flatten_index_standard_grid(x, y, PLAYER_WIDTH) * 4] = 0;
-                data_buffer[flatten_index_standard_grid(x, y, PLAYER_WIDTH) * 4 + 1] = 0;
-                data_buffer[flatten_index_standard_grid(x, y, PLAYER_WIDTH) * 4 + 2] = 0;
+                data_buffer[flatten_index_standard_grid(&x, &y, PLAYER_WIDTH) * 4] = 0;
+                data_buffer[flatten_index_standard_grid(&x, &y, PLAYER_WIDTH) * 4 + 1] = 0;
+                data_buffer[flatten_index_standard_grid(&x, &y, PLAYER_WIDTH) * 4 + 2] = 0;
             }
         }
     }
     for i in 0..2{
-        data_buffer[flatten_index_standard_grid(2 + i, 5, PLAYER_WIDTH) * 4] = 255;
-        data_buffer[flatten_index_standard_grid(2 + i, 5, PLAYER_WIDTH) * 4 + 1] = 255;
-        data_buffer[flatten_index_standard_grid(2 + i, 5, PLAYER_WIDTH) * 4 + 2] = 255;
-        data_buffer[flatten_index_standard_grid(PLAYER_WIDTH - 2 - i, 5, PLAYER_WIDTH) * 4] = 255;
-        data_buffer[flatten_index_standard_grid(PLAYER_WIDTH - 2 - i, 5, PLAYER_WIDTH) * 4 + 1] = 255;
-        data_buffer[flatten_index_standard_grid(PLAYER_WIDTH - 2 - i, 5, PLAYER_WIDTH) * 4 + 2] = 255;
+        data_buffer[flatten_index_standard_grid(&(2 + i), &5, PLAYER_WIDTH) * 4] = 255;
+        data_buffer[flatten_index_standard_grid(&(2 + i), &5, PLAYER_WIDTH) * 4 + 1] = 255;
+        data_buffer[flatten_index_standard_grid(&(2 + i), &5, PLAYER_WIDTH) * 4 + 2] = 255;
+        data_buffer[flatten_index_standard_grid(&(PLAYER_WIDTH - 2 - i), &5, PLAYER_WIDTH) * 4] = 255;
+        data_buffer[flatten_index_standard_grid(&(PLAYER_WIDTH - 2 - i), &5, PLAYER_WIDTH) * 4 + 1] = 255;
+        data_buffer[flatten_index_standard_grid(&(PLAYER_WIDTH - 2 - i), &5, PLAYER_WIDTH) * 4 + 2] = 255;
     }
     for i in 0..PLAYER_WIDTH - 4{
-        data_buffer[flatten_index_standard_grid(2 + i, 10, PLAYER_WIDTH) * 4] = 255;
-        data_buffer[flatten_index_standard_grid(2 + i, 10, PLAYER_WIDTH) * 4 + 1] = 0;
-        data_buffer[flatten_index_standard_grid(2 + i, 10, PLAYER_WIDTH) * 4 + 2] = 0;
+        data_buffer[flatten_index_standard_grid(&(2 + i), &10, PLAYER_WIDTH) * 4] = 255;
+        data_buffer[flatten_index_standard_grid(&(2 + i), &10, PLAYER_WIDTH) * 4 + 1] = 0;
+        data_buffer[flatten_index_standard_grid(&(2 + i), &10, PLAYER_WIDTH) * 4 + 2] = 0;
     }
     Image::new(
         Extent3d {
@@ -83,23 +83,49 @@ pub fn move_player(grid: &Vec<Pixel>, keys: Res<ButtonInput<KeyCode>>, transform
             velocity.vy += 150. * time.delta_seconds();
         }
     }
-    apply_velocity(&mut transform.translation, velocity);
+    apply_velocity(&mut transform.translation, velocity, grid);
 }
 
-fn apply_velocity(position: &mut Vec3, velocity: &mut Mut<Velocity>) {
-    position.y += velocity.vy;
-    position.x += velocity.vx;
-
-    let min_x = -1. * WINDOW_WIDTH as f32 / 2. + PLAYER_WIDTH as f32 / 2.;
-    let max_x = WINDOW_WIDTH as f32 / 2. - PLAYER_WIDTH as f32 / 2.;
-
-    if position.x < min_x {
-        position.x = min_x;
+fn apply_velocity(entity_position_c: &mut Vec3, velocity: &mut Mut<Velocity>, grid: &Vec<Pixel>) {
+    let min_x_c = -1. * WINDOW_WIDTH as f32 / 2. + PLAYER_WIDTH as f32 / 2.;
+    let max_x_c = WINDOW_WIDTH as f32 / 2. - PLAYER_WIDTH as f32 / 2.;
+    if entity_position_c.x < min_x_c {
+        entity_position_c.x = min_x_c;
         velocity.vx = 0.;
-    } else if position.x > max_x {
-        position.x = max_x;
+    } else if entity_position_c.x > max_x_c {
+        entity_position_c.x = max_x_c;
         velocity.vx = 0.;
+    } else {
+        let entity_position_tl = c_to_tl(entity_position_c, PLAYER_WIDTH as f32, PLAYER_HEIGHT as f32);
+        if horizontal_collision(&velocity.vx, grid, &entity_position_tl) {
+            velocity.vx = 0.;
+        }
     }
+    entity_position_c.y += velocity.vy;
+    entity_position_c.x += velocity.vx;
+}
+
+fn c_to_tl(entity_position_c: &Vec3, width: f32, height: f32) -> (f32, f32){
+    (entity_position_c.x + (WINDOW_HEIGHT/2) as f32 - width/2., (entity_position_c.y - (WINDOW_WIDTH/2) as f32) * -1. - height/2.)
+}
+
+fn horizontal_collision(velocity: &f32, grid: &Vec<Pixel>, entity_position_tl: &(f32, f32)) -> bool{
+    if velocity < &0.{
+        for y in 0..PLAYER_HEIGHT{
+            let index = flatten_index_standard_grid(&(entity_position_tl.0 as usize - 1), &(y as usize + entity_position_tl.1 as usize), WINDOW_WIDTH);
+            if grid[index] == Pixel::Ground{
+                return true
+            }
+        }
+    } else if velocity > &0.{
+        for y in 0..PLAYER_HEIGHT{
+            let index = flatten_index_standard_grid(&(entity_position_tl.0 as usize + PLAYER_WIDTH + 1), &(y as usize + entity_position_tl.1 as usize), WINDOW_WIDTH);
+            if grid[index] == Pixel::Ground{
+                return true
+            }
+        }
+    }
+    false
 }
 
 pub fn update_cursor(q_windows: Query<&Window, With<PrimaryWindow>>, player: &mut Mut<Transform>, cursor_position: &mut Mut<Transform>){
@@ -118,7 +144,7 @@ pub fn distance(x1: i32, y1: i32, x2: i32, y2: i32) -> f32 {
     ((x1 as f32 - x2 as f32).powi(2) + (y1 as f32 - y2 as f32).powi(2)).sqrt()
 }
 
-pub fn flatten_index_standard_grid(x: usize, y: usize, grid_width: usize) -> usize {
+pub fn flatten_index_standard_grid(x: &usize, y: &usize, grid_width: usize) -> usize {
     y * grid_width + x
 }
 
@@ -128,7 +154,7 @@ pub fn check_mouse_click(buttons: Res<ButtonInput<MouseButton>>, cursor_position
     if buttons.just_pressed(MouseButton::Right) {
         for y in 0..CURSOR_RADIUS * 2 {
             for x in 0..CURSOR_RADIUS * 2 {
-                let shovel_grid_index = flatten_index_standard_grid(x, y, CURSOR_RADIUS * 2);
+                let shovel_grid_index = flatten_index_standard_grid(&x, &y, CURSOR_RADIUS * 2);
                 if shovel_grid[shovel_grid_index] == Pixel::Ground {
                     let main_grid_index = flatten_index(cursor_position.translation.x as i32 - CURSOR_RADIUS as i32 + x as i32, cursor_position.translation.y as i32 - CURSOR_RADIUS as i32 + (CURSOR_RADIUS * 2 - y - 1) as i32);
                     if grid[main_grid_index] == Pixel::Sky {
