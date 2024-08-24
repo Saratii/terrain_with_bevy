@@ -2,7 +2,7 @@ use std::cmp::min;
 
 use bevy::{input::ButtonInput, math::Vec3, prelude::{Image, KeyCode, MouseButton, Mut, Query, Res, Transform, With, Without}, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}, time::Time, window::{PrimaryWindow, Window}};
 
-use crate::{components::{Count, CursorTag, ErosionColumns, Grid, Pixel, PlayerTag, TerrainGridTag, TerrainPositionsAffectedByGravity, Velocity}, constants::{CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, MAX_PLAYER_SPEED, MAX_SHOVEL_CAPACITY, PLAYER_COLOR, PLAYER_HEIGHT, PLAYER_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index, flatten_index_standard_grid}, world_generation::does_gravity_apply_to_entity};
+use crate::{components::{Count, CursorTag, ErosionColumns, Grid, Pixel, PlayerTag, TerrainGridTag, TerrainPositionsAffectedByGravity, Velocity}, constants::{CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, FRICTION, MAX_PLAYER_SPEED, MAX_SHOVEL_CAPACITY, PLAYER_COLOR, PLAYER_HEIGHT, PLAYER_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index, flatten_index_standard_grid}, world_generation::does_gravity_apply_to_entity};
 
 pub fn generate_player_image() -> Image{
     let mut data_buffer: Vec<u8> = vec![255; 4 * PLAYER_WIDTH * PLAYER_HEIGHT];
@@ -75,6 +75,11 @@ pub fn move_player(
         player.1.vy -= 1. * time.delta_seconds();
     } else {
         player.1.vy = 0.;
+        if player.1.vx > 0. {
+            player.1.vx -= FRICTION * time.delta_seconds();
+        } else if player.1.vx < 0. {
+            player.1.vx += FRICTION * time.delta_seconds();
+        }
     }
     if keys.pressed(KeyCode::KeyA) {
         if player.1.vx * -1. < MAX_PLAYER_SPEED {

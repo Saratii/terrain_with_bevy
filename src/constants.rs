@@ -1,4 +1,4 @@
-pub const MAX_PLAYER_SPEED: f32 = 0.5;
+pub const MAX_PLAYER_SPEED: f32 = 0.7;
 pub const SHOW_COLLISION_BOX: bool = true;
 pub const WINDOW_WIDTH: usize = 900;
 pub const WINDOW_HEIGHT: usize = 900;
@@ -21,3 +21,4 @@ pub const MAX_LAYERS: usize = 4;
 pub const MAX_SHOVEL_CAPACITY: usize = 225;
 pub const CURSOR_BORDER_WIDTH: f32 = 1.5;
 pub const MIN_EROSION_HEIGHT: i32 = 3;
+pub const FRICTION: f32 = 0.6;
