@@ -8,7 +8,7 @@ use bevy::utils::default;
 
 use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, sprite::SpriteBundle, transform::components::Transform};
 use crate::components::{Count, CursorTag, ErosionColumns, GravityTick, Grid, ImageBuffer, Pixel, PlayerTag, Position, TerrainGridTag, TerrainPositionsAffectedByGravity, Velocity};
-use crate::constants::{CURSOR_RADIUS, GROUND_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, SKY_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::constants::{CURSOR_RADIUS, GROUND_HEIGHT, MIN_EROSION_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, SKY_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use crate::player::{generate_cursor_grid, generate_player_image};
 use crate::util::{flatten_index, flatten_index_standard_grid, grid_to_image};
 
@@ -74,7 +74,8 @@ pub fn grid_tick(
     let mut erosion_columns = erosion_columns_query.get_single_mut().unwrap();
     gravity_tick_timer.timer.tick(time.delta());
     if gravity_tick_timer.timer.finished(){
-        gravity_tick(&mut gravity_columns.positions, &mut grid.data);
+        gravity_tick(&mut gravity_columns.positions, &mut grid.data, &mut erosion_columns.columns);
+        erosion_tick(&mut erosion_columns.columns, &mut grid.data, &mut gravity_columns.positions);
     }
 }
 
@@ -89,7 +90,7 @@ pub fn does_gravity_apply_to_entity(entity_x: i32, entity_y: i32, entity_width: 
     true
 }
 
-fn gravity_tick(columns: &mut HashSet<usize>, grid: &mut Vec<Pixel>){
+fn gravity_tick(columns: &mut HashSet<usize>, grid: &mut Vec<Pixel>, erosion_columns: &mut HashSet<usize>){
     columns.retain(|column| {
         let mut have_any_moved = false;
         for y in (0..WINDOW_HEIGHT-1).rev() {
@@ -103,7 +104,52 @@ fn gravity_tick(columns: &mut HashSet<usize>, grid: &mut Vec<Pixel>){
                 }
             }
         }
+        if !have_any_moved{
+            erosion_columns.insert(*column);
+        }
         have_any_moved
-    })
-    
+    });
+}
+
+fn erosion_tick(erosion_columns: &mut HashSet<usize>, grid: &mut Vec<Pixel>, gravity_columns: &mut HashSet<usize>){
+    let mut new_erosion_columns = HashSet::new();
+    erosion_columns.retain(|column| {
+        if gravity_columns.contains(&(column - 1)) || gravity_columns.contains(&(column + 1)){
+            return true
+        }
+        let last_sky_index = find_last_sky_height(*column, grid);
+        let last_sky_index_left = find_last_sky_height(*column - 1, grid);
+        let last_sky_index_right = find_last_sky_height(*column + 1, grid);
+        let left_to_center_distance =  last_sky_index_left as i32 - last_sky_index as i32;
+        let right_to_center_distance = last_sky_index_right as i32 - last_sky_index as i32;
+        if left_to_center_distance > MIN_EROSION_HEIGHT && left_to_center_distance > right_to_center_distance{
+            let center_index = flatten_index_standard_grid(column, &(last_sky_index + 1), WINDOW_WIDTH);
+            grid[center_index] = Pixel::Sky;
+            let left_index = flatten_index_standard_grid(&(column - 1), &(last_sky_index + 1), WINDOW_WIDTH);
+            grid[left_index] = Pixel::Ground;
+            gravity_columns.insert(column - 1);
+            new_erosion_columns.insert(column + 1);
+            return true
+        } else if right_to_center_distance > MIN_EROSION_HEIGHT{
+            let center_index = flatten_index_standard_grid(column, &(last_sky_index + 1), WINDOW_WIDTH);
+            grid[center_index] = Pixel::Sky;
+            let right_index = flatten_index_standard_grid(&(column + 1), &(last_sky_index + 1), WINDOW_WIDTH);
+            grid[right_index] = Pixel::Ground;
+            gravity_columns.insert(column + 1);
+            new_erosion_columns.insert(column - 1);
+            return true
+        }
+        false
+    });
+    erosion_columns.extend(new_erosion_columns)
+}
+
+fn find_last_sky_height(column: usize, grid: &Vec<Pixel>) -> usize {
+    for y in (0..WINDOW_HEIGHT).rev() {
+        let index = flatten_index_standard_grid(&column, &y, WINDOW_WIDTH);
+        if grid[index] == Pixel::Sky{
+            return y
+        }
+    }
+    0
 }

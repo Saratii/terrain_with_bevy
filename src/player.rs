@@ -2,7 +2,7 @@ use std::cmp::min;
 
 use bevy::{input::ButtonInput, math::Vec3, prelude::{Image, KeyCode, MouseButton, Mut, Query, Res, Transform, With, Without}, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}, time::Time, window::{PrimaryWindow, Window}};
 
-use crate::{components::{Count, CursorTag, Grid, Pixel, PlayerTag, TerrainGridTag, TerrainPositionsAffectedByGravity, Velocity}, constants::{CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, MAX_PLAYER_SPEED, MAX_SHOVEL_CAPACITY, PLAYER_COLOR, PLAYER_HEIGHT, PLAYER_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index, flatten_index_standard_grid}, world_generation::does_gravity_apply_to_entity};
+use crate::{components::{Count, CursorTag, ErosionColumns, Grid, Pixel, PlayerTag, TerrainGridTag, TerrainPositionsAffectedByGravity, Velocity}, constants::{CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, MAX_PLAYER_SPEED, MAX_SHOVEL_CAPACITY, PLAYER_COLOR, PLAYER_HEIGHT, PLAYER_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index, flatten_index_standard_grid}, world_generation::does_gravity_apply_to_entity};
 
 pub fn generate_player_image() -> Image{
     let mut data_buffer: Vec<u8> = vec![255; 4 * PLAYER_WIDTH * PLAYER_HEIGHT];
@@ -156,13 +156,24 @@ pub fn check_mouse_click(
     mut cursor_content_count_query: Query<&mut Count, With<CursorTag>>,
     mut shovel_grid_query: Query<&mut Grid, (With<CursorTag>, Without<TerrainGridTag>)>,
     mut gravity_columns_query: Query<&mut TerrainPositionsAffectedByGravity>,
+    mut erosion_columns_query: Query<&mut ErosionColumns>,
 ){
     let mut cursor_content_count = cursor_content_count_query.get_single_mut().unwrap();
     let mut grid = grid_query.get_single_mut().unwrap();
     let cursor_position = cursor_query.get_single_mut().unwrap();
     let mut shovel_grid = shovel_grid_query.get_single_mut().unwrap();
     let mut gravity_columns = gravity_columns_query.get_single_mut().unwrap();
+    let mut erosion_columns = erosion_columns_query.get_single_mut().unwrap();
     if buttons.just_pressed(MouseButton::Middle) {
+        grid.data[flatten_index_standard_grid(&(100 as usize), &(10 as usize), WINDOW_WIDTH)] = Pixel::Ground;
+        grid.data[flatten_index_standard_grid(&(100 as usize), &(11 as usize), WINDOW_WIDTH)] = Pixel::Ground;
+        grid.data[flatten_index_standard_grid(&(100 as usize), &(12 as usize), WINDOW_WIDTH)] = Pixel::Ground;
+        grid.data[flatten_index_standard_grid(&(100 as usize), &(13 as usize), WINDOW_WIDTH)] = Pixel::Ground;
+        grid.data[flatten_index_standard_grid(&(100 as usize), &(14 as usize), WINDOW_WIDTH)] = Pixel::Ground;
+        grid.data[flatten_index_standard_grid(&(100 as usize), &(15 as usize), WINDOW_WIDTH)] = Pixel::Ground;
+        grid.data[flatten_index_standard_grid(&(100 as usize), &(16 as usize), WINDOW_WIDTH)] = Pixel::Ground;
+        grid.data[flatten_index_standard_grid(&(100 as usize), &(17 as usize), WINDOW_WIDTH)] = Pixel::Ground;
+        gravity_columns.positions.insert(100);
     }
     if buttons.just_pressed(MouseButton::Right) {
         for y in 0..CURSOR_RADIUS * 2 {
@@ -185,6 +196,9 @@ pub fn check_mouse_click(
         let right = cursor_position.translation.x as i32 + CURSOR_RADIUS as i32;
         let top = cursor_position.translation.y as i32 + CURSOR_RADIUS as i32; 
         let bottom = cursor_position.translation.y as i32 - CURSOR_RADIUS as i32;
+        let mut min_x = WINDOW_WIDTH+1;
+        let mut max_x = 0;
+        let starting_count = cursor_content_count.count;
         for y in bottom..top{
             for x in left..right{
                 if distance(x, y, cursor_position.translation.x as i32, cursor_position.translation.y as i32) < CURSOR_RADIUS as f32 - CURSOR_BORDER_WIDTH {
@@ -194,6 +208,11 @@ pub fn check_mouse_click(
                             cursor_content_count.count += 1;
                             grid.data[index] = Pixel::Sky;
                             gravity_columns.positions.insert(index % WINDOW_WIDTH);
+                            if index % WINDOW_WIDTH < min_x {
+                                min_x = index % WINDOW_WIDTH;
+                            } else if index % WINDOW_WIDTH > max_x {
+                                max_x = index % WINDOW_WIDTH;
+                            }
                             if cursor_content_count.count == MAX_SHOVEL_CAPACITY {
                                 update_shovel_content_visual(&mut shovel_grid.data, cursor_content_count.count);
                                 return
@@ -206,7 +225,11 @@ pub fn check_mouse_click(
                 }
             }
         }
-        update_shovel_content_visual(&mut shovel_grid.data, cursor_content_count.count);
+        if starting_count != cursor_content_count.count {
+            erosion_columns.columns.insert(min_x-1);
+            erosion_columns.columns.insert(max_x+1);
+            update_shovel_content_visual(&mut shovel_grid.data, cursor_content_count.count);
+        }
     }
 }
 

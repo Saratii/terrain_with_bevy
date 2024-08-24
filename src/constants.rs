@@ -20,3 +20,4 @@ pub const CURSOR_RADIUS: usize = 10;
 pub const MAX_LAYERS: usize = 4;
 pub const MAX_SHOVEL_CAPACITY: usize = 225;
 pub const CURSOR_BORDER_WIDTH: f32 = 1.5;
+pub const MIN_EROSION_HEIGHT: i32 = 3;
