@@ -7,6 +7,7 @@ use iyes_perf_ui::entries::PerfUiBundle;
 use bevy::utils::default;
 
 use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, sprite::SpriteBundle, transform::components::Transform};
+use rand::{thread_rng, Rng};
 use crate::components::{ContentList, CurrentTool, ErosionColumns, GravityTick, Grid, ImageBuffer, PickaxeTag, Pixel, PlayerTag, Position, ShovelTag, TerrainGridTag, TerrainPositionsAffectedByGravity, Tool, Velocity};
 use crate::constants::{CURSOR_RADIUS, GROUND_HEIGHT, MIN_EROSION_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, ROCK_HEIGHT, SKY_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use crate::player::{generate_pickaxe_grid, generate_player_image, generate_shovel_grid};
@@ -62,12 +63,13 @@ pub fn setup_world(mut commands: Commands, assets: Res<AssetServer>) {
 }
 
 fn generate_terrain_grid() -> Vec<Pixel> {
+    let mut rng = rand::thread_rng();
     let mut grid: Vec<Pixel> = Vec::with_capacity(4 * WINDOW_WIDTH * WINDOW_HEIGHT);
     for _ in 0..SKY_HEIGHT * WINDOW_WIDTH{
         grid.push(Pixel::Sky);
     }
     for _ in 0..GROUND_HEIGHT * WINDOW_WIDTH{
-        grid.push(Pixel::Ground);
+        grid.push(Pixel::Ground(rng.gen()));
     }
     for _ in 0..ROCK_HEIGHT * WINDOW_WIDTH{
         grid.push(Pixel::Rock);
@@ -109,11 +111,11 @@ fn gravity_tick(columns: &mut HashSet<usize>, grid: &mut Vec<Pixel>, erosion_col
         let mut have_any_moved = false;
         for y in (0..WINDOW_HEIGHT-1).rev() {
             let index = flatten_index_standard_grid(column, &y, WINDOW_WIDTH);
-            if grid[index] == Pixel::Ground{
+            if let Pixel::Ground(variant) = grid[index].clone(){
                 let below_index = flatten_index_standard_grid(column, &(y + 1), WINDOW_WIDTH);
                 if grid[below_index] == Pixel::Sky{
                     have_any_moved = true;
-                    grid[below_index] = Pixel::Ground;
+                    grid[below_index] = Pixel::Ground(variant);
                     grid[index] = Pixel::Sky;
                 }
             } else if grid[index] == Pixel::Gravel{
@@ -145,17 +147,19 @@ fn erosion_tick(erosion_columns: &mut HashSet<usize>, grid: &mut Vec<Pixel>, gra
         let right_to_center_distance = last_sky_index_right as i32 - last_sky_index as i32;
         if left_to_center_distance > MIN_EROSION_HEIGHT && left_to_center_distance > right_to_center_distance{
             let center_index = flatten_index_standard_grid(column, &(last_sky_index + 1), WINDOW_WIDTH);
+            let moved_pixel = grid[center_index].clone();
             grid[center_index] = Pixel::Sky;
             let left_index = flatten_index_standard_grid(&(column - 1), &(last_sky_index + 1), WINDOW_WIDTH);
-            grid[left_index] = Pixel::Ground;
+            grid[left_index] = moved_pixel;
             gravity_columns.insert(column - 1);
             new_erosion_columns.insert(column + 1);
             return true
         } else if right_to_center_distance > MIN_EROSION_HEIGHT{
             let center_index = flatten_index_standard_grid(column, &(last_sky_index + 1), WINDOW_WIDTH);
+            let moved_pixel = grid[center_index].clone();
             grid[center_index] = Pixel::Sky;
             let right_index = flatten_index_standard_grid(&(column + 1), &(last_sky_index + 1), WINDOW_WIDTH);
-            grid[right_index] = Pixel::Ground;
+            grid[right_index] = moved_pixel;
             gravity_columns.insert(column + 1);
             new_erosion_columns.insert(column - 1);
             return true

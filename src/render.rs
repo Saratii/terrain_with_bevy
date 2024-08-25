@@ -1,15 +1,31 @@
 use bevy::{asset::{Assets, Handle}, prelude::{Image, Query, ResMut, With, Without}};
 
-use crate::components::{Grid, ImageBuffer, PickaxeTag, Pixel, ShovelTag, TerrainGridTag};
+use crate::components::{DirtVariant, Grid, ImageBuffer, PickaxeTag, Pixel, ShovelTag, TerrainGridTag};
 
 pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>) {
     for i in 0..grid.len() {
-        match grid[i] {
-            Pixel::Ground => {
-                image_buffer[4*i] = 88;
-                image_buffer[4*i+1] = 57;
-                image_buffer[4*i+2] = 39;
-                image_buffer[4*i+3] = 255;
+        match &grid[i] {
+            Pixel::Ground(variant) => {
+                match variant{
+                    DirtVariant::Dirt1 => {
+                        image_buffer[4*i] = 88;
+                        image_buffer[4*i+1] = 57;
+                        image_buffer[4*i+2] = 39;
+                        image_buffer[4*i+3] = 255;
+                    },
+                    DirtVariant::Dirt2 => {
+                        image_buffer[4*i] = 92;
+                        image_buffer[4*i+1] = 64;
+                        image_buffer[4*i+2] = 51;
+                        image_buffer[4*i+3] = 255;
+                    },
+                    DirtVariant::Dirt3 => {
+                        image_buffer[4*i] = 155;
+                        image_buffer[4*i+1] = 118;
+                        image_buffer[4*i+2] = 83;
+                        image_buffer[4*i+3] = 255;
+                    },
+                }
             },
             Pixel::Sky => {
                 image_buffer[4*i] = 135;

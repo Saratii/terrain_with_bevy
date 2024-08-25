@@ -2,6 +2,7 @@
 use std::collections::HashSet;
 
 use bevy::{prelude::Component, time::Timer};
+use rand::{distributions::Standard, prelude::Distribution, Rng};
 
 #[derive(Component, Debug, Clone)]
 pub struct Position {
@@ -53,8 +54,29 @@ pub struct GravityTick{
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub enum DirtVariant{
+    Dirt1,
+    Dirt2,
+    Dirt3,
+}
+
+impl Distribution<DirtVariant> for Standard {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> DirtVariant {
+        match rng.gen_range(0..6) {
+            0 => DirtVariant::Dirt1,
+            4 => DirtVariant::Dirt1,
+            5 => DirtVariant::Dirt1,
+            1 => DirtVariant::Dirt2,
+            2 => DirtVariant::Dirt2,
+            _ => DirtVariant::Dirt3,
+        }
+    }
+}
+  
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Pixel {
-    Ground, 
+    Ground(DirtVariant), 
     Sky,
     White,
     TranslucentGrey,

@@ -46,7 +46,7 @@ pub fn right_click_shovel(shovel_grid: &mut Vec<Pixel>, terrain_grid: &mut Vec<P
     for y in 0..CURSOR_RADIUS * 2 {
         for x in 0..CURSOR_RADIUS * 2 {
             let shovel_grid_index = flatten_index_standard_grid(&x, &y, CURSOR_RADIUS * 2);
-            if shovel_grid[shovel_grid_index] == Pixel::Ground || shovel_grid[shovel_grid_index] == Pixel::Gravel{
+            if matches!(shovel_grid[shovel_grid_index], Pixel::Ground(_) | Pixel::Gravel){
                 let main_grid_index = flatten_index(cursor_position.translation.x as i32 - CURSOR_RADIUS as i32 + x as i32, cursor_position.translation.y as i32 - CURSOR_RADIUS as i32 + (CURSOR_RADIUS * 2 - y - 1) as i32);
                 if terrain_grid[main_grid_index] == Pixel::Sky {
                     let pixel = cursor_contents.pop().unwrap();
@@ -71,12 +71,21 @@ pub fn left_click_shovel(shovel_position: &Transform, shovel_contents: &mut Vec<
         for x in left..right{
             if distance(x, y, shovel_position.translation.x as i32, shovel_position.translation.y as i32) < CURSOR_RADIUS as f32 - CURSOR_BORDER_WIDTH {
                 let index = flatten_index(x as i32, y as i32);
-                if grid[index]  == Pixel::Ground || grid[index] == Pixel::Gravel{
-                    if grid[index] == Pixel::Ground{
-                        shovel_contents.push(Pixel::Ground);
-                    } else {
-                        shovel_contents.push(Pixel::Gravel);
+                if let Pixel::Ground(dirt_variant ) = grid[index].clone(){
+                    shovel_contents.push(Pixel::Ground(dirt_variant));
+                    grid[index] = Pixel::Sky;
+                    gravity_columns.positions.insert(index % WINDOW_WIDTH);
+                    if index % WINDOW_WIDTH < min_x {
+                        min_x = index % WINDOW_WIDTH;
+                    } else if index % WINDOW_WIDTH > max_x {
+                        max_x = index % WINDOW_WIDTH;
                     }
+                    if shovel_contents.len() == MAX_SHOVEL_CAPACITY {
+                        update_shovel_content_visual(shovel_grid, shovel_contents);
+                        return
+                    }
+                } else if grid[index] == Pixel::Gravel{
+                    shovel_contents.push(Pixel::Gravel);
                     grid[index] = Pixel::Sky;
                     gravity_columns.positions.insert(index % WINDOW_WIDTH);
                     if index % WINDOW_WIDTH < min_x {

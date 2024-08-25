@@ -100,16 +100,16 @@ pub fn apply_velocity(entity_position_c: &mut Vec3, velocity: &mut Mut<Velocity>
 
 fn horizontal_collision(velocity: &f32, grid: &Vec<Pixel>, entity_position_tl: &(f32, f32)) -> bool{
     if velocity < &0.{
-        for y in 0..PLAYER_HEIGHT{
+        for y in 0..PLAYER_HEIGHT {
             let index = flatten_index_standard_grid(&(entity_position_tl.0 as usize - 1), &(y as usize + entity_position_tl.1 as usize), WINDOW_WIDTH);
-            if grid[index] == Pixel::Ground{
+            if grid[index] != Pixel::Sky{
                 return true
             }
         }
     } else if velocity > &0.{
-        for y in 0..PLAYER_HEIGHT{
+        for y in 0..PLAYER_HEIGHT {
             let index = flatten_index_standard_grid(&(entity_position_tl.0 as usize + PLAYER_WIDTH + 1), &(y as usize + entity_position_tl.1 as usize), WINDOW_WIDTH);
-            if grid[index] == Pixel::Ground{
+            if grid[index] != Pixel::Sky{
                 return true
             }
         }
@@ -145,7 +145,7 @@ pub fn update_tool(
 
 pub fn update_shovel_content_visual(shovel_image_grid: &mut Vec<Pixel>, shovel_contents: &Vec<Pixel>){
     for color in shovel_image_grid.iter_mut(){
-        if *color == Pixel::Ground || *color == Pixel::Gravel{
+        if matches!(*color, Pixel::Ground(_) | Pixel::Gravel){
             *color = Pixel::TranslucentGrey;
         }
     }
