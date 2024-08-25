@@ -1,8 +1,8 @@
 use std::cmp::min;
 
-use bevy::{input::ButtonInput, math::Vec3, prelude::{Image, KeyCode, MouseButton, Mut, Query, Res, Transform, With, Without}, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}, time::Time, window::{PrimaryWindow, Window}};
+use bevy::{math::Vec3, prelude::{Image, Mut, Query, Transform, With, Without}, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}, window::{PrimaryWindow, Window}};
 
-use crate::{components::{Count, CursorTag, ErosionColumns, Grid, Pixel, PlayerTag, TerrainGridTag, TerrainPositionsAffectedByGravity, Velocity}, constants::{CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, FRICTION, MAX_PLAYER_SPEED, MAX_SHOVEL_CAPACITY, PLAYER_COLOR, PLAYER_HEIGHT, PLAYER_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index, flatten_index_standard_grid}, world_generation::does_gravity_apply_to_entity};
+use crate::{components::{CurrentTool, PickaxeTag, Pixel, PlayerTag, ShovelTag, Tool, Velocity}, constants::{CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, PLAYER_COLOR, PLAYER_HEIGHT, PLAYER_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index_standard_grid}};
 
 pub fn generate_player_image() -> Image{
     let mut data_buffer: Vec<u8> = vec![255; 4 * PLAYER_WIDTH * PLAYER_HEIGHT];
@@ -45,7 +45,7 @@ pub fn generate_player_image() -> Image{
     )
 }
 
-pub fn generate_cursor_grid() -> Vec<Pixel>{
+pub fn generate_shovel_grid() -> Vec<Pixel>{
     let mut data_buffer: Vec<Pixel> = Vec::with_capacity(4 * CURSOR_RADIUS * 2 * CURSOR_RADIUS * 2);
     for y in 0..CURSOR_RADIUS * 2 {
         for x in 0..CURSOR_RADIUS * 2 {
@@ -62,43 +62,24 @@ pub fn generate_cursor_grid() -> Vec<Pixel>{
     data_buffer
 }
 
-pub fn move_player(
-    mut grid_query: Query<&mut Grid, (With<TerrainGridTag>, Without<CursorTag>)>,
-    keys: Res<ButtonInput<KeyCode>>,
-    mut player_query: Query<(&mut Transform, &mut Velocity), (With<PlayerTag>, Without<CursorTag>)>,
-    time: Res<Time>
-){
-    let grid = grid_query.get_single_mut().unwrap();
-    let mut player = player_query.get_single_mut().unwrap();
-    let does_gravity_apply = does_gravity_apply_to_entity(player.0.translation.x as i32 - PLAYER_WIDTH as i32/2,  player.0.translation.y as i32, PLAYER_WIDTH as i32, PLAYER_HEIGHT as i32, &grid.data);
-    if does_gravity_apply {
-        player.1.vy -= 1. * time.delta_seconds();
-    } else {
-        player.1.vy = 0.;
-        if player.1.vx > 0. {
-            player.1.vx -= FRICTION * time.delta_seconds();
-        } else if player.1.vx < 0. {
-            player.1.vx += FRICTION * time.delta_seconds();
+pub fn generate_pickaxe_grid() -> Vec<Pixel> {
+    let mut data_buffer: Vec<Pixel> = Vec::with_capacity(4 * CURSOR_RADIUS * 2 * CURSOR_RADIUS * 2);
+    for y in 0..CURSOR_RADIUS * 2 {
+        for x in 0..CURSOR_RADIUS * 2 {
+            let distance = distance(x as i32, y as i32, CURSOR_RADIUS as i32, CURSOR_RADIUS as i32);
+            if distance > CURSOR_RADIUS as f32 {
+                data_buffer.push(Pixel::Clear);
+            } else if distance < CURSOR_RADIUS as f32 - CURSOR_BORDER_WIDTH {
+                data_buffer.push(Pixel::TranslucentGrey);
+            } else {
+                data_buffer.push(Pixel::Red);
+            }
         }
     }
-    if keys.pressed(KeyCode::KeyA) {
-        if player.1.vx * -1. < MAX_PLAYER_SPEED {
-            player.1.vx -= 1. * time.delta_seconds();
-        }
-    } else if keys.pressed(KeyCode::KeyD) {
-         if player.1.vx < MAX_PLAYER_SPEED {
-            player.1.vx += 1. * time.delta_seconds();
-        }
-    }
-    if keys.pressed(KeyCode::Space){
-        if !does_gravity_apply{
-            player.1.vy += 150. * time.delta_seconds();
-        }
-    }
-    apply_velocity(&mut player.0.translation, &mut player.1, &grid.data);
+    data_buffer
 }
 
-fn apply_velocity(entity_position_c: &mut Vec3, velocity: &mut Mut<Velocity>, grid: &Vec<Pixel>) {
+pub fn apply_velocity(entity_position_c: &mut Vec3, velocity: &mut Mut<Velocity>, grid: &Vec<Pixel>) {
     let min_x_c = -1. * WINDOW_WIDTH as f32 / 2. + PLAYER_WIDTH as f32 / 2.;
     let max_x_c = WINDOW_WIDTH as f32 / 2. - PLAYER_WIDTH as f32 / 2.;
     if entity_position_c.x < min_x_c {
@@ -136,121 +117,46 @@ fn horizontal_collision(velocity: &f32, grid: &Vec<Pixel>, entity_position_tl: &
     false
 }
 
-pub fn update_cursor(
+pub fn update_tool(
     q_windows: Query<&Window, With<PrimaryWindow>>,
-    mut player_query: Query<(&mut Transform, &mut Velocity), (With<PlayerTag>, Without<CursorTag>)>,
-    mut cursor_query: Query<&mut Transform, (With<CursorTag>, Without<PlayerTag>)>,
+    mut player_query: Query<(&mut Transform, &mut Velocity), (With<PlayerTag>, Without<ShovelTag>)>,
+    mut shovel_query: Query<&mut Transform, (With<ShovelTag>, (Without<PlayerTag>, Without<PickaxeTag>))>,
+    mut pickaxe_query: Query<&mut Transform, (With<PickaxeTag>, (Without<PlayerTag>, Without<ShovelTag>))>,
+    current_tool_query: Query<&CurrentTool>,
 ){
     let player = player_query.get_single_mut().unwrap();
-    let mut cursor_position = cursor_query.get_single_mut().unwrap();
+    let current_tool = current_tool_query.get_single().unwrap();
+    let mut tool_position;
+    if current_tool.tool == Tool::Pickaxe{
+        tool_position = pickaxe_query.get_single_mut().unwrap();
+    } else {
+        tool_position = shovel_query.get_single_mut().unwrap();
+    }
     if let Some(position) = q_windows.single().cursor_position() {
         let converted_position_x = position.x - WINDOW_WIDTH as f32 / 2.;
         let converted_position_y = (position.y - WINDOW_HEIGHT as f32 / 2.) * -1.;
         let angle = (converted_position_y - player.0.translation.y).atan2(converted_position_x - player.0.translation.x);
         let distance_from_player = distance(player.0.translation.x as i32, player.0.translation.y as i32, converted_position_x as i32, converted_position_y as i32);
         let min_distance = min(CURSOR_ORBITAL_RADIUS as usize, distance_from_player as usize) as f32;
-        cursor_position.translation.x = player.0.translation.x + min_distance * angle.cos();
-        cursor_position.translation.y = player.0.translation.y + min_distance * angle.sin();
+        tool_position.translation.x = player.0.translation.x + min_distance * angle.cos();
+        tool_position.translation.y = player.0.translation.y + min_distance * angle.sin();
     }
 }
 
-pub fn check_mouse_click(
-    buttons: Res<ButtonInput<MouseButton>>,
-    mut cursor_query: Query<&mut Transform, (With<CursorTag>, Without<PlayerTag>)>,
-    mut grid_query: Query<&mut Grid, (With<TerrainGridTag>, Without<CursorTag>)>,
-    mut cursor_content_count_query: Query<&mut Count, With<CursorTag>>,
-    mut shovel_grid_query: Query<&mut Grid, (With<CursorTag>, Without<TerrainGridTag>)>,
-    mut gravity_columns_query: Query<&mut TerrainPositionsAffectedByGravity>,
-    mut erosion_columns_query: Query<&mut ErosionColumns>,
-){
-    let mut cursor_content_count = cursor_content_count_query.get_single_mut().unwrap();
-    let mut grid = grid_query.get_single_mut().unwrap();
-    let cursor_position = cursor_query.get_single_mut().unwrap();
-    let mut shovel_grid = shovel_grid_query.get_single_mut().unwrap();
-    let mut gravity_columns = gravity_columns_query.get_single_mut().unwrap();
-    let mut erosion_columns = erosion_columns_query.get_single_mut().unwrap();
-    if buttons.just_pressed(MouseButton::Middle) {
-        grid.data[flatten_index_standard_grid(&(100 as usize), &(10 as usize), WINDOW_WIDTH)] = Pixel::Ground;
-        grid.data[flatten_index_standard_grid(&(100 as usize), &(11 as usize), WINDOW_WIDTH)] = Pixel::Ground;
-        grid.data[flatten_index_standard_grid(&(100 as usize), &(12 as usize), WINDOW_WIDTH)] = Pixel::Ground;
-        grid.data[flatten_index_standard_grid(&(100 as usize), &(13 as usize), WINDOW_WIDTH)] = Pixel::Ground;
-        grid.data[flatten_index_standard_grid(&(100 as usize), &(14 as usize), WINDOW_WIDTH)] = Pixel::Ground;
-        grid.data[flatten_index_standard_grid(&(100 as usize), &(15 as usize), WINDOW_WIDTH)] = Pixel::Ground;
-        grid.data[flatten_index_standard_grid(&(100 as usize), &(16 as usize), WINDOW_WIDTH)] = Pixel::Ground;
-        grid.data[flatten_index_standard_grid(&(100 as usize), &(17 as usize), WINDOW_WIDTH)] = Pixel::Ground;
-        gravity_columns.positions.insert(100);
-    }
-    if buttons.just_pressed(MouseButton::Right) {
-        for y in 0..CURSOR_RADIUS * 2 {
-            for x in 0..CURSOR_RADIUS * 2 {
-                let shovel_grid_index = flatten_index_standard_grid(&x, &y, CURSOR_RADIUS * 2);
-                if shovel_grid.data[shovel_grid_index] == Pixel::Ground {
-                    let main_grid_index = flatten_index(cursor_position.translation.x as i32 - CURSOR_RADIUS as i32 + x as i32, cursor_position.translation.y as i32 - CURSOR_RADIUS as i32 + (CURSOR_RADIUS * 2 - y - 1) as i32);
-                    if grid.data[main_grid_index] == Pixel::Sky {
-                        grid.data[main_grid_index] = Pixel::Ground;
-                        cursor_content_count.count -= 1;
-                        gravity_columns.positions.insert(main_grid_index % WINDOW_WIDTH);
-                    }
-                }
-            }
-        }
-        update_shovel_content_visual(&mut shovel_grid.data, cursor_content_count.count);
-    }
-    if buttons.just_pressed(MouseButton::Left) && cursor_content_count.count < MAX_SHOVEL_CAPACITY {
-        let left = cursor_position.translation.x as i32 - CURSOR_RADIUS as i32;
-        let right = cursor_position.translation.x as i32 + CURSOR_RADIUS as i32;
-        let top = cursor_position.translation.y as i32 + CURSOR_RADIUS as i32; 
-        let bottom = cursor_position.translation.y as i32 - CURSOR_RADIUS as i32;
-        let mut min_x = WINDOW_WIDTH+1;
-        let mut max_x = 0;
-        let starting_count = cursor_content_count.count;
-        for y in bottom..top{
-            for x in left..right{
-                if distance(x, y, cursor_position.translation.x as i32, cursor_position.translation.y as i32) < CURSOR_RADIUS as f32 - CURSOR_BORDER_WIDTH {
-                    let index = flatten_index(x as i32, y as i32);
-                    match grid.data[index] {
-                        Pixel::Ground => {
-                            cursor_content_count.count += 1;
-                            grid.data[index] = Pixel::Sky;
-                            gravity_columns.positions.insert(index % WINDOW_WIDTH);
-                            if index % WINDOW_WIDTH < min_x {
-                                min_x = index % WINDOW_WIDTH;
-                            } else if index % WINDOW_WIDTH > max_x {
-                                max_x = index % WINDOW_WIDTH;
-                            }
-                            if cursor_content_count.count == MAX_SHOVEL_CAPACITY {
-                                update_shovel_content_visual(&mut shovel_grid.data, cursor_content_count.count);
-                                return
-                            }
-                        },
-                        _ => {
-
-                        }
-                    }
-                }
-            }
-        }
-        if starting_count != cursor_content_count.count {
-            erosion_columns.columns.insert(min_x-1);
-            erosion_columns.columns.insert(max_x+1);
-            update_shovel_content_visual(&mut shovel_grid.data, cursor_content_count.count);
-        }
-    }
-}
-
-fn update_shovel_content_visual(shovel_image_grid: &mut Vec<Pixel>, ground_count: usize){
+pub fn update_shovel_content_visual(shovel_image_grid: &mut Vec<Pixel>, shovel_contents: &Vec<Pixel>){
     for color in shovel_image_grid.iter_mut(){
-        if *color == Pixel::Ground {
+        if *color == Pixel::Ground || *color == Pixel::Gravel{
             *color = Pixel::TranslucentGrey;
         }
     }
     let mut drawn_content = 0;
     for color in shovel_image_grid.iter_mut().rev(){
-        if drawn_content == ground_count{
+        if drawn_content == shovel_contents.len(){
             return
         }
         if *color == Pixel::TranslucentGrey {
-            *color = Pixel::Ground;
+            let pixel = &shovel_contents[drawn_content];
+            *color = pixel.clone();
             drawn_content += 1;
         }
     }

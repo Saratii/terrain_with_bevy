@@ -1,6 +1,6 @@
 use bevy::{asset::{Assets, Handle}, prelude::{Image, Query, ResMut, With, Without}};
 
-use crate::components::{CursorTag, Grid, ImageBuffer, Pixel, TerrainGridTag};
+use crate::components::{Grid, ImageBuffer, PickaxeTag, Pixel, ShovelTag, TerrainGridTag};
 
 pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>) {
     for i in 0..grid.len() {
@@ -35,18 +35,36 @@ pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>) {
                 image_buffer[4*i+2] = 255;
                 image_buffer[4*i+3] = 255;
             },
+            Pixel::Rock => {
+                image_buffer[4*i] = 100;
+                image_buffer[4*i+1] = 100;
+                image_buffer[4*i+2] = 100;
+                image_buffer[4*i+3] = 255;
+            },
+            Pixel::Gravel => {
+                image_buffer[4*i] = 211;
+                image_buffer[4*i+1] = 211;
+                image_buffer[4*i+2] = 211;
+                image_buffer[4*i+3] = 255;
+            },
+            Pixel::Red => {
+                image_buffer[4*i] = 255;
+                image_buffer[4*i+1] = 0;
+                image_buffer[4*i+2] = 0;
+                image_buffer[4*i+3] = 255;
+            },
         };
     }
 }
 
 pub fn render_scene(
-    mut grid_query: Query<&mut Grid, (With<TerrainGridTag>, Without<CursorTag>)>,
-    mut shovel_grid_query: Query<&mut Grid, (With<CursorTag>, Without<TerrainGridTag>)>,
-    mut grid_image_buffer_query: Query<&mut ImageBuffer, Without<CursorTag>>,
-    mut cursor_image_buffer_query: Query<&mut ImageBuffer, With<CursorTag>>,
+    mut grid_query: Query<&mut Grid, (With<TerrainGridTag>, Without<ShovelTag>)>,
+    mut shovel_grid_query: Query<&mut Grid, (With<ShovelTag>, Without<TerrainGridTag>)>,
+    mut grid_image_buffer_query: Query<&mut ImageBuffer, (Without<PickaxeTag>, Without<ShovelTag>)>,
+    mut cursor_image_buffer_query: Query<&mut ImageBuffer, With<ShovelTag>>,
     mut images: ResMut<Assets<Image>>,
     mut grid_image_query: Query<&Handle<Image>, With<TerrainGridTag>>,
-    mut cursor_image_query: Query<&Handle<Image>, With<CursorTag>>,
+    mut cursor_image_query: Query<&Handle<Image>, With<ShovelTag>>,
 ){
     let mut grid_image_buffer = grid_image_buffer_query.get_single_mut().unwrap();
     let mut cursor_image_buffer = cursor_image_buffer_query.get_single_mut().unwrap();

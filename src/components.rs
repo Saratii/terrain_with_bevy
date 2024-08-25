@@ -19,7 +19,10 @@ pub struct Velocity {
 pub struct PlayerTag;
 
 #[derive(Component)]
-pub struct CursorTag;
+pub struct ShovelTag;
+
+#[derive(Component)]
+pub struct PickaxeTag;
 
 #[derive(Component, Debug)]
 pub struct Grid{
@@ -35,8 +38,8 @@ pub struct ImageBuffer{
 pub struct TerrainGridTag;
 
 #[derive(Component, Debug)]
-pub struct Count{
-    pub count: usize
+pub struct ContentList{
+    pub contents: Vec<Pixel>
 }
 
 #[derive(Component, Debug)]
@@ -56,9 +59,23 @@ pub enum Pixel {
     White,
     TranslucentGrey,
     Clear,
+    Rock,
+    Gravel,
+    Red,
 }
 
 #[derive(Component)]
 pub struct ErosionColumns{
     pub columns: HashSet<usize>
+}
+
+#[derive(PartialEq)]
+pub enum Tool{
+    Shovel,
+    Pickaxe
+}
+
+#[derive(Component, PartialEq)]
+pub struct CurrentTool{
+    pub tool: Tool
 }

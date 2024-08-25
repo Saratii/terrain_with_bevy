@@ -1,24 +1,26 @@
 use std::collections::HashSet;
 use std::time::Duration;
 
-use bevy::prelude::{Query, With, Without};
+use bevy::prelude::{Query, Visibility, With, Without};
 use bevy::time::{Time, Timer, TimerMode};
 use iyes_perf_ui::entries::PerfUiBundle;
 use bevy::utils::default;
 
 use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, sprite::SpriteBundle, transform::components::Transform};
-use crate::components::{Count, CursorTag, ErosionColumns, GravityTick, Grid, ImageBuffer, Pixel, PlayerTag, Position, TerrainGridTag, TerrainPositionsAffectedByGravity, Velocity};
-use crate::constants::{CURSOR_RADIUS, GROUND_HEIGHT, MIN_EROSION_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, SKY_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
-use crate::player::{generate_cursor_grid, generate_player_image};
+use crate::components::{ContentList, CurrentTool, ErosionColumns, GravityTick, Grid, ImageBuffer, PickaxeTag, Pixel, PlayerTag, Position, ShovelTag, TerrainGridTag, TerrainPositionsAffectedByGravity, Tool, Velocity};
+use crate::constants::{CURSOR_RADIUS, GROUND_HEIGHT, MIN_EROSION_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, ROCK_HEIGHT, SKY_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::player::{generate_pickaxe_grid, generate_player_image, generate_shovel_grid};
 use crate::util::{flatten_index, flatten_index_standard_grid, grid_to_image};
 
 pub fn setup_world(mut commands: Commands, assets: Res<AssetServer>) {
     commands.spawn(PerfUiBundle::default());
     commands.spawn(Camera2dBundle::default());
     let terrain_grid = generate_terrain_grid();
-    let shovel_grid = generate_cursor_grid();
+    let shovel_grid = generate_shovel_grid();
+    let pickaxe_grid = generate_pickaxe_grid();
     let terrain_image = grid_to_image(&terrain_grid, WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32);
     let shovel_image = grid_to_image(&shovel_grid, CURSOR_RADIUS as u32 * 2, CURSOR_RADIUS as u32 * 2);
+    let pickaxe_image = grid_to_image(&pickaxe_grid, CURSOR_RADIUS as u32 * 2, CURSOR_RADIUS as u32 * 2);
     commands.spawn(TerrainGridTag)
             .insert(Grid{data: terrain_grid})
             .insert(
@@ -38,16 +40,25 @@ pub fn setup_world(mut commands: Commands, assets: Res<AssetServer>) {
                 texture: assets.add(generate_player_image()),
                 transform: Transform { translation: Vec3 { x: PLAYER_SPAWN_X as f32, y: PLAYER_SPAWN_Y as f32, z: 1. }, ..default()},
                 ..default()
-            });
-    commands.spawn(CursorTag)
+            })
+            .insert(CurrentTool{tool: Tool::Shovel});
+    commands.spawn(ShovelTag)
             .insert(SpriteBundle{
                 texture: assets.add(grid_to_image(&shovel_grid.clone(), CURSOR_RADIUS as u32 * 2, CURSOR_RADIUS as u32 * 2)),
                 transform: Transform { translation: Vec3 { x: PLAYER_SPAWN_X as f32, y: PLAYER_SPAWN_Y as f32, z: 1. }, ..default()},
                 ..default()})
-            .insert(Count{count: 0})
+            .insert(ContentList{contents: Vec::new()})
             .insert(Grid{data: shovel_grid})
             .insert(ImageBuffer{data: shovel_image.data});
     commands.spawn(GravityTick{timer: Timer::new(Duration::from_millis(20), TimerMode::Repeating)});
+    commands.spawn(PickaxeTag)
+            .insert(SpriteBundle{
+                texture: assets.add(grid_to_image(&pickaxe_grid.clone(), CURSOR_RADIUS as u32 * 2, CURSOR_RADIUS as u32 * 2)),
+                transform: Transform { translation: Vec3 { x: PLAYER_SPAWN_X as f32, y: PLAYER_SPAWN_Y as f32, z: 1. }, ..default()},
+                visibility: Visibility::Hidden,
+                ..default()})
+            .insert(Grid{data: pickaxe_grid})
+            .insert(ImageBuffer{data: pickaxe_image.data});
 }
 
 fn generate_terrain_grid() -> Vec<Pixel> {
@@ -58,11 +69,14 @@ fn generate_terrain_grid() -> Vec<Pixel> {
     for _ in 0..GROUND_HEIGHT * WINDOW_WIDTH{
         grid.push(Pixel::Ground);
     }
+    for _ in 0..ROCK_HEIGHT * WINDOW_WIDTH{
+        grid.push(Pixel::Rock);
+    }
     grid
 }
 
 pub fn grid_tick(
-    mut grid_query: Query<&mut Grid, (With<TerrainGridTag>, Without<CursorTag>)>,
+    mut grid_query: Query<&mut Grid, (With<TerrainGridTag>, Without<ShovelTag>)>,
     time: Res<Time>,
     mut gravity_tick_timer_quiery: Query<&mut GravityTick>,
     mut gravity_columns_query: Query<&mut TerrainPositionsAffectedByGravity>,
@@ -100,6 +114,13 @@ fn gravity_tick(columns: &mut HashSet<usize>, grid: &mut Vec<Pixel>, erosion_col
                 if grid[below_index] == Pixel::Sky{
                     have_any_moved = true;
                     grid[below_index] = Pixel::Ground;
+                    grid[index] = Pixel::Sky;
+                }
+            } else if grid[index] == Pixel::Gravel{
+                let below_index = flatten_index_standard_grid(column, &(y + 1), WINDOW_WIDTH);
+                if grid[below_index] == Pixel::Sky{
+                    have_any_moved = true;
+                    grid[below_index] = Pixel::Gravel;
                     grid[index] = Pixel::Sky;
                 }
             }

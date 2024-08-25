@@ -5,6 +5,8 @@ pub mod player;
 pub mod components;
 pub mod render;
 pub mod util;
+pub mod mouse_controller;
+pub mod keyboard_controller;
 
 use bevy::app::*;
 use bevy::diagnostic::EntityCountDiagnosticsPlugin;
@@ -15,9 +17,9 @@ use bevy::prelude::*;
 use bevy::window::PresentMode;
 use constants::WINDOW_HEIGHT;
 use iyes_perf_ui::PerfUiPlugin;
-use player::check_mouse_click;
-use player::move_player;
-use player::update_cursor;
+use keyboard_controller::process_key_event;
+use mouse_controller::check_mouse_click;
+use player::update_tool;
 use render::render_scene;
 use world_generation::setup_world;
 use world_generation::grid_tick;
@@ -47,6 +49,6 @@ fn main() {
           });
         })
         .add_systems(Startup, (apply_deferred, setup_world).chain())
-        .add_systems(Update, (grid_tick, move_player, check_mouse_click, update_cursor, render_scene))
+        .add_systems(Update, (grid_tick, process_key_event, check_mouse_click, update_tool, render_scene))
         .run();
 }
