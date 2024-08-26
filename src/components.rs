@@ -81,6 +81,9 @@ pub struct Count{
     pub count: f32,
 }
 
+#[derive(Component)]
+pub struct MoneyTextTag;
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Pixel {
     Ground(DirtVariant), 

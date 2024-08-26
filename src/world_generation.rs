@@ -2,16 +2,19 @@ use std::collections::HashSet;
 use std::f32::MIN;
 use std::time::Duration;
 
-use bevy::prelude::{Image, Query, Visibility, With, Without};
+use bevy::color::palettes::css::GOLD;
+use bevy::prelude::{Image, Query, TextBundle, Visibility, With, Without};
 use bevy::render::render_asset::RenderAssetUsages;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
+use bevy::text::{Text, TextSection, TextStyle};
 use bevy::time::{Time, Timer, TimerMode};
+use bevy::ui::{PositionType, Style, Val};
 use iyes_perf_ui::entries::PerfUiBundle;
 use bevy::utils::default;
 
 use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, sprite::SpriteBundle, transform::components::Transform};
 use rand::Rng;
-use crate::components::{ContentList, Count, CurrentTool, ErosionCoords, GravityCoords, GravityTick, Grid, ImageBuffer, PickaxeTag, Pixel, PlayerTag, Position, SellBoxTag, ShovelTag, TerrainGridTag, Tool, Velocity};
+use crate::components::{ContentList, Count, CurrentTool, ErosionCoords, GravityCoords, GravityTick, Grid, ImageBuffer, MoneyTextTag, PickaxeTag, Pixel, PlayerTag, Position, SellBoxTag, ShovelTag, TerrainGridTag, Tool, Velocity};
 use crate::constants::{CURSOR_RADIUS, GROUND_HEIGHT, MIN_EROSION_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, ROCK_HEIGHT, SELL_BOX_HEIGHT, SELL_BOX_WIDTH, SKY_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use crate::player::{generate_pickaxe_grid, generate_player_image, generate_shovel_grid};
 use crate::util::{flatten_index, flatten_index_standard_grid, grid_to_image};
@@ -65,6 +68,20 @@ pub fn setup_world(mut commands: Commands, assets: Res<AssetServer>) {
             .insert(Grid{data: pickaxe_grid})
             .insert(ImageBuffer{data: pickaxe_image.data});
     commands.spawn(Count{count: 0.});
+
+    commands.spawn((
+        TextBundle::from_sections([
+            TextSection::new(
+                "$0.00 ",
+                TextStyle {
+                    font: assets.load("fonts/FiraSans-Bold.ttf"),
+                    font_size: 30.0,
+                    color: GOLD.into(),
+                    ..default()
+                },
+            ),
+        ]),
+    )).insert(MoneyTextTag);
 }
 
 fn generate_terrain_grid() -> Vec<Pixel> {
@@ -142,7 +159,6 @@ fn gravity_tick(gravity_coords: &mut HashSet<(usize, usize)>, grid: &mut Vec<Pix
                         break
                     }
                     *money_count += 0.01;
-                    println!("${:.2}", money_count);
                     grid[above_index] = Pixel::Sky;
                     looking_at_y -= 1;
                 }
@@ -218,4 +234,13 @@ fn add_sell_box_to_grid(grid: &mut Vec<Pixel>) {
             }
         }
     }
+}
+
+pub fn update_money_text(
+    mut money_text_query: Query<&mut Text, With<MoneyTextTag>>,
+    mut money_count_query: Query<&Count>,
+){
+    let money_count = money_count_query.get_single_mut().unwrap();
+    let mut money_text = money_text_query.get_single_mut().unwrap();
+    money_text.sections[0].value = format!("${:.2}", money_count.count);
 }

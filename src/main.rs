@@ -23,6 +23,7 @@ use player::update_tool;
 use render::render_scene;
 use world_generation::setup_world;
 use world_generation::grid_tick;
+use world_generation::update_money_text;
 use crate::constants::WINDOW_WIDTH;
 
 fn main() {
@@ -49,6 +50,6 @@ fn main() {
           });
         })
         .add_systems(Startup, (apply_deferred, setup_world).chain())
-        .add_systems(Update, (grid_tick, process_key_event, check_mouse_click, update_tool, render_scene))
+        .add_systems(Update, (grid_tick, process_key_event, check_mouse_click, update_tool, update_money_text, render_scene))
         .run();
 }
