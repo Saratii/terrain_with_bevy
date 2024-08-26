@@ -95,6 +95,12 @@ pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>) {
                 image_buffer[4*i+2] = 140;
                 image_buffer[4*i+3] = 255;
             },
+            Pixel::Chalcopyrite => {
+                image_buffer[4*i] = 196;
+                image_buffer[4*i+1] = 145;
+                image_buffer[4*i+2] = 2;
+                image_buffer[4*i+3] = 255;
+            },
         };
     }
 }

@@ -125,7 +125,7 @@ pub fn update_tool(
 
 pub fn update_shovel_content_visual(shovel_image_grid: &mut Vec<Pixel>, shovel_contents: &Vec<Pixel>){
     for color in shovel_image_grid.iter_mut(){
-        if matches!(*color, Pixel::Ground(_) | Pixel::Gravel){
+        if matches!(*color, Pixel::Ground(_) | Pixel::Gravel | Pixel::Chalcopyrite){
             *color = Pixel::TranslucentGrey;
         }
     }

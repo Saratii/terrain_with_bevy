@@ -98,6 +98,7 @@ pub enum Pixel {
     RefinedCopper,
     Black,
     PlayerSkin,
+    Chalcopyrite,
 }
 
 #[derive(Component)]

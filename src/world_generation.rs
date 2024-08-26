@@ -1,3 +1,4 @@
+use std::cmp::{max, min};
 use std::collections::HashSet;
 use std::f32::MIN;
 use std::time::Duration;
@@ -15,9 +16,9 @@ use bevy::utils::default;
 use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, sprite::SpriteBundle, transform::components::Transform};
 use rand::Rng;
 use crate::components::{ContentList, Count, CurrentTool, ErosionCoords, GravityCoords, GravityTick, Grid, ImageBuffer, MoneyTextTag, PickaxeTag, Pixel, PlayerTag, Position, SellBoxTag, ShovelTag, TerrainGridTag, Tool, Velocity};
-use crate::constants::{CURSOR_RADIUS, GROUND_HEIGHT, MIN_EROSION_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, ROCK_HEIGHT, SELL_BOX_HEIGHT, SELL_BOX_WIDTH, SKY_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::constants::{CALCOPIRITE_RADIUS, CHALCOPIRITE_SPAWN_COUNT, CURSOR_RADIUS, GROUND_HEIGHT, MIN_EROSION_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, ROCK_HEIGHT, SELL_BOX_HEIGHT, SELL_BOX_WIDTH, SKY_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use crate::player::{generate_pickaxe_grid, generate_player_image, generate_shovel_grid};
-use crate::util::{flatten_index, flatten_index_standard_grid, grid_to_image};
+use crate::util::{distance, flatten_index, flatten_index_standard_grid, grid_to_image};
 
 pub fn setup_world(mut commands: Commands, assets: Res<AssetServer>) {
     commands.spawn(PerfUiBundle::default());
@@ -96,6 +97,23 @@ fn generate_terrain_grid() -> Vec<Pixel> {
     for _ in 0..ROCK_HEIGHT * WINDOW_WIDTH{
         grid.push(Pixel::Rock);
     }
+    for _ in 0..CHALCOPIRITE_SPAWN_COUNT{
+        let x = rng.gen_range(0..WINDOW_WIDTH);
+        let y = rng.gen_range(SKY_HEIGHT + GROUND_HEIGHT..SKY_HEIGHT + GROUND_HEIGHT + ROCK_HEIGHT);
+        let index = flatten_index_standard_grid(&x, &y, WINDOW_WIDTH);
+        grid[index] = Pixel::Chalcopyrite;
+        for xx in max(0, x - CALCOPIRITE_RADIUS)..min(WINDOW_WIDTH, x + CALCOPIRITE_RADIUS){
+            for yy in max(0, y - CALCOPIRITE_RADIUS)..min(WINDOW_HEIGHT, y + CALCOPIRITE_RADIUS){
+                let distance = distance(xx as i32, yy as i32, x as i32, y as i32);
+                if distance < CALCOPIRITE_RADIUS as f32{
+                    if distance != 0. && rng.gen_range(0..distance as usize * 2) == 0{
+                        let index = flatten_index_standard_grid(&xx, &yy, WINDOW_WIDTH);
+                        grid[index] = Pixel::Chalcopyrite;
+                    }
+                }
+            }
+        }
+    }
     grid
 }
 
@@ -135,7 +153,7 @@ fn gravity_tick(gravity_coords: &mut HashSet<(usize, usize)>, grid: &mut Vec<Pix
     let mut new_coords = HashSet::new();
     for coord in gravity_coords.iter(){
         let index = flatten_index_standard_grid(&coord.0, &coord.1, WINDOW_WIDTH);
-        if matches!(grid[index], Pixel::Ground(_) | Pixel::Gravel){
+        if matches!(grid[index], Pixel::Ground(_) | Pixel::Gravel | Pixel::Chalcopyrite){
             let mut below_index = flatten_index_standard_grid(&coord.0, &(coord.1 + 1), WINDOW_WIDTH);
             if grid[below_index] == Pixel::Sky{ 
                 let mut looking_at_y = coord.1 + 1;
@@ -158,7 +176,11 @@ fn gravity_tick(gravity_coords: &mut HashSet<(usize, usize)>, grid: &mut Vec<Pix
                     if grid[above_index] == Pixel::Sky || grid[above_index] == Pixel::RefinedCopper{
                         break
                     }
-                    *money_count += 0.01;
+                    match grid[above_index]{
+                        Pixel::Chalcopyrite => *money_count += 0.5,
+                        Pixel::Ground(_) => *money_count += 0.01,
+                        _ => {}
+                    }
                     grid[above_index] = Pixel::Sky;
                     looking_at_y -= 1;
                 }
