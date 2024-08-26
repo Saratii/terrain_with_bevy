@@ -2,51 +2,31 @@ use std::cmp::min;
 
 use bevy::{math::Vec3, prelude::{Image, Mut, Query, Transform, With, Without}, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}, window::{PrimaryWindow, Window}};
 
-use crate::{components::{CurrentTool, PickaxeTag, Pixel, PlayerTag, ShovelTag, Tool, Velocity}, constants::{CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, PLAYER_COLOR, PLAYER_HEIGHT, PLAYER_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index_standard_grid}};
+use crate::{components::{CurrentTool, PickaxeTag, Pixel, PlayerTag, ShovelTag, Tool, Velocity}, constants::{CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, PLAYER_HEIGHT, PLAYER_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index_standard_grid, grid_to_image}};
 
 pub fn generate_player_image() -> Image{
-    let mut data_buffer: Vec<u8> = vec![255; 4 * PLAYER_WIDTH * PLAYER_HEIGHT];
+    let mut data_buffer: Vec<Pixel> = Vec::new();
     for y in 0..PLAYER_HEIGHT {
         for x in 0..PLAYER_WIDTH {
             if y < 15 {
-                data_buffer[flatten_index_standard_grid(&x, &y, PLAYER_WIDTH) * 4] = PLAYER_COLOR[0];
-                data_buffer[flatten_index_standard_grid(&x, &y, PLAYER_WIDTH) * 4 + 1] = PLAYER_COLOR[1];
-                data_buffer[flatten_index_standard_grid(&x, &y, PLAYER_WIDTH) * 4 + 2] = PLAYER_COLOR[2];
+                data_buffer.push(Pixel::PlayerSkin);
             } else {
-                data_buffer[flatten_index_standard_grid(&x, &y, PLAYER_WIDTH) * 4] = 0;
-                data_buffer[flatten_index_standard_grid(&x, &y, PLAYER_WIDTH) * 4 + 1] = 0;
-                data_buffer[flatten_index_standard_grid(&x, &y, PLAYER_WIDTH) * 4 + 2] = 0;
+                data_buffer.push(Pixel::Black);
             }
         }
     }
     for i in 0..2{
-        data_buffer[flatten_index_standard_grid(&(2 + i), &5, PLAYER_WIDTH) * 4] = 255;
-        data_buffer[flatten_index_standard_grid(&(2 + i), &5, PLAYER_WIDTH) * 4 + 1] = 255;
-        data_buffer[flatten_index_standard_grid(&(2 + i), &5, PLAYER_WIDTH) * 4 + 2] = 255;
-        data_buffer[flatten_index_standard_grid(&(PLAYER_WIDTH - 2 - i), &5, PLAYER_WIDTH) * 4] = 255;
-        data_buffer[flatten_index_standard_grid(&(PLAYER_WIDTH - 2 - i), &5, PLAYER_WIDTH) * 4 + 1] = 255;
-        data_buffer[flatten_index_standard_grid(&(PLAYER_WIDTH - 2 - i), &5, PLAYER_WIDTH) * 4 + 2] = 255;
+        data_buffer[flatten_index_standard_grid(&(2 + i), &5, PLAYER_WIDTH)] = Pixel::White;
+        data_buffer[flatten_index_standard_grid(&(PLAYER_WIDTH - 2 - i), &5, PLAYER_WIDTH)] = Pixel::White;
     }
     for i in 0..PLAYER_WIDTH - 4{
-        data_buffer[flatten_index_standard_grid(&(2 + i), &10, PLAYER_WIDTH) * 4] = 255;
-        data_buffer[flatten_index_standard_grid(&(2 + i), &10, PLAYER_WIDTH) * 4 + 1] = 0;
-        data_buffer[flatten_index_standard_grid(&(2 + i), &10, PLAYER_WIDTH) * 4 + 2] = 0;
+        data_buffer[flatten_index_standard_grid(&(2 + i), &10, PLAYER_WIDTH)] = Pixel::Red;
     }
-    Image::new(
-        Extent3d {
-            width: PLAYER_WIDTH as u32,
-            height: PLAYER_HEIGHT as u32,
-            depth_or_array_layers: 1,
-        },
-        TextureDimension::D2,
-        data_buffer,
-        TextureFormat::Rgba8UnormSrgb,
-        RenderAssetUsages::RENDER_WORLD | RenderAssetUsages::MAIN_WORLD
-    )
+    grid_to_image(&mut data_buffer, PLAYER_WIDTH as u32, PLAYER_HEIGHT as u32)
 }
 
 pub fn generate_shovel_grid() -> Vec<Pixel>{
-    let mut data_buffer: Vec<Pixel> = Vec::with_capacity(4 * CURSOR_RADIUS * 2 * CURSOR_RADIUS * 2);
+    let mut data_buffer: Vec<Pixel> = Vec::with_capacity(CURSOR_RADIUS * 2 * CURSOR_RADIUS * 2);
     for y in 0..CURSOR_RADIUS * 2 {
         for x in 0..CURSOR_RADIUS * 2 {
             let distance = distance(x as i32, y as i32, CURSOR_RADIUS as i32, CURSOR_RADIUS as i32);
@@ -63,7 +43,7 @@ pub fn generate_shovel_grid() -> Vec<Pixel>{
 }
 
 pub fn generate_pickaxe_grid() -> Vec<Pixel> {
-    let mut data_buffer: Vec<Pixel> = Vec::with_capacity(4 * CURSOR_RADIUS * 2 * CURSOR_RADIUS * 2);
+    let mut data_buffer: Vec<Pixel> = Vec::with_capacity(CURSOR_RADIUS * 2 * CURSOR_RADIUS * 2);
     for y in 0..CURSOR_RADIUS * 2 {
         for x in 0..CURSOR_RADIUS * 2 {
             let distance = distance(x as i32, y as i32, CURSOR_RADIUS as i32, CURSOR_RADIUS as i32);
@@ -102,14 +82,14 @@ fn horizontal_collision(velocity: &f32, grid: &Vec<Pixel>, entity_position_tl: &
     if velocity < &0.{
         for y in 0..PLAYER_HEIGHT {
             let index = flatten_index_standard_grid(&(entity_position_tl.0 as usize - 1), &(y as usize + entity_position_tl.1 as usize), WINDOW_WIDTH);
-            if grid[index] != Pixel::Sky{
+            if grid[index] != Pixel::Sky && grid[index] != Pixel::SellBox{
                 return true
             }
         }
     } else if velocity > &0.{
         for y in 0..PLAYER_HEIGHT {
             let index = flatten_index_standard_grid(&(entity_position_tl.0 as usize + PLAYER_WIDTH + 1), &(y as usize + entity_position_tl.1 as usize), WINDOW_WIDTH);
-            if grid[index] != Pixel::Sky{
+            if grid[index] != Pixel::Sky && grid[index] != Pixel::SellBox{
                 return true
             }
         }

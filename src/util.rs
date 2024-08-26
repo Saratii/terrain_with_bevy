@@ -8,8 +8,14 @@ pub fn flatten_index(x: i32, y: i32) -> usize {
 }
 
 pub fn grid_to_image(grid: &Vec<Pixel>, width: u32, height: u32) -> Image {
-    let mut image_buffer: Vec<u8> = vec![255; WINDOW_WIDTH * WINDOW_HEIGHT * 4];
+    let mut image_buffer: Vec<u8> = vec![255; width as usize * height as usize * 4];
     render_grid(grid, &mut image_buffer);    
+    if grid.len() != (width * height) as usize {
+        panic!("Grid and image dimensions do not match");
+    }
+    if image_buffer.len() != (width * height * 4) as usize {
+        panic!("Image buffer and image dimensions do not match: {:?}, {:?}\nimage buffer size: {:?}\nPixels: {:?}", width, height, image_buffer.len(), grid);
+    }
     Image::new(
         Extent3d {
             width,

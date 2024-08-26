@@ -25,6 +25,9 @@ pub struct ShovelTag;
 #[derive(Component)]
 pub struct PickaxeTag;
 
+#[derive(Component)]
+pub struct SellBoxTag;
+
 #[derive(Component, Debug)]
 pub struct Grid{
     pub data: Vec<Pixel>
@@ -44,8 +47,8 @@ pub struct ContentList{
 }
 
 #[derive(Component, Debug)]
-pub struct TerrainPositionsAffectedByGravity{
-    pub positions: HashSet<usize>
+pub struct GravityCoords{
+    pub coords: HashSet<(usize, usize)>
 }
 
 #[derive(Component)]
@@ -72,7 +75,11 @@ impl Distribution<DirtVariant> for Standard {
         }
     }
 }
-  
+
+#[derive(Component)]
+pub struct Count{
+    pub count: f32,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Pixel {
@@ -84,11 +91,15 @@ pub enum Pixel {
     Rock,
     Gravel,
     Red,
+    SellBox,
+    RefinedCopper,
+    Black,
+    PlayerSkin,
 }
 
 #[derive(Component)]
-pub struct ErosionColumns{
-    pub columns: HashSet<usize>
+pub struct ErosionCoords{
+    pub coords: HashSet<(usize, usize)>
 }
 
 #[derive(PartialEq)]

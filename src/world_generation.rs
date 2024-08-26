@@ -1,22 +1,26 @@
 use std::collections::HashSet;
+use std::f32::MIN;
 use std::time::Duration;
 
-use bevy::prelude::{Query, Visibility, With, Without};
+use bevy::prelude::{Image, Query, Visibility, With, Without};
+use bevy::render::render_asset::RenderAssetUsages;
+use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::time::{Time, Timer, TimerMode};
 use iyes_perf_ui::entries::PerfUiBundle;
 use bevy::utils::default;
 
 use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, sprite::SpriteBundle, transform::components::Transform};
-use rand::{thread_rng, Rng};
-use crate::components::{ContentList, CurrentTool, ErosionColumns, GravityTick, Grid, ImageBuffer, PickaxeTag, Pixel, PlayerTag, Position, ShovelTag, TerrainGridTag, TerrainPositionsAffectedByGravity, Tool, Velocity};
-use crate::constants::{CURSOR_RADIUS, GROUND_HEIGHT, MIN_EROSION_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, ROCK_HEIGHT, SKY_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
+use rand::Rng;
+use crate::components::{ContentList, Count, CurrentTool, ErosionCoords, GravityCoords, GravityTick, Grid, ImageBuffer, PickaxeTag, Pixel, PlayerTag, Position, SellBoxTag, ShovelTag, TerrainGridTag, Tool, Velocity};
+use crate::constants::{CURSOR_RADIUS, GROUND_HEIGHT, MIN_EROSION_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, ROCK_HEIGHT, SELL_BOX_HEIGHT, SELL_BOX_WIDTH, SKY_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use crate::player::{generate_pickaxe_grid, generate_player_image, generate_shovel_grid};
 use crate::util::{flatten_index, flatten_index_standard_grid, grid_to_image};
 
 pub fn setup_world(mut commands: Commands, assets: Res<AssetServer>) {
     commands.spawn(PerfUiBundle::default());
     commands.spawn(Camera2dBundle::default());
-    let terrain_grid = generate_terrain_grid();
+    let mut terrain_grid = generate_terrain_grid();
+    add_sell_box_to_grid(&mut terrain_grid);
     let shovel_grid = generate_shovel_grid();
     let pickaxe_grid = generate_pickaxe_grid();
     let terrain_image = grid_to_image(&terrain_grid, WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32);
@@ -27,13 +31,13 @@ pub fn setup_world(mut commands: Commands, assets: Res<AssetServer>) {
             .insert(
         SpriteBundle{
                     texture: assets.add(terrain_image.clone()),
-                    transform: Transform { translation: Vec3 { x: 0., y: 0., z: 0. }, ..default()},
+                    transform: Transform { translation: Vec3 { x: 0., y: 0., z: -1. }, ..default()},
                     ..default()
                 }
             )
             .insert(ImageBuffer{data: terrain_image.data})
-            .insert(TerrainPositionsAffectedByGravity{positions: HashSet::new()})
-            .insert(ErosionColumns{columns: HashSet::new()});
+            .insert(GravityCoords{coords: HashSet::new()})
+            .insert(ErosionCoords{coords: HashSet::new()});
     commands.spawn(PlayerTag)
             .insert(Position{x: PLAYER_SPAWN_X as f32, y: PLAYER_SPAWN_Y as f32})
             .insert(Velocity{vx: 0.0, vy: 0.0})
@@ -60,6 +64,7 @@ pub fn setup_world(mut commands: Commands, assets: Res<AssetServer>) {
                 ..default()})
             .insert(Grid{data: pickaxe_grid})
             .insert(ImageBuffer{data: pickaxe_image.data});
+    commands.spawn(Count{count: 0.});
 }
 
 fn generate_terrain_grid() -> Vec<Pixel> {
@@ -81,17 +86,19 @@ pub fn grid_tick(
     mut grid_query: Query<&mut Grid, (With<TerrainGridTag>, Without<ShovelTag>)>,
     time: Res<Time>,
     mut gravity_tick_timer_quiery: Query<&mut GravityTick>,
-    mut gravity_columns_query: Query<&mut TerrainPositionsAffectedByGravity>,
-    mut erosion_columns_query: Query<&mut ErosionColumns>,
+    mut gravity_coords_query: Query<&mut GravityCoords>,
+    mut erosion_coords_query: Query<&mut ErosionCoords>,
+    mut money_count_query: Query<&mut Count>,
 ) {
-    let mut grid = grid_query.get_single_mut().unwrap();
     let mut gravity_tick_timer = gravity_tick_timer_quiery.get_single_mut().unwrap();
-    let mut gravity_columns = gravity_columns_query.get_single_mut().unwrap();
-    let mut erosion_columns = erosion_columns_query.get_single_mut().unwrap();
     gravity_tick_timer.timer.tick(time.delta());
     if gravity_tick_timer.timer.finished(){
-        gravity_tick(&mut gravity_columns.positions, &mut grid.data, &mut erosion_columns.columns);
-        erosion_tick(&mut erosion_columns.columns, &mut grid.data, &mut gravity_columns.positions);
+        let mut grid = grid_query.get_single_mut().unwrap();
+        let mut money_count = money_count_query.get_single_mut().unwrap();
+        let mut erosion_coords = erosion_coords_query.get_single_mut().unwrap();
+        let mut gravity_coords = gravity_coords_query.get_single_mut().unwrap();
+        gravity_tick(&mut gravity_coords.coords, &mut grid.data, &mut erosion_coords.coords, &mut money_count.count);
+        //rosion_tick(&mut erosion_coords.coords, &mut grid.data, &mut gravity_coords.coords);
     }
 }
 
@@ -100,73 +107,94 @@ pub fn does_gravity_apply_to_entity(entity_x: i32, entity_y: i32, entity_width: 
         let index = flatten_index(x, entity_y - entity_height/2);
         match &grid[index]{
             Pixel::Sky => continue,
+            Pixel::SellBox => continue,
             _ => return false
         }
     }
     true
 }
 
-fn gravity_tick(columns: &mut HashSet<usize>, grid: &mut Vec<Pixel>, erosion_columns: &mut HashSet<usize>){
-    columns.retain(|column| {
-        let mut have_any_moved = false;
-        for y in (0..WINDOW_HEIGHT-1).rev() {
-            let index = flatten_index_standard_grid(column, &y, WINDOW_WIDTH);
-            if let Pixel::Ground(variant) = grid[index].clone(){
-                let below_index = flatten_index_standard_grid(column, &(y + 1), WINDOW_WIDTH);
-                if grid[below_index] == Pixel::Sky{
-                    have_any_moved = true;
-                    grid[below_index] = Pixel::Ground(variant);
-                    grid[index] = Pixel::Sky;
+fn gravity_tick(gravity_coords: &mut HashSet<(usize, usize)>, grid: &mut Vec<Pixel>, erosion_coords: &mut HashSet<(usize, usize)>, money_count: &mut f32){
+    let mut new_coords = HashSet::new();
+    for coord in gravity_coords.iter(){
+        let index = flatten_index_standard_grid(&coord.0, &coord.1, WINDOW_WIDTH);
+        if matches!(grid[index], Pixel::Ground(_) | Pixel::Gravel){
+            let mut below_index = flatten_index_standard_grid(&coord.0, &(coord.1 + 1), WINDOW_WIDTH);
+            if grid[below_index] == Pixel::Sky{ 
+                let mut looking_at_y = coord.1 + 1;
+                new_coords.insert((coord.0, looking_at_y));
+                loop {
+                    below_index = flatten_index_standard_grid(&coord.0, &looking_at_y, WINDOW_WIDTH);
+                    let above_index = flatten_index_standard_grid(&coord.0, &(looking_at_y - 1), WINDOW_WIDTH);
+                    if grid[above_index] == Pixel::Sky || grid[above_index] == Pixel::RefinedCopper{
+                        break
+                    }
+                    grid[below_index] = grid[above_index].clone();
+                    grid[above_index] = Pixel::Sky;
+                    looking_at_y -= 1;
                 }
-            } else if grid[index] == Pixel::Gravel{
-                let below_index = flatten_index_standard_grid(column, &(y + 1), WINDOW_WIDTH);
-                if grid[below_index] == Pixel::Sky{
-                    have_any_moved = true;
-                    grid[below_index] = Pixel::Gravel;
-                    grid[index] = Pixel::Sky;
+            } else if grid[below_index] == Pixel::SellBox{
+                let mut looking_at_y = coord.1 + 1;
+                new_coords.insert((coord.0, looking_at_y));
+                loop {
+                    let above_index = flatten_index_standard_grid(&coord.0, &(looking_at_y - 1), WINDOW_WIDTH);
+                    if grid[above_index] == Pixel::Sky || grid[above_index] == Pixel::RefinedCopper{
+                        break
+                    }
+                    *money_count += 0.01;
+                    println!("${:.2}", money_count);
+                    grid[above_index] = Pixel::Sky;
+                    looking_at_y -= 1;
                 }
             }
         }
-        if !have_any_moved{
-            erosion_columns.insert(*column);
+    };
+    for coord in gravity_coords.iter(){
+        if !new_coords.contains(coord){ //if pixel no longer affected by gravity, try erosion
+            erosion_coords.insert(coord.clone()); 
         }
-        have_any_moved
-    });
+    }
+    *gravity_coords = new_coords;
 }
 
-fn erosion_tick(erosion_columns: &mut HashSet<usize>, grid: &mut Vec<Pixel>, gravity_columns: &mut HashSet<usize>){
-    let mut new_erosion_columns = HashSet::new();
-    erosion_columns.retain(|column| {
-        if gravity_columns.contains(&(column - 1)) || gravity_columns.contains(&(column + 1)){
-            return true
+fn erosion_tick(erosion_coords: &mut HashSet<(usize, usize)>, grid: &mut Vec<Pixel>, gravity_coords: &mut HashSet<(usize, usize)>){
+    //filter out coords with both sides covered or above
+    for coord in erosion_coords.iter(){
+        println!("pixel: {:?}", grid[flatten_index_standard_grid(&coord.0, &coord.1, WINDOW_WIDTH)]);
+    }
+    println!("erosion coord count: {}", erosion_coords.len());
+    erosion_coords.retain(|coord|{
+        if grid[flatten_index_standard_grid(&(coord.0-1), &coord.1, WINDOW_WIDTH)] == Pixel::Sky && grid[flatten_index_standard_grid(&(coord.0+1), &coord.1, WINDOW_WIDTH)] != Pixel::Sky{
+            return false
         }
-        let last_sky_index = find_last_sky_height(*column, grid);
-        let last_sky_index_left = find_last_sky_height(*column - 1, grid);
-        let last_sky_index_right = find_last_sky_height(*column + 1, grid);
-        let left_to_center_distance =  last_sky_index_left as i32 - last_sky_index as i32;
-        let right_to_center_distance = last_sky_index_right as i32 - last_sky_index as i32;
-        if left_to_center_distance > MIN_EROSION_HEIGHT && left_to_center_distance > right_to_center_distance{
-            let center_index = flatten_index_standard_grid(column, &(last_sky_index + 1), WINDOW_WIDTH);
-            let moved_pixel = grid[center_index].clone();
-            grid[center_index] = Pixel::Sky;
-            let left_index = flatten_index_standard_grid(&(column - 1), &(last_sky_index + 1), WINDOW_WIDTH);
-            grid[left_index] = moved_pixel;
-            gravity_columns.insert(column - 1);
-            new_erosion_columns.insert(column + 1);
-            return true
-        } else if right_to_center_distance > MIN_EROSION_HEIGHT{
-            let center_index = flatten_index_standard_grid(column, &(last_sky_index + 1), WINDOW_WIDTH);
-            let moved_pixel = grid[center_index].clone();
-            grid[center_index] = Pixel::Sky;
-            let right_index = flatten_index_standard_grid(&(column + 1), &(last_sky_index + 1), WINDOW_WIDTH);
-            grid[right_index] = moved_pixel;
-            gravity_columns.insert(column + 1);
-            new_erosion_columns.insert(column - 1);
-            return true
+        if grid[flatten_index_standard_grid(&(coord.0), &(coord.1-1), WINDOW_WIDTH)] != Pixel::Sky{
+            return false
         }
-        false
+        true
     });
-    erosion_columns.extend(new_erosion_columns)
+    println!("erosion coord count after filter: {}", erosion_coords.len());
+    // erosion_coords.retain(|coord| {
+    //     let left_down_index = flatten_index_standard_grid(&(coord.0-1), &(coord.1 + MIN_EROSION_HEIGHT as usize), WINDOW_WIDTH);
+    //     let right_down_index = flatten_index_standard_grid(&(coord.0+1), &(coord.1 + MIN_EROSION_HEIGHT as usize), WINDOW_WIDTH);
+    //     let left_index = flatten_index_standard_grid(&(coord.0-1), &coord.1, WINDOW_WIDTH);
+    //     let right_index = flatten_index_standard_grid(&(coord.0+1), &coord.1, WINDOW_WIDTH);
+    //     let current_index =  flatten_index_standard_grid(&coord.0, &coord.1, WINDOW_WIDTH);
+    //     if grid[right_down_index] == Pixel::Sky{
+    //         let moved_pixel = grid[current_index].clone();
+    //         grid[current_index] = Pixel::Sky;
+    //         grid[right_index] = moved_pixel;
+    //         gravity_coords.insert((coord.0+1, coord.1 + MIN_EROSION_HEIGHT as usize));
+    //         return true
+    //     } else if grid[left_down_index] == Pixel::Sky{
+    //         let moved_pixel = grid[current_index].clone();
+    //         grid[current_index] = Pixel::Sky;
+    //         grid[left_index] = moved_pixel;
+    //         gravity_coords.insert((coord.0-1, coord.1 + MIN_EROSION_HEIGHT as usize));
+    //         return true
+    //     }
+    //     false
+    // });
+    // erosion_columns.extend(new_erosion_columns)
 }
 
 fn find_last_sky_height(column: usize, grid: &Vec<Pixel>) -> usize {
@@ -177,4 +205,17 @@ fn find_last_sky_height(column: usize, grid: &Vec<Pixel>) -> usize {
         }
     }
     0
+}
+
+fn add_sell_box_to_grid(grid: &mut Vec<Pixel>) {
+    for y in SKY_HEIGHT - SELL_BOX_HEIGHT..SKY_HEIGHT{
+        for x in 800..800+SELL_BOX_WIDTH{
+            let index = flatten_index_standard_grid(&x, &y, WINDOW_WIDTH);
+            if x < 800 + SELL_BOX_WIDTH - 1 - 2 && y < SKY_HEIGHT - 1 - 2 && x > 800 + 2{
+                grid[index] = Pixel::SellBox;
+            } else {
+                grid[index] = Pixel::RefinedCopper
+            }
+        }
+    }
 }

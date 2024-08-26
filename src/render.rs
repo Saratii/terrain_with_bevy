@@ -1,3 +1,5 @@
+use std::process::exit;
+
 use bevy::{asset::{Assets, Handle}, prelude::{Image, Query, ResMut, With, Without}};
 
 use crate::components::{DirtVariant, Grid, ImageBuffer, PickaxeTag, Pixel, ShovelTag, TerrainGridTag};
@@ -67,6 +69,30 @@ pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>) {
                 image_buffer[4*i] = 255;
                 image_buffer[4*i+1] = 0;
                 image_buffer[4*i+2] = 0;
+                image_buffer[4*i+3] = 255;
+            },
+            Pixel::SellBox => {
+                image_buffer[4*i] = 106;
+                image_buffer[4*i+1] = 13;
+                image_buffer[4*i+2] = 173;
+                image_buffer[4*i+3] = 255;
+            },
+            Pixel::RefinedCopper => {
+                image_buffer[4*i] = 205;
+                image_buffer[4*i+1] = 127;
+                image_buffer[4*i+2] = 50;
+                image_buffer[4*i+3] = 255;
+            },
+            Pixel::Black => {
+                image_buffer[4*i] = 0;
+                image_buffer[4*i+1] = 0;
+                image_buffer[4*i+2] = 0;
+                image_buffer[4*i+3] = 255;
+            },
+            Pixel::PlayerSkin => {
+                image_buffer[4*i] = 210;
+                image_buffer[4*i+1] = 180;
+                image_buffer[4*i+2] = 140;
                 image_buffer[4*i+3] = 255;
             },
         };
