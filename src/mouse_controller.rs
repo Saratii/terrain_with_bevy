@@ -113,7 +113,9 @@ pub fn left_click_shovel(shovel_position: &Transform, shovel_contents: &mut Vec<
                 } else if let Pixel::Gravel(gravel_variant ) = grid[index].clone() {
                     shovel_contents.push(Pixel::Gravel(gravel_variant));
                     grid[index] = Pixel::Sky;
-                    gravity_coords.coords.insert((index % WINDOW_WIDTH, index / WINDOW_WIDTH));
+                    if let Some(y) = search_upward_for_non_sky_pixel(grid, index % WINDOW_WIDTH, index / WINDOW_WIDTH){
+                        gravity_coords.coords.insert((index % WINDOW_WIDTH, y));
+                    }
                     if index % WINDOW_WIDTH < min_x {
                         min_x = index % WINDOW_WIDTH;
                     } else if index % WINDOW_WIDTH > max_x {
