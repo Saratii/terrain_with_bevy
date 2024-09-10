@@ -57,10 +57,17 @@ pub struct GravityTick{
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum DirtVariant{
+pub enum DirtVariant {
     Dirt1,
     Dirt2,
     Dirt3,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum GravelVariant {
+    Gravel1,
+    Gravel2,
+    Gravel3,
 }
 
 impl Distribution<DirtVariant> for Standard {
@@ -72,6 +79,19 @@ impl Distribution<DirtVariant> for Standard {
             1 => DirtVariant::Dirt2,
             2 => DirtVariant::Dirt2,
             _ => DirtVariant::Dirt3,
+        }
+    }
+}
+
+impl Distribution<GravelVariant> for Standard {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> GravelVariant {
+        match rng.gen_range(0..6) {
+            0 => GravelVariant::Gravel1,
+            4 => GravelVariant::Gravel2,
+            5 => GravelVariant::Gravel3,
+            1 => GravelVariant::Gravel1,
+            2 => GravelVariant::Gravel1,
+            _ => GravelVariant::Gravel1,
         }
     }
 }
@@ -92,7 +112,7 @@ pub enum Pixel {
     TranslucentGrey,
     Clear,
     Rock,
-    Gravel,
+    Gravel(GravelVariant),
     Red,
     SellBox,
     RefinedCopper,

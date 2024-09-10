@@ -1,4 +1,5 @@
 use bevy::{input::ButtonInput, prelude::{MouseButton, Query, Res, Transform, With, Without}};
+use rand::Rng;
 
 use crate::{components::{ContentList, CurrentTool, DirtVariant, ErosionCoords, GravityCoords, Grid, PickaxeTag, Pixel, ShovelTag, TerrainGridTag, Tool}, constants::{CURSOR_BORDER_WIDTH, CURSOR_RADIUS, MAX_SHOVEL_CAPACITY, WINDOW_WIDTH}, player::update_shovel_content_visual, util::{distance, flatten_index, flatten_index_standard_grid}};
 
@@ -56,7 +57,7 @@ pub fn right_click_shovel(shovel_grid: &mut Vec<Pixel>, terrain_grid: &mut Vec<P
                 return
             }
             let shovel_grid_index = flatten_index_standard_grid(&x, &y, CURSOR_RADIUS * 2);
-            if matches!(shovel_grid[shovel_grid_index], Pixel::Ground(_) | Pixel::Gravel | Pixel::Chalcopyrite){
+            if matches!(shovel_grid[shovel_grid_index], Pixel::Ground(_) | Pixel::Gravel(_) | Pixel::Chalcopyrite){
                 let main_grid_index = flatten_index(cursor_position.translation.x as i32 - CURSOR_RADIUS as i32 + x as i32, cursor_position.translation.y as i32 - CURSOR_RADIUS as i32 + (CURSOR_RADIUS * 2 - y - 1) as i32);
                 if terrain_grid[main_grid_index] == Pixel::Sky {
                     let pixel = cursor_contents.pop().unwrap();
@@ -109,8 +110,8 @@ pub fn left_click_shovel(shovel_position: &Transform, shovel_contents: &mut Vec<
                         update_shovel_content_visual(shovel_grid, shovel_contents);
                         return
                     }
-                } else if grid[index] == Pixel::Gravel{
-                    shovel_contents.push(Pixel::Gravel);
+                } else if let Pixel::Gravel(gravel_variant ) = grid[index].clone() {
+                    shovel_contents.push(Pixel::Gravel(gravel_variant));
                     grid[index] = Pixel::Sky;
                     gravity_coords.coords.insert((index % WINDOW_WIDTH, index / WINDOW_WIDTH));
                     if index % WINDOW_WIDTH < min_x {
@@ -149,12 +150,13 @@ fn left_click_pickaxe(pickaxe_position: &Transform, grid: &mut Vec<Pixel>, gravi
     let right = pickaxe_position.translation.x as i32 + CURSOR_RADIUS as i32;
     let top = pickaxe_position.translation.y as i32 + CURSOR_RADIUS as i32; 
     let bottom = pickaxe_position.translation.y as i32 - CURSOR_RADIUS as i32;
+    let rng = &mut rand::thread_rng();
     for y in bottom..top{
         for x in left..right{
             if distance(x, y, pickaxe_position.translation.x as i32, pickaxe_position.translation.y as i32) < CURSOR_RADIUS as f32 - CURSOR_BORDER_WIDTH {
                 let index = flatten_index(x as i32, y as i32);
                 if grid[index] == Pixel::Rock{
-                    grid[index] = Pixel::Gravel;
+                    grid[index] = Pixel::Gravel(rng.gen());
                     gravity_coords.coords.insert((index % WINDOW_WIDTH, index / WINDOW_WIDTH));
                 }
             }

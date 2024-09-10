@@ -153,7 +153,7 @@ fn gravity_tick(gravity_coords: &mut HashSet<(usize, usize)>, grid: &mut Vec<Pix
     let mut new_coords = HashSet::new();
     for coord in gravity_coords.iter(){
         let index = flatten_index_standard_grid(&coord.0, &coord.1, WINDOW_WIDTH);
-        if matches!(grid[index], Pixel::Ground(_) | Pixel::Gravel | Pixel::Chalcopyrite){
+        if matches!(grid[index], Pixel::Ground(_) | Pixel::Gravel(_) | Pixel::Chalcopyrite){
             let mut below_index = flatten_index_standard_grid(&coord.0, &(coord.1 + 1), WINDOW_WIDTH);
             if grid[below_index] == Pixel::Sky{ 
                 let mut looking_at_y = coord.1 + 1;

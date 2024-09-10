@@ -1,8 +1,6 @@
-use std::process::exit;
-
 use bevy::{asset::{Assets, Handle}, prelude::{Image, Query, ResMut, With, Without}};
 
-use crate::components::{DirtVariant, Grid, ImageBuffer, PickaxeTag, Pixel, ShovelTag, TerrainGridTag};
+use crate::components::{DirtVariant, GravelVariant, Grid, ImageBuffer, PickaxeTag, Pixel, ShovelTag, TerrainGridTag};
 
 pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>) {
     for i in 0..grid.len() {
@@ -25,6 +23,28 @@ pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>) {
                         image_buffer[4*i] = 155;
                         image_buffer[4*i+1] = 118;
                         image_buffer[4*i+2] = 83;
+                        image_buffer[4*i+3] = 255;
+                    },
+                }
+            },
+            Pixel::Gravel(variant) => {
+                match variant{
+                    GravelVariant::Gravel1 => {
+                        image_buffer[4*i] = 115;
+                        image_buffer[4*i+1] = 115;
+                        image_buffer[4*i+2] = 115;
+                        image_buffer[4*i+3] = 255;
+                    },
+                    GravelVariant::Gravel2 => {
+                        image_buffer[4*i] = 72;
+                        image_buffer[4*i+1] = 72;
+                        image_buffer[4*i+2] = 72;
+                        image_buffer[4*i+3] = 255;
+                    },
+                    GravelVariant::Gravel3 => {
+                        image_buffer[4*i] = 220;
+                        image_buffer[4*i+1] = 210;
+                        image_buffer[4*i+2] = 195;
                         image_buffer[4*i+3] = 255;
                     },
                 }
@@ -57,12 +77,6 @@ pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>) {
                 image_buffer[4*i] = 100;
                 image_buffer[4*i+1] = 100;
                 image_buffer[4*i+2] = 100;
-                image_buffer[4*i+3] = 255;
-            },
-            Pixel::Gravel => {
-                image_buffer[4*i] = 211;
-                image_buffer[4*i+1] = 211;
-                image_buffer[4*i+2] = 211;
                 image_buffer[4*i+3] = 255;
             },
             Pixel::Red => {
