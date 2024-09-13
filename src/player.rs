@@ -1,8 +1,8 @@
-use std::cmp::min;
+use std::{cmp::min, process::exit};
 
-use bevy::{math::Vec3, prelude::{Image, Mut, Query, Transform, With, Without}, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}, window::{PrimaryWindow, Window}};
+use bevy::{math::Vec3, prelude::{Image, Mut, Query, Transform, Visibility, With, Without}, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}, window::{PrimaryWindow, Window}};
 
-use crate::{components::{CurrentTool, PickaxeTag, Pixel, PlayerTag, ShovelTag, Tool, Velocity}, constants::{CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, PLAYER_HEIGHT, PLAYER_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index_standard_grid, grid_to_image}};
+use crate::{components::{CurrentTool, Grid, PickaxeTag, Pixel, PlayerTag, ShovelTag, TerrainGridTag, Tool, Velocity}, constants::{CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, PLAYER_HEIGHT, PLAYER_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index, flatten_index_standard_grid, grid_to_image}};
 
 pub fn generate_player_image() -> Image{
     let mut data_buffer: Vec<Pixel> = Vec::new();
@@ -103,10 +103,12 @@ pub fn update_tool(
     mut shovel_query: Query<&mut Transform, (With<ShovelTag>, (Without<PlayerTag>, Without<PickaxeTag>))>,
     mut pickaxe_query: Query<&mut Transform, (With<PickaxeTag>, (Without<PlayerTag>, Without<ShovelTag>))>,
     current_tool_query: Query<&CurrentTool>,
+    grid_query: Query<&Grid, With<TerrainGridTag>>,
 ){
     let player = player_query.get_single_mut().unwrap();
     let current_tool = current_tool_query.get_single().unwrap();
     let mut tool_position;
+    let grid = grid_query.get_single().unwrap();
     if current_tool.tool == Tool::Pickaxe{
         tool_position = pickaxe_query.get_single_mut().unwrap();
     } else {
@@ -118,8 +120,25 @@ pub fn update_tool(
         let angle = (converted_position_y - player.0.translation.y).atan2(converted_position_x - player.0.translation.x);
         let distance_from_player = distance(player.0.translation.x as i32, player.0.translation.y as i32, converted_position_x as i32, converted_position_y as i32);
         let min_distance = min(CURSOR_ORBITAL_RADIUS as usize, distance_from_player as usize) as f32;
-        tool_position.translation.x = player.0.translation.x + min_distance * angle.cos();
-        tool_position.translation.y = player.0.translation.y + min_distance * angle.sin();
+        let mut potential_x = player.0.translation.x + min_distance * angle.cos();
+        let mut potential_y = player.0.translation.y + min_distance * angle.sin();
+        let mut dy = potential_y - player.0.translation.y;
+        let mut dx = potential_x - player.0.translation.x;
+        if dy.abs() < dx.abs() {
+            dy /= dx;
+            dx = 1.;
+        } else {
+            dx /= dy;
+            dy = 1.;
+        }
+        dx = -dx.abs() * (potential_x - player.0.translation.x).signum();
+        dy = -dy.abs() * (potential_y - player.0.translation.y).signum();
+        while grid.data[flatten_index(potential_x as i32, potential_y as i32)] != Pixel::Sky{
+            potential_x += dx as f32;
+            potential_y += dy as f32;
+        }
+        tool_position.translation.x = potential_x;
+        tool_position.translation.y = potential_y;
     }
 }
 

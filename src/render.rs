@@ -73,7 +73,7 @@ pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>) {
                 image_buffer[4*i+2] = 255;
                 image_buffer[4*i+3] = 255;
             },
-            Pixel::Rock => {
+            Pixel::Rock(_) => {
                 image_buffer[4*i] = 100;
                 image_buffer[4*i+1] = 100;
                 image_buffer[4*i+2] = 100;

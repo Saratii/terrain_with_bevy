@@ -105,13 +105,18 @@ pub struct Count{
 pub struct MoneyTextTag;
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct Rock {
+    pub vertical_force: usize
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Pixel {
     Ground(DirtVariant), 
     Sky,
     White,
     TranslucentGrey,
     Clear,
-    Rock,
+    Rock(Rock),
     Gravel(GravelVariant),
     Red,
     SellBox,

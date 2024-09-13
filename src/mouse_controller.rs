@@ -1,3 +1,5 @@
+use std::arch::x86_64;
+
 use bevy::{input::ButtonInput, prelude::{MouseButton, Query, Res, Transform, With, Without}};
 use rand::Rng;
 
@@ -42,9 +44,11 @@ pub fn check_mouse_click(
         }
     }
     if buttons.just_pressed(MouseButton::Middle){
-        for i in 0..10{
-            grid.data[flatten_index_standard_grid(&100, &((100 + i) as usize), WINDOW_WIDTH)] = Pixel::Ground(DirtVariant::Dirt1);
-            gravity_coords.coords.insert((100, 100 + i));
+        for x in 0..100{
+            for i in 0..300{
+                grid.data[flatten_index_standard_grid(&x, &((100 + i) as usize), WINDOW_WIDTH)] = Pixel::Ground(DirtVariant::Dirt1);
+                gravity_coords.coords.insert(( x, 100 + i));
+            }
         }
     }
 }
@@ -157,7 +161,7 @@ fn left_click_pickaxe(pickaxe_position: &Transform, grid: &mut Vec<Pixel>, gravi
         for x in left..right{
             if distance(x, y, pickaxe_position.translation.x as i32, pickaxe_position.translation.y as i32) < CURSOR_RADIUS as f32 - CURSOR_BORDER_WIDTH {
                 let index = flatten_index(x as i32, y as i32);
-                if grid[index] == Pixel::Rock{
+                if matches!(grid[index], Pixel::Rock(_)) {
                     grid[index] = Pixel::Gravel(rng.gen());
                     gravity_coords.coords.insert((index % WINDOW_WIDTH, index / WINDOW_WIDTH));
                 }

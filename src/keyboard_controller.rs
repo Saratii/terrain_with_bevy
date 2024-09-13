@@ -7,8 +7,8 @@ pub fn process_key_event(
     keys: Res<ButtonInput<KeyCode>>,
     mut player_query: Query<(&mut Transform, &mut Velocity), (With<PlayerTag>, Without<ShovelTag>)>,
     time: Res<Time>,
-    mut current_tool: Query<&mut CurrentTool>,
     shovel_contents_query: Query<&mut ContentList, With<ShovelTag>>,
+    mut current_tool: Query<&mut CurrentTool>,
     mut shovel_visability_query: Query<&mut Visibility, (With<ShovelTag>, Without<PickaxeTag>)>,
     mut pickaxe_visability_query: Query<&mut Visibility, (With<PickaxeTag>, Without<ShovelTag>)>,
 ){

@@ -25,4 +25,5 @@ pub const FRICTION: f32 = 0.6;
 pub const SELL_BOX_HEIGHT: usize = 16;
 pub const SELL_BOX_WIDTH: usize = 40;
 pub const CHALCOPIRITE_SPAWN_COUNT: usize = 10;
-pub const CALCOPIRITE_RADIUS: usize = 40; 
+pub const CALCOPIRITE_RADIUS: usize = 40;
+pub const ROCK_STRENGTH: usize = 500;

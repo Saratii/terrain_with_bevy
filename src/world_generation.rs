@@ -1,22 +1,18 @@
 use std::cmp::{max, min};
 use std::collections::HashSet;
-use std::f32::MIN;
 use std::time::Duration;
 
 use bevy::color::palettes::css::GOLD;
-use bevy::prelude::{Image, Query, TextBundle, Visibility, With, Without};
-use bevy::render::render_asset::RenderAssetUsages;
-use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
+use bevy::prelude::{Query, TextBundle, Visibility, With, Without};
 use bevy::text::{Text, TextSection, TextStyle};
 use bevy::time::{Time, Timer, TimerMode};
-use bevy::ui::{PositionType, Style, Val};
 use iyes_perf_ui::entries::PerfUiBundle;
 use bevy::utils::default;
 
 use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, sprite::SpriteBundle, transform::components::Transform};
 use rand::Rng;
-use crate::components::{ContentList, Count, CurrentTool, ErosionCoords, GravityCoords, GravityTick, Grid, ImageBuffer, MoneyTextTag, PickaxeTag, Pixel, PlayerTag, Position, SellBoxTag, ShovelTag, TerrainGridTag, Tool, Velocity};
-use crate::constants::{CALCOPIRITE_RADIUS, CHALCOPIRITE_SPAWN_COUNT, CURSOR_RADIUS, GROUND_HEIGHT, MIN_EROSION_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, ROCK_HEIGHT, SELL_BOX_HEIGHT, SELL_BOX_WIDTH, SKY_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::components::{ContentList, Count, CurrentTool, ErosionCoords, GravityCoords, GravityTick, Grid, ImageBuffer, MoneyTextTag, PickaxeTag, Pixel, PlayerTag, Position, Rock, SellBoxTag, ShovelTag, TerrainGridTag, Tool, Velocity};
+use crate::constants::{CALCOPIRITE_RADIUS, CHALCOPIRITE_SPAWN_COUNT, CURSOR_RADIUS, GROUND_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, ROCK_HEIGHT, SELL_BOX_HEIGHT, SELL_BOX_WIDTH, SKY_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use crate::player::{generate_pickaxe_grid, generate_player_image, generate_shovel_grid};
 use crate::util::{distance, flatten_index, flatten_index_standard_grid, grid_to_image};
 
@@ -94,8 +90,10 @@ fn generate_terrain_grid() -> Vec<Pixel> {
     for _ in 0..GROUND_HEIGHT * WINDOW_WIDTH{
         grid.push(Pixel::Ground(rng.gen()));
     }
-    for _ in 0..ROCK_HEIGHT * WINDOW_WIDTH{
-        grid.push(Pixel::Rock);
+    for y in GROUND_HEIGHT + SKY_HEIGHT .. WINDOW_HEIGHT {
+        for _ in 0..WINDOW_WIDTH {
+            grid.push(Pixel::Rock(Rock{vertical_force: y - GROUND_HEIGHT - SKY_HEIGHT}));
+        }
     }
     for _ in 0..CHALCOPIRITE_SPAWN_COUNT{
         let x = rng.gen_range(0..WINDOW_WIDTH);
@@ -179,6 +177,7 @@ fn gravity_tick(gravity_coords: &mut HashSet<(usize, usize)>, grid: &mut Vec<Pix
                     match grid[above_index]{
                         Pixel::Chalcopyrite => *money_count += 0.5,
                         Pixel::Ground(_) => *money_count += 0.01,
+                        Pixel::Gravel(_) => *money_count += 0.01,
                         _ => {}
                     }
                     grid[above_index] = Pixel::Sky;
