@@ -11,7 +11,7 @@ use bevy::utils::default;
 
 use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, sprite::SpriteBundle, transform::components::Transform};
 use rand::Rng;
-use crate::components::{ContentList, Count, CurrentTool, ErosionCoords, GravityCoords, GravityTick, Grid, ImageBuffer, MoneyTextTag, PickaxeTag, Pixel, PlayerTag, Position, Rock, SellBoxTag, ShovelTag, TerrainGridTag, Tool, Velocity};
+use crate::components::{ContentList, Count, CurrentTool, ErosionCoords, GravityCoords, GravityTick, Grid, ImageBuffer, MoneyTextTag, PickaxeTag, Pixel, PlayerTag, Position, Rock, ShovelTag, TerrainGridTag, Tool, Velocity};
 use crate::constants::{CALCOPIRITE_RADIUS, CHALCOPIRITE_SPAWN_COUNT, CURSOR_RADIUS, GROUND_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, ROCK_HEIGHT, SELL_BOX_HEIGHT, SELL_BOX_WIDTH, SKY_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
 use crate::player::{generate_pickaxe_grid, generate_player_image, generate_shovel_grid};
 use crate::util::{distance, flatten_index, flatten_index_standard_grid, grid_to_image};
@@ -120,7 +120,6 @@ pub fn grid_tick(
     time: Res<Time>,
     mut gravity_tick_timer_quiery: Query<&mut GravityTick>,
     mut gravity_coords_query: Query<&mut GravityCoords>,
-    mut erosion_coords_query: Query<&mut ErosionCoords>,
     mut money_count_query: Query<&mut Count>,
 ) {
     let mut gravity_tick_timer = gravity_tick_timer_quiery.get_single_mut().unwrap();
@@ -128,10 +127,8 @@ pub fn grid_tick(
     if gravity_tick_timer.timer.finished(){
         let mut grid = grid_query.get_single_mut().unwrap();
         let mut money_count = money_count_query.get_single_mut().unwrap();
-        let mut erosion_coords = erosion_coords_query.get_single_mut().unwrap();
         let mut gravity_coords = gravity_coords_query.get_single_mut().unwrap();
-        gravity_tick(&mut gravity_coords.coords, &mut grid.data, &mut erosion_coords.coords, &mut money_count.count);
-        //rosion_tick(&mut erosion_coords.coords, &mut grid.data, &mut gravity_coords.coords);
+        gravity_tick(&mut gravity_coords.coords, &mut grid.data, &mut money_count.count);
     }
 }
 
@@ -147,7 +144,7 @@ pub fn does_gravity_apply_to_entity(entity_x: i32, entity_y: i32, entity_width: 
     true
 }
 
-fn gravity_tick(gravity_coords: &mut HashSet<(usize, usize)>, grid: &mut Vec<Pixel>, erosion_coords: &mut HashSet<(usize, usize)>, money_count: &mut f32){
+fn gravity_tick(gravity_coords: &mut HashSet<(usize, usize)>, grid: &mut Vec<Pixel>, money_count: &mut f32){
     let mut new_coords = HashSet::new();
     for coord in gravity_coords.iter(){
         let index = flatten_index_standard_grid(&coord.0, &coord.1, WINDOW_WIDTH);
@@ -159,8 +156,8 @@ fn gravity_tick(gravity_coords: &mut HashSet<(usize, usize)>, grid: &mut Vec<Pix
                 loop {
                     below_index = flatten_index_standard_grid(&coord.0, &looking_at_y, WINDOW_WIDTH);
                     let above_index = flatten_index_standard_grid(&coord.0, &(looking_at_y - 1), WINDOW_WIDTH);
-                    if grid[above_index] == Pixel::Sky || grid[above_index] == Pixel::RefinedCopper{
-                        break
+                    if matches!(grid[above_index], Pixel::Sky | Pixel::RefinedCopper | Pixel::Rock(_)) {
+                        break;
                     }
                     grid[below_index] = grid[above_index].clone();
                     grid[above_index] = Pixel::Sky;
@@ -186,62 +183,7 @@ fn gravity_tick(gravity_coords: &mut HashSet<(usize, usize)>, grid: &mut Vec<Pix
             }
         }
     };
-    for coord in gravity_coords.iter(){
-        if !new_coords.contains(coord){ //if pixel no longer affected by gravity, try erosion
-            erosion_coords.insert(coord.clone()); 
-        }
-    }
     *gravity_coords = new_coords;
-}
-
-fn erosion_tick(erosion_coords: &mut HashSet<(usize, usize)>, grid: &mut Vec<Pixel>, gravity_coords: &mut HashSet<(usize, usize)>){
-    //filter out coords with both sides covered or above
-    for coord in erosion_coords.iter(){
-        println!("pixel: {:?}", grid[flatten_index_standard_grid(&coord.0, &coord.1, WINDOW_WIDTH)]);
-    }
-    println!("erosion coord count: {}", erosion_coords.len());
-    erosion_coords.retain(|coord|{
-        if grid[flatten_index_standard_grid(&(coord.0-1), &coord.1, WINDOW_WIDTH)] == Pixel::Sky && grid[flatten_index_standard_grid(&(coord.0+1), &coord.1, WINDOW_WIDTH)] != Pixel::Sky{
-            return false
-        }
-        if grid[flatten_index_standard_grid(&(coord.0), &(coord.1-1), WINDOW_WIDTH)] != Pixel::Sky{
-            return false
-        }
-        true
-    });
-    println!("erosion coord count after filter: {}", erosion_coords.len());
-    // erosion_coords.retain(|coord| {
-    //     let left_down_index = flatten_index_standard_grid(&(coord.0-1), &(coord.1 + MIN_EROSION_HEIGHT as usize), WINDOW_WIDTH);
-    //     let right_down_index = flatten_index_standard_grid(&(coord.0+1), &(coord.1 + MIN_EROSION_HEIGHT as usize), WINDOW_WIDTH);
-    //     let left_index = flatten_index_standard_grid(&(coord.0-1), &coord.1, WINDOW_WIDTH);
-    //     let right_index = flatten_index_standard_grid(&(coord.0+1), &coord.1, WINDOW_WIDTH);
-    //     let current_index =  flatten_index_standard_grid(&coord.0, &coord.1, WINDOW_WIDTH);
-    //     if grid[right_down_index] == Pixel::Sky{
-    //         let moved_pixel = grid[current_index].clone();
-    //         grid[current_index] = Pixel::Sky;
-    //         grid[right_index] = moved_pixel;
-    //         gravity_coords.insert((coord.0+1, coord.1 + MIN_EROSION_HEIGHT as usize));
-    //         return true
-    //     } else if grid[left_down_index] == Pixel::Sky{
-    //         let moved_pixel = grid[current_index].clone();
-    //         grid[current_index] = Pixel::Sky;
-    //         grid[left_index] = moved_pixel;
-    //         gravity_coords.insert((coord.0-1, coord.1 + MIN_EROSION_HEIGHT as usize));
-    //         return true
-    //     }
-    //     false
-    // });
-    // erosion_columns.extend(new_erosion_columns)
-}
-
-fn find_last_sky_height(column: usize, grid: &Vec<Pixel>) -> usize {
-    for y in (0..WINDOW_HEIGHT).rev() {
-        let index = flatten_index_standard_grid(&column, &y, WINDOW_WIDTH);
-        if grid[index] == Pixel::Sky{
-            return y
-        }
-    }
-    0
 }
 
 fn add_sell_box_to_grid(grid: &mut Vec<Pixel>) {

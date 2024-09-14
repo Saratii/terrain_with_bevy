@@ -1,9 +1,7 @@
-use std::arch::x86_64;
-
 use bevy::{input::ButtonInput, prelude::{MouseButton, Query, Res, Transform, With, Without}};
 use rand::Rng;
 
-use crate::{components::{ContentList, CurrentTool, DirtVariant, ErosionCoords, GravityCoords, Grid, PickaxeTag, Pixel, ShovelTag, TerrainGridTag, Tool}, constants::{CURSOR_BORDER_WIDTH, CURSOR_RADIUS, MAX_SHOVEL_CAPACITY, WINDOW_WIDTH}, player::update_shovel_content_visual, util::{distance, flatten_index, flatten_index_standard_grid}};
+use crate::{components::{ContentList, CurrentTool, DirtVariant, ErosionCoords, GravityCoords, Grid, PickaxeTag, Pixel, Rock, ShovelTag, TerrainGridTag, Tool}, constants::{CURSOR_BORDER_WIDTH, CURSOR_RADIUS, MAX_SHOVEL_CAPACITY, WINDOW_WIDTH}, player::update_shovel_content_visual, util::{distance, flatten_index, flatten_index_standard_grid}};
 
 pub fn check_mouse_click(
     buttons: Res<ButtonInput<MouseButton>>,
@@ -44,10 +42,10 @@ pub fn check_mouse_click(
         }
     }
     if buttons.just_pressed(MouseButton::Middle){
-        for x in 0..100{
-            for i in 0..300{
-                grid.data[flatten_index_standard_grid(&x, &((100 + i) as usize), WINDOW_WIDTH)] = Pixel::Ground(DirtVariant::Dirt1);
-                gravity_coords.coords.insert(( x, 100 + i));
+        for x in 0..50{
+            for i in 0..40{
+                grid.data[flatten_index_standard_grid(&x, &((200 + i) as usize), WINDOW_WIDTH)] = Pixel::Rock(Rock{vertical_force: 0});
+                gravity_coords.coords.insert(( x, 200 + i));
             }
         }
     }
