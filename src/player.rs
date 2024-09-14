@@ -70,15 +70,18 @@ pub fn apply_velocity(entity_position_c: &mut Vec3, velocity: &mut Mut<Velocity>
         velocity.vx = 0.;
     } else {
         let entity_position_tl = c_to_tl(entity_position_c, PLAYER_WIDTH as f32, PLAYER_HEIGHT as f32);
-        if horizontal_collision(&velocity.vx, grid, &entity_position_tl) {
+        if velocity.vx != 0. && horizontal_collision(&velocity.vx, grid, &entity_position_tl){
             velocity.vx = 0.;
         }
+    }
+    if velocity.vy > 0. && vertical_collision(grid, &c_to_tl(entity_position_c, PLAYER_WIDTH as f32, PLAYER_HEIGHT as f32)){
+        velocity.vy = 0.;
     }
     entity_position_c.y += velocity.vy;
     entity_position_c.x += velocity.vx;
 }
 
-fn horizontal_collision(velocity: &f32, grid: &Vec<Pixel>, entity_position_tl: &(f32, f32)) -> bool{
+fn horizontal_collision(velocity: &f32, grid: &Vec<Pixel>, entity_position_tl: &(f32, f32)) -> bool {
     if velocity < &0.{
         for y in 0..PLAYER_HEIGHT {
             let index = flatten_index_standard_grid(&(entity_position_tl.0 as usize - 1), &(y as usize + entity_position_tl.1 as usize), WINDOW_WIDTH);
@@ -92,6 +95,15 @@ fn horizontal_collision(velocity: &f32, grid: &Vec<Pixel>, entity_position_tl: &
             if grid[index] != Pixel::Sky && grid[index] != Pixel::SellBox{
                 return true
             }
+        }
+    }
+    false
+}
+
+fn vertical_collision(grid: &Vec<Pixel>, entity_position_tl: &(f32, f32)) -> bool {
+    for x in entity_position_tl.0 as usize..entity_position_tl.0 as usize + PLAYER_WIDTH as usize{
+        if grid[flatten_index_standard_grid(&x, &(entity_position_tl.1 as usize - 1), WINDOW_WIDTH)] != Pixel::Sky {
+            return true
         }
     }
     false

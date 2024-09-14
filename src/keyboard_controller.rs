@@ -1,6 +1,6 @@
 use bevy::{input::ButtonInput, prelude::{KeyCode, Query, Res, Transform, Visibility, With, Without}, time::Time};
 
-use crate::{components::{ContentList, CurrentTool, Grid, PickaxeTag, PlayerTag, ShovelTag, TerrainGridTag, Tool, Velocity}, constants::{FRICTION, MAX_PLAYER_SPEED, PLAYER_HEIGHT, PLAYER_WIDTH}, player::apply_velocity, world_generation::does_gravity_apply_to_entity};
+use crate::{components::{ContentList, CurrentTool, Grid, PickaxeTag, Pixel, PlayerTag, ShovelTag, TerrainGridTag, Tool, Velocity}, constants::{FRICTION, MAX_PLAYER_SPEED, PLAYER_HEIGHT, PLAYER_WIDTH}, player::apply_velocity, util::flatten_index, world_generation::does_gravity_apply_to_entity};
 
 pub fn process_key_event(
     mut grid_query: Query<&mut Grid, (With<TerrainGridTag>, Without<ShovelTag>)>,

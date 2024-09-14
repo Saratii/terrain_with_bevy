@@ -42,10 +42,10 @@ pub fn check_mouse_click(
         }
     }
     if buttons.just_pressed(MouseButton::Middle){
-        for x in 0..50{
+        for x in 50..100{
             for i in 0..40{
-                grid.data[flatten_index_standard_grid(&x, &((200 + i) as usize), WINDOW_WIDTH)] = Pixel::Rock(Rock{vertical_force: 0});
-                gravity_coords.coords.insert(( x, 200 + i));
+                grid.data[flatten_index_standard_grid(&x, &((225 + i) as usize), WINDOW_WIDTH)] = Pixel::Rock(Rock{vertical_force: 0});
+                gravity_coords.coords.insert(( x, 225 + i));
             }
         }
     }
