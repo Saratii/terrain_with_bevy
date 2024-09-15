@@ -89,7 +89,7 @@ pub fn ray_cast(grid: &mut Grid<Pixel>, ray_count: usize, light_source: (usize, 
             let index = flatten_index_standard_grid(&(ray_x as usize), &(ray_y as usize), WINDOW_WIDTH);
             if ray_x < 0. || ray_x >= WINDOW_WIDTH as f32 || ray_y < 0. || ray_y >= WINDOW_HEIGHT as f32 || !matches!(grid.data[index].pixel_type, PixelType::Sky | PixelType::Light){
                 for _ in 0..FLASHLIGHT_RADIUS {
-                    if ray_x > 0. && ray_x < WINDOW_WIDTH as f32 && ray_y > 0. && ray_y < WINDOW_HEIGHT as f32 {
+                    if ray_x > 0. && ray_x < WINDOW_WIDTH as f32 && ray_y > 0. && ray_y < WINDOW_HEIGHT as f32 && grid.data[flatten_index_standard_grid(&(ray_x as usize), &(ray_y as usize), WINDOW_WIDTH)].pixel_type != PixelType::Sky {
                         ray_x += dx;
                         ray_y += dy;
                         // let new_index = flatten_index_standard_grid(&(ray_x as usize), &(ray_y as usize), WINDOW_WIDTH);

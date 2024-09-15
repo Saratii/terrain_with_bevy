@@ -50,10 +50,10 @@ pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>, perlin_mask: O
                 }
             },
             PixelType::Sky => {
-                image_buffer[4*i] = (135. * grid[i].gamma) as u8;
-                image_buffer[4*i+1] = (206. * grid[i].gamma) as u8;
-                image_buffer[4*i+2] = (235. * grid[i].gamma) as u8;
-                image_buffer[4*i+3] = (255. * grid[i].gamma) as u8;
+                image_buffer[4*i] = (135. * grid[i].gamma.max(0.8)) as u8;
+                image_buffer[4*i+1] = (206. * grid[i].gamma.max(0.8)) as u8;
+                image_buffer[4*i+2] = (235. * grid[i].gamma.max(0.8)) as u8;
+                image_buffer[4*i+3] = (255. * grid[i].gamma.max(0.8)) as u8;
             },
             PixelType::Clear => {
                 image_buffer[4*i] = 0;

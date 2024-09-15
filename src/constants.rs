@@ -33,4 +33,4 @@ pub const SUN_SPAWN_Y: usize = 40;
 pub const SUN_WIDTH: usize = 63;
 pub const SUN_HEIGHT: usize = 63;
 pub const FLASHLIGHT_RADIUS: usize = 40;
-pub const RAY_COUNT: usize = 256;
+pub const RAY_COUNT: usize = 512;
