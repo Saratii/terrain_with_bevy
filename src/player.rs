@@ -1,6 +1,6 @@
 use std::cmp::min;
 
-use bevy::{math::Vec3, prelude::{Image, Mut, Query, Transform, With, Without}, window::{PrimaryWindow, Window}};
+use bevy::{math::Vec3, prelude::{Image, Mut, Query, Res, Transform, With, Without}, time::Time, window::{PrimaryWindow, Window}};
 
 use crate::{components::{CurrentTool, Grid, PickaxeTag, Pixel, PixelType, PlayerTag, ShovelTag, TerrainGridTag, Tool, Velocity}, constants::{CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, PLAYER_HEIGHT, PLAYER_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index, flatten_index_standard_grid, grid_to_image}};
 
@@ -59,7 +59,7 @@ pub fn generate_pickaxe_grid() -> Vec<Pixel> {
     data_buffer
 }
 
-pub fn apply_velocity(entity_position_c: &mut Vec3, velocity: &mut Mut<Velocity>, grid: &Vec<Pixel>) {
+pub fn apply_velocity(entity_position_c: &mut Vec3, velocity: &mut Mut<Velocity>, grid: &Vec<Pixel>, time: &Res<Time>) {
     let min_x_c = -1. * WINDOW_WIDTH as f32 / 2. + PLAYER_WIDTH as f32 / 2.;
     let max_x_c = WINDOW_WIDTH as f32 / 2. - PLAYER_WIDTH as f32 / 2.;
     if entity_position_c.x < min_x_c {

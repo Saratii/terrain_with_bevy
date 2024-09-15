@@ -59,7 +59,7 @@ pub fn right_click_shovel(shovel_grid: &mut Vec<Pixel>, terrain_grid: &mut Vec<P
             let shovel_grid_index = flatten_index_standard_grid(&x, &y, CURSOR_RADIUS * 2);
             if matches!(shovel_grid[shovel_grid_index].pixel_type, PixelType::Ground(_) | PixelType::Gravel(_) | PixelType::Chalcopyrite) {
                 let main_grid_index = flatten_index(cursor_position.translation.x as i32 - CURSOR_RADIUS as i32 + x as i32, cursor_position.translation.y as i32 - CURSOR_RADIUS as i32 + (CURSOR_RADIUS * 2 - y - 1) as i32);
-                if let PixelType::Sky = terrain_grid[main_grid_index].pixel_type {
+                if matches!(terrain_grid[main_grid_index].pixel_type, PixelType::Sky | PixelType::Light) {
                     let pixel = cursor_contents.pop().unwrap();
                     terrain_grid[main_grid_index] = pixel;
                     gravity_coords.coords.insert((main_grid_index % WINDOW_WIDTH, main_grid_index / WINDOW_WIDTH));

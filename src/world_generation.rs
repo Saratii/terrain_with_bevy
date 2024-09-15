@@ -11,11 +11,11 @@ use bevy::utils::default;
 
 use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, sprite::SpriteBundle, transform::components::Transform};
 use rand::Rng;
-use crate::components::{ContentList, Count, CurrentTool, ErosionCoords, GravityCoords, GravityTick, Grid, ImageBuffer, MoneyTextTag, PickaxeTag, Pixel, PixelType, PlayerTag, Position, ShovelTag, SunTick, TerrainGridTag, Tool, Velocity};
-use crate::constants::{CALCOPIRITE_RADIUS, CHALCOPIRITE_SPAWN_COUNT, CURSOR_RADIUS, GROUND_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, RAY_COUNT, ROCK_HEIGHT, SELL_BOX_HEIGHT, SELL_BOX_WIDTH, SKY_HEIGHT, SUN_SPAWN_X, SUN_SPAWN_Y, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::components::{ContentList, Count, CurrentTool, ErosionCoords, GravityCoords, GravityTick, Grid, ImageBuffer, MoneyTextTag, PickaxeTag, Pixel, PixelType, PlayerTag, Position, ShovelTag, SunTag, SunTick, TerrainGridTag, Tool, Velocity};
+use crate::constants::{CALCOPIRITE_RADIUS, CHALCOPIRITE_SPAWN_COUNT, CURSOR_RADIUS, GROUND_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, RAY_COUNT, ROCK_HEIGHT, SELL_BOX_HEIGHT, SELL_BOX_WIDTH, SKY_HEIGHT, SUN_HEIGHT, SUN_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH};
 use crate::player::{generate_pickaxe_grid, generate_player_image, generate_shovel_grid};
 use crate::sun::ray_cast;
-use crate::util::{distance, flatten_index, flatten_index_standard_grid, grid_to_image};
+use crate::util::{c_to_tl, distance, flatten_index, flatten_index_standard_grid, grid_to_image};
 
 pub fn setup_camera(mut commands: Commands) {
     commands.spawn(PerfUiBundle::default());
@@ -126,6 +126,7 @@ pub fn grid_tick(
     mut gravity_tick_timer_query: Query<&mut GravityTick>,
     mut gravity_coords_query: Query<&mut GravityCoords>,
     mut money_count_query: Query<&mut Count>,
+    sun_position_query: Query<&Transform, With<SunTag>>,
 ) {
     let mut gravity_tick_timer = gravity_tick_timer_query.get_single_mut().unwrap();
     gravity_tick_timer.timer.tick(time.delta());
@@ -133,8 +134,12 @@ pub fn grid_tick(
         let mut grid = grid_query.get_single_mut().unwrap();
         let mut money_count = money_count_query.get_single_mut().unwrap();
         let mut gravity_coords = gravity_coords_query.get_single_mut().unwrap();
+        let sun_position = sun_position_query.single();
         gravity_tick(&mut gravity_coords.coords, &mut grid.data, &mut money_count.count);
-        ray_cast(&mut grid, RAY_COUNT, (SUN_SPAWN_X, SUN_SPAWN_Y));
+        let sun_position_tl = c_to_tl(&sun_position.translation, SUN_WIDTH as f32, SUN_HEIGHT as f32);
+        if (sun_position_tl.1 as usize) < SKY_HEIGHT {
+            ray_cast(&mut grid, RAY_COUNT, (sun_position_tl.0 as usize + SUN_WIDTH/2, sun_position_tl.1 as usize + SUN_HEIGHT/2));
+        }
     }
 }
 
@@ -157,13 +162,13 @@ fn gravity_tick(gravity_coords: &mut HashSet<(usize, usize)>, grid: &mut Vec<Pix
         let index = flatten_index_standard_grid(&coord.0, &coord.1, WINDOW_WIDTH);
         if matches!(grid[index].pixel_type, PixelType::Ground(_) | PixelType::Gravel(_) | PixelType::Chalcopyrite){
             let mut below_index = flatten_index_standard_grid(&coord.0, &(coord.1 + 1), WINDOW_WIDTH);
-            if let PixelType::Sky = grid[below_index].pixel_type { 
+            if matches!(grid[below_index].pixel_type, PixelType::Sky | PixelType::Light) { 
                 let mut looking_at_y = coord.1 + 1;
                 new_coords.insert((coord.0, looking_at_y));
                 loop {
                     below_index = flatten_index_standard_grid(&coord.0, &looking_at_y, WINDOW_WIDTH);
                     let above_index = flatten_index_standard_grid(&coord.0, &(looking_at_y - 1), WINDOW_WIDTH);
-                    if matches!(grid[above_index].pixel_type, PixelType::Sky | PixelType::RefinedCopper | PixelType::Rock) {
+                    if matches!(grid[above_index].pixel_type, PixelType::Sky | PixelType::RefinedCopper | PixelType::Rock | PixelType::Light) {
                         break;
                     }
                     grid[below_index] = grid[above_index].clone();

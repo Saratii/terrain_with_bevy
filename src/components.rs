@@ -42,6 +42,11 @@ pub struct ImageBuffer{
 }
 
 #[derive(Component)]
+pub struct F32 {
+    pub f32: f32
+}
+
+#[derive(Component)]
 pub struct SunTag;
 
 #[derive(Component)]

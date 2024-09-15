@@ -1,8 +1,8 @@
 use std::f32::consts::PI;
 
-use bevy::{asset::AssetServer, math::Vec3, prelude::{default, Commands, Query, Res, Transform, With}, sprite::SpriteBundle};
+use bevy::{asset::AssetServer, math::Vec3, prelude::{default, Commands, Query, Res, Transform, Visibility, With}, sprite::SpriteBundle, time::Time};
 
-use crate::{components::{Grid, ImageBuffer, Pixel, PixelType, SunTag, TerrainGridTag}, constants::{FLASHLIGHT_RADIUS, RAY_COUNT, SUN_HEIGHT, SUN_SPAWN_X, SUN_SPAWN_Y, SUN_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{distance, flatten_index_standard_grid, grid_to_image, tl_to_c}};
+use crate::{components::{Grid, ImageBuffer, Pixel, PixelType, SunTag, TerrainGridTag, F32}, constants::{FLASHLIGHT_RADIUS, RAY_COUNT, SKY_HEIGHT, SUN_HEIGHT, SUN_ORBIT_RADIUS, SUN_SPAWN_X, SUN_SPAWN_Y, SUN_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index_standard_grid, grid_to_image, tl_to_c}};
 
 #[derive(Debug)]
 struct Triangle {
@@ -23,6 +23,7 @@ pub fn start_sun(
     let sun_spawn_c = tl_to_c(SUN_SPAWN_X as f32, SUN_SPAWN_Y as f32, SUN_WIDTH as f32, SUN_HEIGHT as f32);
     commands.spawn(SunTag)
             .insert(Grid{data: sun_grid})
+            .insert(F32{f32: 1.})
             .insert(
         SpriteBundle{
                     texture: assets.add(sun_image.clone()),
@@ -143,5 +144,25 @@ fn light_triangle(triangle: &Triangle, grid: &mut Vec<Pixel>) {
                 grid[flatten_index_standard_grid(&x, &y, WINDOW_WIDTH)].gamma = 1.;
             }
         }
+    }
+}
+
+pub fn move_sun(
+    mut sun_query: Query<&mut Transform, With<SunTag>>,
+    mut sun_theta_query: Query<&mut F32, With<SunTag>>,
+    time: Res<Time>,
+    mut sun_visability_query: Query<&mut Visibility, With<SunTag>>,
+) {
+    let mut sun_transform = sun_query.single_mut();
+    let mut sun_theta = sun_theta_query.single_mut();
+    sun_theta.f32 += 0.1 * time.delta_seconds();
+    sun_transform.translation.x = SUN_ORBIT_RADIUS * sun_theta.f32.cos();
+    sun_transform.translation.y = SUN_ORBIT_RADIUS * sun_theta.f32.sin();
+    let sun_position_tl = c_to_tl(&sun_transform.translation, SUN_WIDTH as f32, SUN_HEIGHT as f32);
+    let mut sun_visability = sun_visability_query.single_mut();
+    if sun_position_tl.1 as usize > SKY_HEIGHT {
+        *sun_visability = Visibility::Hidden;
+    } else {
+        *sun_visability = Visibility::Visible;
     }
 }

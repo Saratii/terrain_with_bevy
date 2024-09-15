@@ -11,7 +11,7 @@ pub fn process_key_event(
     mut current_tool: Query<&mut CurrentTool>,
     mut shovel_visability_query: Query<&mut Visibility, (With<ShovelTag>, Without<PickaxeTag>)>,
     mut pickaxe_visability_query: Query<&mut Visibility, (With<PickaxeTag>, Without<ShovelTag>)>,
-){
+) {
     let shovel_contents = shovel_contents_query.get_single().unwrap();
     let grid = grid_query.get_single_mut().unwrap();
     let mut player = player_query.get_single_mut().unwrap();
@@ -26,14 +26,14 @@ pub fn process_key_event(
             player.1.vx += FRICTION * time.delta_seconds();
         }
     }
-    if keys.pressed(KeyCode::Digit1){
+    if keys.pressed(KeyCode::Digit1) {
         let mut shovel_visability = shovel_visability_query.get_single_mut().unwrap();
         let mut pickaxe_visability = pickaxe_visability_query.get_single_mut().unwrap();
         *shovel_visability = Visibility::Visible;
         *pickaxe_visability = Visibility::Hidden;
         let mut current_tool = current_tool.get_single_mut().unwrap();
         current_tool.tool = Tool::Shovel;
-    } else if keys.pressed(KeyCode::Digit2) && shovel_contents.contents.len() == 0{
+    } else if keys.pressed(KeyCode::Digit2) && shovel_contents.contents.len() == 0 {
         let mut shovel_visability = shovel_visability_query.get_single_mut().unwrap();
         let mut pickaxe_visability = pickaxe_visability_query.get_single_mut().unwrap();
         *shovel_visability = Visibility::Hidden;
@@ -50,10 +50,10 @@ pub fn process_key_event(
             player.1.vx += 1. * time.delta_seconds();
         }
     }
-    if keys.pressed(KeyCode::Space){
+    if keys.pressed(KeyCode::Space) {
         if !does_gravity_apply{
-            player.1.vy += 2.;
+            player.1.vy += 150. * time.delta_seconds();
         }
     }
-    apply_velocity(&mut player.0.translation, &mut player.1, &grid.data);
+    apply_velocity(&mut player.0.translation, &mut player.1, &grid.data, &time);
 }

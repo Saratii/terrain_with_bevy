@@ -23,6 +23,7 @@ use keyboard_controller::process_key_event;
 use mouse_controller::check_mouse_click;
 use player::update_tool;
 use render::render_scene;
+use sun::move_sun;
 use sun::start_sun;
 use world_generation::setup_camera;
 use world_generation::setup_world;
@@ -41,12 +42,12 @@ fn main() {
             }),
             ..default()
         }))
-        .add_plugins((
-          FrameTimeDiagnosticsPlugin,
-          EntityCountDiagnosticsPlugin,
-          SystemInformationDiagnosticsPlugin,
-          PerfUiPlugin,
-        ))
+        // .add_plugins((
+        //   FrameTimeDiagnosticsPlugin,
+        //   EntityCountDiagnosticsPlugin,
+        //   SystemInformationDiagnosticsPlugin,
+        //   PerfUiPlugin,
+        // ))
         .edit_schedule(Startup, |schedule| {
           schedule.set_build_settings(ScheduleBuildSettings {
               auto_insert_apply_deferred: false,
