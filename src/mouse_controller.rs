@@ -1,7 +1,7 @@
 use bevy::{input::ButtonInput, prelude::{MouseButton, Query, Res, Transform, With, Without}};
 use rand::Rng;
 
-use crate::{components::{ContentList, CurrentTool, GravityCoords, Grid, PickaxeTag, Pixel, PixelType, Rock, ShovelTag, TerrainGridTag, Tool}, constants::{CURSOR_BORDER_WIDTH, CURSOR_RADIUS, MAX_SHOVEL_CAPACITY, RAY_COUNT, SUN_SPAWN_X, SUN_SPAWN_Y, WINDOW_WIDTH}, player::update_shovel_content_visual, sun::ray_cast, util::{distance, flatten_index, flatten_index_standard_grid}};
+use crate::{components::{ContentList, CurrentTool, GravityCoords, Grid, PickaxeTag, Pixel, PixelType, ShovelTag, TerrainGridTag, Tool}, constants::{CURSOR_BORDER_WIDTH, CURSOR_RADIUS, MAX_SHOVEL_CAPACITY, WINDOW_WIDTH}, player::update_shovel_content_visual, util::{distance, flatten_index, flatten_index_standard_grid}};
 
 pub fn check_mouse_click(
     buttons: Res<ButtonInput<MouseButton>>,

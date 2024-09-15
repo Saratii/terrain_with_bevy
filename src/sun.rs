@@ -118,15 +118,8 @@ pub fn ray_cast(grid: &mut Grid<Pixel>, ray_count: usize, light_source: (usize, 
         p2: (last_ray.0, last_ray.1),
         p3: triangles[0].p3,
     });
-    for y in 0..WINDOW_HEIGHT {
-        for x in 0..WINDOW_WIDTH {
-            for triangle in &triangles {
-                if is_point_in_triangle(&triangle, &(x, y)) {
-                    grid.data[flatten_index_standard_grid(&x, &y, WINDOW_WIDTH)].gamma = 1.;
-                    break
-                }
-            }
-        }
+    for triangle in triangles {
+        light_triangle(&triangle, &mut grid.data);
     }
 }
 
@@ -135,6 +128,20 @@ fn reset_gamma(grid: &mut Grid<Pixel>) {
         match pixel.pixel_type {
             PixelType::Light | PixelType::Black | PixelType::PlayerSkin | PixelType::TranslucentGrey => pixel.gamma = 1.0,
             _ => pixel.gamma = 0.0,
+        }
+    }
+}
+
+fn light_triangle(triangle: &Triangle, grid: &mut Vec<Pixel>) {
+    let min_x = triangle.p1.0.min(triangle.p2.0).min(triangle.p3.0);
+    let max_x = triangle.p1.0.max(triangle.p2.0).max(triangle.p3.0);
+    let min_y = triangle.p1.1.min(triangle.p2.1).min(triangle.p3.1);
+    let max_y = triangle.p1.1.max(triangle.p2.1).max(triangle.p3.1);
+    for y in min_y..max_y {
+        for x in min_x..max_x {
+            if is_point_in_triangle(&triangle, &(x, y)) {
+                grid[flatten_index_standard_grid(&x, &y, WINDOW_WIDTH)].gamma = 1.;
+            }
         }
     }
 }

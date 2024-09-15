@@ -74,7 +74,7 @@ pub fn apply_velocity(entity_position_c: &mut Vec3, velocity: &mut Mut<Velocity>
             velocity.vx = 0.;
         }
     }
-    if velocity.vy > 0. && vertical_collision(grid, &c_to_tl(entity_position_c, PLAYER_WIDTH as f32, PLAYER_HEIGHT as f32)){
+    if velocity.vy > 0. && ((entity_position_c.y as i32 + PLAYER_HEIGHT as i32/2) >= (WINDOW_HEIGHT as i32/2) - 1 || vertical_collision(grid, &c_to_tl(entity_position_c, PLAYER_WIDTH as f32, PLAYER_HEIGHT as f32))){
         velocity.vy = 0.;
     }
     entity_position_c.y += velocity.vy;
