@@ -1,28 +1,28 @@
-use std::{cmp::min, process::exit};
+use std::cmp::min;
 
-use bevy::{math::Vec3, prelude::{Image, Mut, Query, Transform, Visibility, With, Without}, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}, window::{PrimaryWindow, Window}};
+use bevy::{math::Vec3, prelude::{Image, Mut, Query, Transform, With, Without}, window::{PrimaryWindow, Window}};
 
-use crate::{components::{CurrentTool, Grid, PickaxeTag, Pixel, PlayerTag, ShovelTag, TerrainGridTag, Tool, Velocity}, constants::{CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, PLAYER_HEIGHT, PLAYER_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index, flatten_index_standard_grid, grid_to_image}};
+use crate::{components::{CurrentTool, Grid, PickaxeTag, Pixel, PixelType, PlayerTag, ShovelTag, TerrainGridTag, Tool, Velocity}, constants::{CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, PLAYER_HEIGHT, PLAYER_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index, flatten_index_standard_grid, grid_to_image}};
 
 pub fn generate_player_image() -> Image{
     let mut data_buffer: Vec<Pixel> = Vec::new();
     for y in 0..PLAYER_HEIGHT {
-        for x in 0..PLAYER_WIDTH {
+        for _ in 0..PLAYER_WIDTH {
             if y < 15 {
-                data_buffer.push(Pixel::PlayerSkin);
+                data_buffer.push(Pixel { pixel_type: PixelType::PlayerSkin, gamma: 0. });
             } else {
-                data_buffer.push(Pixel::Black);
+                data_buffer.push(Pixel { pixel_type: PixelType::Black, gamma: 0. });
             }
         }
     }
-    for i in 0..2{
-        data_buffer[flatten_index_standard_grid(&(2 + i), &5, PLAYER_WIDTH)] = Pixel::White;
-        data_buffer[flatten_index_standard_grid(&(PLAYER_WIDTH - 2 - i), &5, PLAYER_WIDTH)] = Pixel::White;
+    for i in 0..2 {
+        data_buffer[flatten_index_standard_grid(&(2 + i), &5, PLAYER_WIDTH)] = Pixel { pixel_type: PixelType::White, gamma: 0. };
+        data_buffer[flatten_index_standard_grid(&(PLAYER_WIDTH - 2 - i), &5, PLAYER_WIDTH)] = Pixel { pixel_type: PixelType::White, gamma: 0. };
     }
-    for i in 0..PLAYER_WIDTH - 4{
-        data_buffer[flatten_index_standard_grid(&(2 + i), &10, PLAYER_WIDTH)] = Pixel::Red;
+    for i in 0..PLAYER_WIDTH - 4 {
+        data_buffer[flatten_index_standard_grid(&(2 + i), &10, PLAYER_WIDTH)] = Pixel { pixel_type: PixelType::Red, gamma: 0. };
     }
-    grid_to_image(&mut data_buffer, PLAYER_WIDTH as u32, PLAYER_HEIGHT as u32)
+    grid_to_image(&mut data_buffer, PLAYER_WIDTH as u32, PLAYER_HEIGHT as u32, None)
 }
 
 pub fn generate_shovel_grid() -> Vec<Pixel>{
@@ -31,11 +31,11 @@ pub fn generate_shovel_grid() -> Vec<Pixel>{
         for x in 0..CURSOR_RADIUS * 2 {
             let distance = distance(x as i32, y as i32, CURSOR_RADIUS as i32, CURSOR_RADIUS as i32);
             if distance > CURSOR_RADIUS as f32 {
-                data_buffer.push(Pixel::Clear);
+                data_buffer.push(Pixel { pixel_type: PixelType::Clear, gamma: 1. });
             } else if distance < CURSOR_RADIUS as f32 - CURSOR_BORDER_WIDTH {
-                data_buffer.push(Pixel::TranslucentGrey);
+                data_buffer.push(Pixel { pixel_type: PixelType::TranslucentGrey, gamma: 1. });
             } else {
-                data_buffer.push(Pixel::White);
+                data_buffer.push(Pixel { pixel_type: PixelType::White, gamma: 1. });
             }
         }
     }
@@ -48,11 +48,11 @@ pub fn generate_pickaxe_grid() -> Vec<Pixel> {
         for x in 0..CURSOR_RADIUS * 2 {
             let distance = distance(x as i32, y as i32, CURSOR_RADIUS as i32, CURSOR_RADIUS as i32);
             if distance > CURSOR_RADIUS as f32 {
-                data_buffer.push(Pixel::Clear);
+                data_buffer.push(Pixel { pixel_type: PixelType::Clear, gamma: 1. });
             } else if distance < CURSOR_RADIUS as f32 - CURSOR_BORDER_WIDTH {
-                data_buffer.push(Pixel::TranslucentGrey);
+                data_buffer.push(Pixel { pixel_type: PixelType::TranslucentGrey, gamma: 1. });
             } else {
-                data_buffer.push(Pixel::Red);
+                data_buffer.push(Pixel { pixel_type: PixelType::Red, gamma: 1. });
             }
         }
     }
@@ -82,17 +82,17 @@ pub fn apply_velocity(entity_position_c: &mut Vec3, velocity: &mut Mut<Velocity>
 }
 
 fn horizontal_collision(velocity: &f32, grid: &Vec<Pixel>, entity_position_tl: &(f32, f32)) -> bool {
-    if velocity < &0.{
+    if velocity < &0. {
         for y in 0..PLAYER_HEIGHT {
             let index = flatten_index_standard_grid(&(entity_position_tl.0 as usize - 1), &(y as usize + entity_position_tl.1 as usize), WINDOW_WIDTH);
-            if grid[index] != Pixel::Sky && grid[index] != Pixel::SellBox{
+            if !matches!(grid[index].pixel_type, PixelType::Sky | PixelType::SellBox | PixelType::Light) {
                 return true
             }
         }
     } else if velocity > &0.{
         for y in 0..PLAYER_HEIGHT {
             let index = flatten_index_standard_grid(&(entity_position_tl.0 as usize + PLAYER_WIDTH + 1), &(y as usize + entity_position_tl.1 as usize), WINDOW_WIDTH);
-            if grid[index] != Pixel::Sky && grid[index] != Pixel::SellBox{
+            if !matches!(grid[index].pixel_type, PixelType::Sky | PixelType::SellBox | PixelType::Light) {
                 return true
             }
         }
@@ -101,8 +101,8 @@ fn horizontal_collision(velocity: &f32, grid: &Vec<Pixel>, entity_position_tl: &
 }
 
 fn vertical_collision(grid: &Vec<Pixel>, entity_position_tl: &(f32, f32)) -> bool {
-    for x in entity_position_tl.0 as usize..entity_position_tl.0 as usize + PLAYER_WIDTH as usize{
-        if grid[flatten_index_standard_grid(&x, &(entity_position_tl.1 as usize - 1), WINDOW_WIDTH)] != Pixel::Sky {
+    for x in entity_position_tl.0 as usize..entity_position_tl.0 as usize + PLAYER_WIDTH as usize {
+        if !matches!(grid[flatten_index_standard_grid(&x, &(entity_position_tl.1 as usize - 1), WINDOW_WIDTH)].pixel_type, PixelType::Sky | PixelType::SellBox | PixelType::Light) {
             return true
         }
     }
@@ -115,8 +115,8 @@ pub fn update_tool(
     mut shovel_query: Query<&mut Transform, (With<ShovelTag>, (Without<PlayerTag>, Without<PickaxeTag>))>,
     mut pickaxe_query: Query<&mut Transform, (With<PickaxeTag>, (Without<PlayerTag>, Without<ShovelTag>))>,
     current_tool_query: Query<&CurrentTool>,
-    grid_query: Query<&Grid, With<TerrainGridTag>>,
-){
+    grid_query: Query<&Grid<Pixel>, With<TerrainGridTag>>,
+) {
     let player = player_query.get_single_mut().unwrap();
     let current_tool = current_tool_query.get_single().unwrap();
     let mut tool_position;
@@ -145,7 +145,7 @@ pub fn update_tool(
         }
         dx = -dx.abs() * (potential_x - player.0.translation.x).signum();
         dy = -dy.abs() * (potential_y - player.0.translation.y).signum();
-        while grid.data[flatten_index(potential_x as i32, potential_y as i32)] != Pixel::Sky{
+        while grid.data[flatten_index(potential_x as i32, potential_y as i32)].pixel_type != PixelType::Sky && grid.data[flatten_index(potential_x as i32, potential_y as i32)].pixel_type != PixelType::Light {
             potential_x += dx as f32;
             potential_y += dy as f32;
         }
@@ -154,20 +154,20 @@ pub fn update_tool(
     }
 }
 
-pub fn update_shovel_content_visual(shovel_image_grid: &mut Vec<Pixel>, shovel_contents: &Vec<Pixel>){
-    for color in shovel_image_grid.iter_mut(){
-        if matches!(*color, Pixel::Ground(_) | Pixel::Gravel(_) | Pixel::Chalcopyrite){
-            *color = Pixel::TranslucentGrey;
+pub fn update_shovel_content_visual(shovel_image_grid: &mut Vec<Pixel>, shovel_contents: &Vec<Pixel>) {
+    for pixel in shovel_image_grid.iter_mut() {
+        if matches!(pixel.pixel_type, PixelType::Ground(_) | PixelType::Gravel(_) | PixelType::Chalcopyrite) {
+            pixel.pixel_type = PixelType::TranslucentGrey;
         }
     }
     let mut drawn_content = 0;
-    for color in shovel_image_grid.iter_mut().rev(){
-        if drawn_content == shovel_contents.len(){
+    for pixel in shovel_image_grid.iter_mut().rev() {
+        if drawn_content == shovel_contents.len() {
             return
         }
-        if *color == Pixel::TranslucentGrey {
-            let pixel = &shovel_contents[drawn_content];
-            *color = pixel.clone();
+        if matches!(pixel.pixel_type, PixelType::TranslucentGrey) {
+            let pixel_type = &shovel_contents[drawn_content].pixel_type;
+            pixel.pixel_type = pixel_type.clone();
             drawn_content += 1;
         }
     }

@@ -1,9 +1,9 @@
 use bevy::{input::ButtonInput, prelude::{KeyCode, Query, Res, Transform, Visibility, With, Without}, time::Time};
 
-use crate::{components::{ContentList, CurrentTool, Grid, PickaxeTag, Pixel, PlayerTag, ShovelTag, TerrainGridTag, Tool, Velocity}, constants::{FRICTION, MAX_PLAYER_SPEED, PLAYER_HEIGHT, PLAYER_WIDTH}, player::apply_velocity, util::flatten_index, world_generation::does_gravity_apply_to_entity};
+use crate::{components::{ContentList, CurrentTool, Grid, PickaxeTag, Pixel, PlayerTag, ShovelTag, TerrainGridTag, Tool, Velocity}, constants::{FRICTION, MAX_PLAYER_SPEED, PLAYER_HEIGHT, PLAYER_WIDTH}, player::apply_velocity, world_generation::does_gravity_apply_to_entity};
 
 pub fn process_key_event(
-    mut grid_query: Query<&mut Grid, (With<TerrainGridTag>, Without<ShovelTag>)>,
+    mut grid_query: Query<&mut Grid<Pixel>, (With<TerrainGridTag>, Without<ShovelTag>)>,
     keys: Res<ButtonInput<KeyCode>>,
     mut player_query: Query<(&mut Transform, &mut Velocity), (With<PlayerTag>, Without<ShovelTag>)>,
     time: Res<Time>,
@@ -52,7 +52,7 @@ pub fn process_key_event(
     }
     if keys.pressed(KeyCode::Space){
         if !does_gravity_apply{
-            player.1.vy += 150. * time.delta_seconds();
+            player.1.vy += 2.;
         }
     }
     apply_velocity(&mut player.0.translation, &mut player.1, &grid.data);

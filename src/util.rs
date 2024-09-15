@@ -7,9 +7,9 @@ pub fn flatten_index(x: i32, y: i32) -> usize {
     return index as usize;
 }
 
-pub fn grid_to_image(grid: &Vec<Pixel>, width: u32, height: u32) -> Image {
+pub fn grid_to_image(grid: &Vec<Pixel>, width: u32, height: u32, perlin_mask: Option<&Vec<f32>>) -> Image {
     let mut image_buffer: Vec<u8> = vec![255; width as usize * height as usize * 4];
-    render_grid(grid, &mut image_buffer);    
+    render_grid(grid, &mut image_buffer, perlin_mask);    
     if grid.len() != (width * height) as usize {
         panic!("Grid and image dimensions do not match");
     }
@@ -31,6 +31,10 @@ pub fn grid_to_image(grid: &Vec<Pixel>, width: u32, height: u32) -> Image {
 
 pub fn c_to_tl(entity_position_c: &Vec3, width: f32, height: f32) -> (f32, f32){
     (entity_position_c.x + (WINDOW_HEIGHT/2) as f32 - width/2., (entity_position_c.y - (WINDOW_WIDTH/2) as f32) * -1. - height/2.)
+}
+
+pub fn tl_to_c(x: f32, y: f32, width: f32, height: f32) -> (f32, f32) {
+    (x  + width/2. - WINDOW_HEIGHT as f32/2., (y + height/2.) * -1. + (WINDOW_WIDTH/2) as f32)
 }
 
 pub fn flatten_index_standard_grid(x: &usize, y: &usize, grid_width: usize) -> usize {

@@ -23,20 +23,26 @@ pub struct PlayerTag;
 pub struct ShovelTag;
 
 #[derive(Component)]
+pub struct FogImageTag;
+
+#[derive(Component)]
 pub struct PickaxeTag;
 
 #[derive(Component)]
 pub struct SellBoxTag;
 
 #[derive(Component, Debug)]
-pub struct Grid{
-    pub data: Vec<Pixel>
+pub struct Grid<T> {
+    pub data: Vec<T>
 }
 
 #[derive(Component)]
 pub struct ImageBuffer{
     pub data: Vec<u8>
 }
+
+#[derive(Component)]
+pub struct SunTag;
 
 #[derive(Component)]
 pub struct TerrainGridTag;
@@ -47,12 +53,22 @@ pub struct ContentList{
 }
 
 #[derive(Component, Debug)]
-pub struct GravityCoords{
+pub struct GravityCoords {
     pub coords: HashSet<(usize, usize)>
 }
 
 #[derive(Component)]
-pub struct GravityTick{
+pub struct FogIndicesToUncover {
+    pub indices: HashSet<usize>
+}
+
+#[derive(Component)]
+pub struct GravityTick {
+    pub timer: Timer,
+}
+
+#[derive(Component)]
+pub struct SunTick {
     pub timer: Timer,
 }
 
@@ -109,14 +125,20 @@ pub struct Rock {
     pub vertical_force: usize
 }
 
+#[derive(Clone, Debug)]
+pub struct Pixel {
+    pub pixel_type: PixelType,
+    pub gamma: f32
+}
+
 #[derive(Clone, Debug, PartialEq)]
-pub enum Pixel {
+pub enum PixelType {
     Ground(DirtVariant), 
     Sky,
     White,
     TranslucentGrey,
     Clear,
-    Rock(Rock),
+    Rock,
     Gravel(GravelVariant),
     Red,
     SellBox,
@@ -124,6 +146,8 @@ pub enum Pixel {
     Black,
     PlayerSkin,
     Chalcopyrite,
+    Cloud,
+    Light,
 }
 
 #[derive(Component)]

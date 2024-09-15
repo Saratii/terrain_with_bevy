@@ -7,6 +7,8 @@ pub mod render;
 pub mod util;
 pub mod mouse_controller;
 pub mod keyboard_controller;
+pub mod fog;
+mod sun;
 
 use bevy::app::*;
 use bevy::diagnostic::EntityCountDiagnosticsPlugin;
@@ -21,6 +23,8 @@ use keyboard_controller::process_key_event;
 use mouse_controller::check_mouse_click;
 use player::update_tool;
 use render::render_scene;
+use sun::start_sun;
+use world_generation::setup_camera;
 use world_generation::setup_world;
 use world_generation::grid_tick;
 use world_generation::update_money_text;
@@ -49,7 +53,8 @@ fn main() {
               ..default()
           });
         })
-        .add_systems(Startup, (apply_deferred, setup_world).chain())
+        .insert_resource(ClearColor(Color::srgb(0.0, 0.0, 0.0)))
+        .add_systems(Startup, (setup_camera, setup_world, apply_deferred, start_sun).chain())
         .add_systems(Update, (grid_tick, process_key_event, check_mouse_click, update_tool, update_money_text, render_scene))
         .run();
 }
