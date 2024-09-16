@@ -1,6 +1,6 @@
 use bevy::{asset::{Assets, Handle}, prelude::{Image, Query, ResMut, With, Without}};
 
-use crate::components::{DirtVariant, FogImageTag, GravelVariant, Grid, ImageBuffer, PickaxeTag, Pixel, PixelType, ShovelTag, SunTag, TerrainGridTag};
+use crate::{components::{DirtVariant, FogImageTag, GravelVariant, Grid, ImageBuffer, PickaxeTag, Pixel, PixelType, ShovelTag, SunTag, TerrainGridTag}, constants::DEFAULT_GAMMA};
 
 pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>, perlin_mask: Option<&Vec<f32>>) {
     for i in 0..grid.len() {
@@ -8,52 +8,52 @@ pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>, perlin_mask: O
             PixelType::Ground(variant) => {
                 match variant{
                     DirtVariant::Dirt1 => {
-                        image_buffer[4*i] = (88. * grid[i].gamma) as u8;
-                        image_buffer[4*i+1] = (57. * grid[i].gamma) as u8;
-                        image_buffer[4*i+2] = (39. * grid[i].gamma) as u8;
-                        image_buffer[4*i+3] = (255. * grid[i].gamma) as u8;
+                        image_buffer[4*i] = (88. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                        image_buffer[4*i+1] = (57. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                        image_buffer[4*i+2] = (39. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                        image_buffer[4*i+3] = (255. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
                     },
                     DirtVariant::Dirt2 => {
-                        image_buffer[4*i] = (92. * grid[i].gamma) as u8;
-                        image_buffer[4*i+1] = (64. * grid[i].gamma) as u8;
-                        image_buffer[4*i+2] = (51. * grid[i].gamma) as u8;
-                        image_buffer[4*i+3] = (255. * grid[i].gamma) as u8;
+                        image_buffer[4*i] = (92. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                        image_buffer[4*i+1] = (64. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                        image_buffer[4*i+2] = (51. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                        image_buffer[4*i+3] = (255. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
                     },
                     DirtVariant::Dirt3 => {
-                        image_buffer[4*i] = (155. * grid[i].gamma) as u8;
-                        image_buffer[4*i+1] = (118. * grid[i].gamma) as u8;
-                        image_buffer[4*i+2] = (83. * grid[i].gamma) as u8;
-                        image_buffer[4*i+3] = (255. * grid[i].gamma) as u8;
+                        image_buffer[4*i] = (155. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                        image_buffer[4*i+1] = (118. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                        image_buffer[4*i+2] = (83. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                        image_buffer[4*i+3] = (255. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
                     },
                 }
             },
             PixelType::Gravel(variant) => {
                 match variant{
                     GravelVariant::Gravel1 => {
-                        image_buffer[4*i] = (115. * grid[i].gamma) as u8;
-                        image_buffer[4*i+1] = (115. * grid[i].gamma) as u8;
-                        image_buffer[4*i+2] = (115. * grid[i].gamma) as u8;
-                        image_buffer[4*i+3] = (255. * grid[i].gamma) as u8;
+                        image_buffer[4*i] = (115. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                        image_buffer[4*i+1] = (115. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                        image_buffer[4*i+2] = (115. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                        image_buffer[4*i+3] = (255. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
                     },
                     GravelVariant::Gravel2 => {
-                        image_buffer[4*i] = (72. * grid[i].gamma) as u8;
-                        image_buffer[4*i+1] = (72. * grid[i].gamma) as u8;
-                        image_buffer[4*i+2] = (72. * grid[i].gamma) as u8;
-                        image_buffer[4*i+3] = (255. * grid[i].gamma) as u8;
+                        image_buffer[4*i] = (72. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                        image_buffer[4*i+1] = (72. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                        image_buffer[4*i+2] = (72. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                        image_buffer[4*i+3] = (255. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
                     },
                     GravelVariant::Gravel3 => {
-                        image_buffer[4*i] = (220. * grid[i].gamma) as u8;
-                        image_buffer[4*i+1] = (210. * grid[i].gamma) as u8;
-                        image_buffer[4*i+2] = (195. * grid[i].gamma) as u8;
-                        image_buffer[4*i+3] = (255. * grid[i].gamma) as u8;
+                        image_buffer[4*i] = (220. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                        image_buffer[4*i+1] = (210. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                        image_buffer[4*i+2] = (195. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                        image_buffer[4*i+3] = (255. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
                     },
                 }
             },
             PixelType::Sky => {
-                image_buffer[4*i] = (135. * grid[i].gamma.max(0.8)) as u8;
-                image_buffer[4*i+1] = (206. * grid[i].gamma.max(0.8)) as u8;
-                image_buffer[4*i+2] = (235. * grid[i].gamma.max(0.8)) as u8;
-                image_buffer[4*i+3] = (255. * grid[i].gamma.max(0.8)) as u8;
+                image_buffer[4*i] = (135. * grid[i].gamma.max(DEFAULT_GAMMA).max(0.8)) as u8;
+                image_buffer[4*i+1] = (206. * grid[i].gamma.max(DEFAULT_GAMMA).max(0.8)) as u8;
+                image_buffer[4*i+2] = (235. * grid[i].gamma.max(DEFAULT_GAMMA).max(0.8)) as u8;
+                image_buffer[4*i+3] = (255. * grid[i].gamma.max(DEFAULT_GAMMA).max(0.8)) as u8;
             },
             PixelType::Clear => {
                 image_buffer[4*i] = 0;
@@ -68,34 +68,34 @@ pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>, perlin_mask: O
                 image_buffer[4*i+3] = (150. * 1.) as u8;
             },
             PixelType::White => {
-                image_buffer[4*i] = (255. * grid[i].gamma) as u8;
-                image_buffer[4*i+1] = (255. * grid[i].gamma) as u8;
-                image_buffer[4*i+2] = (255. * grid[i].gamma) as u8;
-                image_buffer[4*i+3] = (255. * grid[i].gamma) as u8;
+                image_buffer[4*i] = (255. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                image_buffer[4*i+1] = (255. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                image_buffer[4*i+2] = (255. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                image_buffer[4*i+3] = (255. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
             },
             PixelType::Rock => {
-                image_buffer[4*i] = (100. * grid[i].gamma) as u8;
-                image_buffer[4*i+1] = (100. * grid[i].gamma) as u8;
-                image_buffer[4*i+2] = (100. * grid[i].gamma) as u8;
-                image_buffer[4*i+3] = (255. * grid[i].gamma) as u8;
+                image_buffer[4*i] = (100. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                image_buffer[4*i+1] = (100. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                image_buffer[4*i+2] = (100. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                image_buffer[4*i+3] = (255. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
             },
             PixelType::Red => {
-                image_buffer[4*i] = (255. * grid[i].gamma) as u8;
+                image_buffer[4*i] = (255. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
                 image_buffer[4*i+1] = 0;
                 image_buffer[4*i+2] = 0;
-                image_buffer[4*i+3] = (255. * grid[i].gamma) as u8;
+                image_buffer[4*i+3] = (255. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
             },
             PixelType::SellBox => {
-                image_buffer[4*i] = (106. * grid[i].gamma) as u8;
-                image_buffer[4*i+1] = (13. * grid[i].gamma) as u8;
-                image_buffer[4*i+2] = (173. * grid[i].gamma) as u8;
-                image_buffer[4*i+3] = (255. * grid[i].gamma) as u8;
+                image_buffer[4*i] = (106. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                image_buffer[4*i+1] = (13. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                image_buffer[4*i+2] = (173. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                image_buffer[4*i+3] = (255. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
             },
             PixelType::RefinedCopper => {
-                image_buffer[4*i] = (205. * grid[i].gamma) as u8;
-                image_buffer[4*i+1] = (127. * grid[i].gamma) as u8;
-                image_buffer[4*i+2] = (50. * grid[i].gamma) as u8;
-                image_buffer[4*i+3] = (255. * grid[i].gamma) as u8;
+                image_buffer[4*i] = (205. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                image_buffer[4*i+1] = (127. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                image_buffer[4*i+2] = (50. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                image_buffer[4*i+3] = (255. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
             },
             PixelType::Black => {
                 image_buffer[4*i] = 0;
@@ -110,16 +110,16 @@ pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>, perlin_mask: O
                 image_buffer[4*i+3] = (255. * 1.) as u8;
             },
             PixelType::Chalcopyrite => {
-                image_buffer[4*i] = (196. * grid[i].gamma) as u8;
-                image_buffer[4*i+1] = (145. * grid[i].gamma) as u8;
-                image_buffer[4*i+2] = (2. * grid[i].gamma) as u8;
-                image_buffer[4*i+3] = (255. * grid[i].gamma) as u8;
+                image_buffer[4*i] = (196. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                image_buffer[4*i+1] = (145. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                image_buffer[4*i+2] = (2. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                image_buffer[4*i+3] = (255. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
             },
             PixelType::Cloud => {
-                image_buffer[4*i] = (255. * grid[i].gamma) as u8;
-                image_buffer[4*i+1] = (255. * grid[i].gamma) as u8;
-                image_buffer[4*i+2] = (255. * grid[i].gamma) as u8;
-                image_buffer[4*i+3] = (255. * perlin_mask.unwrap()[i] * grid[i].gamma) as u8;
+                image_buffer[4*i] = (255. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                image_buffer[4*i+1] = (255. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                image_buffer[4*i+2] = (255. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                image_buffer[4*i+3] = (255. * perlin_mask.unwrap()[i] * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
             },
             PixelType::Light => {
                 image_buffer[4*i] = 255;

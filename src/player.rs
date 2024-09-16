@@ -59,26 +59,31 @@ pub fn generate_pickaxe_grid() -> Vec<Pixel> {
     data_buffer
 }
 
-pub fn apply_velocity(entity_position_c: &mut Vec3, velocity: &mut Mut<Velocity>, grid: &Vec<Pixel>, time: &Res<Time>) {
+pub fn apply_velocity(
+    entity_position_c: &mut Vec3,
+    velocity: &mut Velocity,
+    grid: &Vec<Pixel>,
+    time: &Res<Time>,
+) {
     let min_x_c = -1. * WINDOW_WIDTH as f32 / 2. + PLAYER_WIDTH as f32 / 2.;
     let max_x_c = WINDOW_WIDTH as f32 / 2. - PLAYER_WIDTH as f32 / 2.;
+    let entity_position_tl = c_to_tl(entity_position_c, PLAYER_WIDTH as f32, PLAYER_HEIGHT as f32);
+    if velocity.vx != 0. && horizontal_collision(&velocity.vx, grid, &entity_position_tl) {
+        velocity.vx = 0.;
+    }
     if entity_position_c.x < min_x_c {
         entity_position_c.x = min_x_c;
         velocity.vx = 0.;
     } else if entity_position_c.x > max_x_c {
         entity_position_c.x = max_x_c;
         velocity.vx = 0.;
-    } else {
-        let entity_position_tl = c_to_tl(entity_position_c, PLAYER_WIDTH as f32, PLAYER_HEIGHT as f32);
-        if velocity.vx != 0. && horizontal_collision(&velocity.vx, grid, &entity_position_tl){
-            velocity.vx = 0.;
-        }
     }
-    if velocity.vy > 0. && ((entity_position_c.y as i32 + PLAYER_HEIGHT as i32/2) >= (WINDOW_HEIGHT as i32/2) - 1 || vertical_collision(grid, &c_to_tl(entity_position_c, PLAYER_WIDTH as f32, PLAYER_HEIGHT as f32))){
+    if velocity.vy > 0. && ((entity_position_c.y as i32 + PLAYER_HEIGHT as i32 / 2) >= (WINDOW_HEIGHT as i32 / 2) - 1 
+        || vertical_collision(grid, &entity_position_tl)) {
         velocity.vy = 0.;
     }
-    entity_position_c.y += velocity.vy;
-    entity_position_c.x += velocity.vx;
+    entity_position_c.x += velocity.vx * time.delta_seconds();
+    entity_position_c.y += velocity.vy * time.delta_seconds();
 }
 
 fn horizontal_collision(velocity: &f32, grid: &Vec<Pixel>, entity_position_tl: &(f32, f32)) -> bool {

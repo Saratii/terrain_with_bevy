@@ -42,12 +42,12 @@ fn main() {
             }),
             ..default()
         }))
-        // .add_plugins((
-        //   FrameTimeDiagnosticsPlugin,
-        //   EntityCountDiagnosticsPlugin,
-        //   SystemInformationDiagnosticsPlugin,
-        //   PerfUiPlugin,
-        // ))
+        .add_plugins((
+          FrameTimeDiagnosticsPlugin,
+          EntityCountDiagnosticsPlugin,
+          SystemInformationDiagnosticsPlugin,
+          PerfUiPlugin,
+        ))
         .edit_schedule(Startup, |schedule| {
           schedule.set_build_settings(ScheduleBuildSettings {
               auto_insert_apply_deferred: false,

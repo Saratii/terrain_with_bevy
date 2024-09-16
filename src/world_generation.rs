@@ -59,7 +59,7 @@ pub fn setup_world(mut commands: Commands, assets: Res<AssetServer>) {
             .insert(ContentList{ contents: Vec::new() })
             .insert(Grid { data: shovel_grid })
             .insert(ImageBuffer{ data: shovel_image.data });
-    commands.spawn(GravityTick{ timer: Timer::new(Duration::from_millis(20), TimerMode::Repeating) });
+    commands.spawn(GravityTick{ timer: Timer::new(Duration::from_millis(7), TimerMode::Repeating) });
     commands.spawn(SunTick{ timer: Timer::new(Duration::from_millis(1000), TimerMode::Repeating) });
     commands.spawn(PickaxeTag)
             .insert(SpriteBundle {
@@ -130,16 +130,14 @@ pub fn grid_tick(
 ) {
     let mut gravity_tick_timer = gravity_tick_timer_query.get_single_mut().unwrap();
     gravity_tick_timer.timer.tick(time.delta());
+    let mut grid = grid_query.get_single_mut().unwrap();
+    let sun_position = sun_position_query.single();
+    let sun_position_tl = c_to_tl(&sun_position.translation, SUN_WIDTH as f32, SUN_HEIGHT as f32);
+    ray_cast(&mut grid, RAY_COUNT, (sun_position_tl.0 as usize + SUN_WIDTH/2, sun_position_tl.1 as usize + SUN_HEIGHT/2));
     if gravity_tick_timer.timer.finished() {
-        let mut grid = grid_query.get_single_mut().unwrap();
         let mut money_count = money_count_query.get_single_mut().unwrap();
         let mut gravity_coords = gravity_coords_query.get_single_mut().unwrap();
-        let sun_position = sun_position_query.single();
         gravity_tick(&mut gravity_coords.coords, &mut grid.data, &mut money_count.count);
-        let sun_position_tl = c_to_tl(&sun_position.translation, SUN_WIDTH as f32, SUN_HEIGHT as f32);
-        if (sun_position_tl.1 as usize) < SKY_HEIGHT {
-            ray_cast(&mut grid, RAY_COUNT, (sun_position_tl.0 as usize + SUN_WIDTH/2, sun_position_tl.1 as usize + SUN_HEIGHT/2));
-        }
     }
 }
 

@@ -1,6 +1,6 @@
 use bevy::{input::ButtonInput, prelude::{KeyCode, Query, Res, Transform, Visibility, With, Without}, time::Time};
 
-use crate::{components::{ContentList, CurrentTool, Grid, PickaxeTag, Pixel, PlayerTag, ShovelTag, TerrainGridTag, Tool, Velocity}, constants::{FRICTION, MAX_PLAYER_SPEED, PLAYER_HEIGHT, PLAYER_WIDTH}, player::apply_velocity, world_generation::does_gravity_apply_to_entity};
+use crate::{components::{ContentList, CurrentTool, Grid, PickaxeTag, Pixel, PlayerTag, ShovelTag, TerrainGridTag, Tool, Velocity}, constants::{FRICTION, MAX_PLAYER_SPEED, PLAYER_ACCELERATION, PLAYER_HEIGHT, PLAYER_WIDTH}, player::apply_velocity, world_generation::does_gravity_apply_to_entity};
 
 pub fn process_key_event(
     mut grid_query: Query<&mut Grid<Pixel>, (With<TerrainGridTag>, Without<ShovelTag>)>,
@@ -17,13 +17,13 @@ pub fn process_key_event(
     let mut player = player_query.get_single_mut().unwrap();
     let does_gravity_apply = does_gravity_apply_to_entity(player.0.translation.x as i32 - PLAYER_WIDTH as i32/2,  player.0.translation.y as i32, PLAYER_WIDTH as i32, PLAYER_HEIGHT as i32, &grid.data);
     if does_gravity_apply {
-        player.1.vy -= 1. * time.delta_seconds();
+        player.1.vy -= 300. * time.delta_seconds();
     } else {
         player.1.vy = 0.;
         if player.1.vx > 0. {
-            player.1.vx -= FRICTION * time.delta_seconds();
+            player.1.vx = (player.1.vx - FRICTION * time.delta_seconds()).max(0.);
         } else if player.1.vx < 0. {
-            player.1.vx += FRICTION * time.delta_seconds();
+            player.1.vx = (player.1.vx + FRICTION * time.delta_seconds()).min(0.);
         }
     }
     if keys.pressed(KeyCode::Digit1) {
@@ -42,18 +42,15 @@ pub fn process_key_event(
         current_tool.tool = Tool::Pickaxe;
     }
     if keys.pressed(KeyCode::KeyA) {
-        if player.1.vx * -1. < MAX_PLAYER_SPEED {
-            player.1.vx -= 1. * time.delta_seconds();
-        }
-    } else if keys.pressed(KeyCode::KeyD) {
-         if player.1.vx < MAX_PLAYER_SPEED {
-            player.1.vx += 1. * time.delta_seconds();
-        }
+        player.1.vx = (player.1.vx - PLAYER_ACCELERATION * time.delta_seconds())
+            .max(-MAX_PLAYER_SPEED);
     }
-    if keys.pressed(KeyCode::Space) {
-        if !does_gravity_apply{
-            player.1.vy += 150. * time.delta_seconds();
-        }
+    if keys.pressed(KeyCode::KeyD) {
+        player.1.vx = (player.1.vx + PLAYER_ACCELERATION * time.delta_seconds())
+            .min(MAX_PLAYER_SPEED);
+    }
+    if keys.pressed(KeyCode::Space) && !does_gravity_apply {
+        player.1.vy += 150.;
     }
     apply_velocity(&mut player.0.translation, &mut player.1, &grid.data, &time);
 }
