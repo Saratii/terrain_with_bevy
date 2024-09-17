@@ -1,6 +1,6 @@
 use bevy::{asset::{Assets, Handle}, prelude::{Image, Query, ResMut, With, Without}};
 
-use crate::{components::{DirtVariant, FogImageTag, GravelVariant, Grid, ImageBuffer, PickaxeTag, Pixel, PixelType, ShovelTag, SunTag, TerrainGridTag}, constants::DEFAULT_GAMMA};
+use crate::{components::{DirtVariant, FogImageTag, GravelVariant, Grid, ImageBuffer, Pixel, PixelType, SunTag, TerrainGridTag}, constants::DEFAULT_GAMMA, tools::{HoeTag, PickaxeTag, ShovelTag}};
 
 pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>, perlin_mask: Option<&Vec<f32>>) {
     for i in 0..grid.len() {
@@ -50,10 +50,10 @@ pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>, perlin_mask: O
                 }
             },
             PixelType::Sky => {
-                image_buffer[4*i] = (135. * grid[i].gamma.max(DEFAULT_GAMMA).max(0.8)) as u8;
-                image_buffer[4*i+1] = (206. * grid[i].gamma.max(DEFAULT_GAMMA).max(0.8)) as u8;
-                image_buffer[4*i+2] = (235. * grid[i].gamma.max(DEFAULT_GAMMA).max(0.8)) as u8;
-                image_buffer[4*i+3] = (255. * grid[i].gamma.max(DEFAULT_GAMMA).max(0.8)) as u8;
+                image_buffer[4*i] = (135. * grid[i].gamma) as u8;
+                image_buffer[4*i+1] = (206. * grid[i].gamma) as u8;
+                image_buffer[4*i+2] = (235. * grid[i].gamma) as u8;
+                image_buffer[4*i+3] = (255. * grid[i].gamma) as u8;
             },
             PixelType::Clear => {
                 image_buffer[4*i] = 0;
@@ -127,6 +127,12 @@ pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>, perlin_mask: O
                 image_buffer[4*i+2] = 0;
                 image_buffer[4*i+3] = (255) as u8;
             },
+            PixelType::Steel => {
+                image_buffer[4*i] = (176. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                image_buffer[4*i+1] = (179. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                image_buffer[4*i+2] = (183. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                image_buffer[4*i+3] = (255. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+            },
         };
     }
 }
@@ -134,7 +140,7 @@ pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>, perlin_mask: O
 pub fn render_scene(
     mut grid_query: Query<&mut Grid<Pixel>, (With<TerrainGridTag>, Without<ShovelTag>)>,
     mut shovel_grid_query: Query<&mut Grid<Pixel>, (With<ShovelTag>, Without<TerrainGridTag>)>,
-    mut grid_image_buffer_query: Query<&mut ImageBuffer, (Without<PickaxeTag>, Without<ShovelTag>, Without<FogImageTag>, Without<SunTag>)>,
+    mut grid_image_buffer_query: Query<&mut ImageBuffer, (Without<PickaxeTag>, Without<ShovelTag>, Without<FogImageTag>, Without<SunTag>, Without<HoeTag>)>,
     mut cursor_image_buffer_query: Query<&mut ImageBuffer, With<ShovelTag>>,
     mut images: ResMut<Assets<Image>>,
     mut grid_image_query: Query<&Handle<Image>, With<TerrainGridTag>>,

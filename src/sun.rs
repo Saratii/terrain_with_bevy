@@ -2,7 +2,7 @@ use std::f32::consts::PI;
 
 use bevy::{asset::AssetServer, math::Vec3, prelude::{default, Commands, Query, Res, Transform, Visibility, With}, sprite::SpriteBundle, time::Time};
 
-use crate::{components::{Grid, ImageBuffer, Pixel, PixelType, SunTag, TerrainGridTag, F32}, constants::{FLASHLIGHT_RADIUS, RAY_COUNT, SKY_HEIGHT, SUN_HEIGHT, SUN_ORBIT_RADIUS, SUN_SPAWN_X, SUN_SPAWN_Y, SUN_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index_standard_grid, grid_to_image, tl_to_c}};
+use crate::{components::{Grid, ImageBuffer, Pixel, PixelType, SunTag, TerrainGridTag, F32}, constants::{FLASHLIGHT_RADIUS, MAX_SUN_DECAY_DISTANCE, RAY_COUNT, SKY_HEIGHT, SUN_HEIGHT, SUN_ORBIT_RADIUS, SUN_SPAWN_X, SUN_SPAWN_Y, SUN_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index_standard_grid, grid_to_image, tl_to_c}};
 
 #[derive(Debug)]
 struct Triangle {
@@ -93,9 +93,6 @@ pub fn ray_cast(grid: &mut Grid<Pixel>, ray_count: usize, light_source: (usize, 
                     if ray_x > 0. && ray_x < WINDOW_WIDTH as f32 && ray_y > 0. && ray_y < WINDOW_HEIGHT as f32 && grid.data[flatten_index_standard_grid(&(ray_x as usize), &(ray_y as usize), WINDOW_WIDTH)].pixel_type != PixelType::Sky {
                         ray_x += dx;
                         ray_y += dy;
-                        // let new_index = flatten_index_standard_grid(&(ray_x as usize), &(ray_y as usize), WINDOW_WIDTH);
-                        // grid.data[new_index].pixel_type = PixelType::Light;
-                        // grid.data[new_index].gamma = 1.;
                     } else {
                         break
                     }
@@ -138,14 +135,23 @@ fn light_triangle(triangle: &Triangle, grid: &mut Vec<Pixel>) {
     let max_x = triangle.p1.0.max(triangle.p2.0).max(triangle.p3.0);
     let min_y = triangle.p1.1.min(triangle.p2.1).min(triangle.p3.1);
     let max_y = triangle.p1.1.max(triangle.p2.1).max(triangle.p3.1);
+
     for y in min_y..max_y {
         for x in min_x..max_x {
             if is_point_in_triangle(&triangle, &(x, y)) {
-                grid[flatten_index_standard_grid(&x, &y, WINDOW_WIDTH)].gamma = 1.;
+                let distance = distance(x as i32, y as i32, triangle.p1.0 as i32, triangle.p1.1 as i32);
+                let gamma = if distance < MAX_SUN_DECAY_DISTANCE {
+                    1.0 - (distance / MAX_SUN_DECAY_DISTANCE)
+                } else {
+                    0.0
+                };
+                grid[flatten_index_standard_grid(&x, &y, WINDOW_WIDTH)].gamma = gamma;
             }
         }
     }
 }
+
+
 
 pub fn move_sun(
     mut sun_query: Query<&mut Transform, With<SunTag>>,

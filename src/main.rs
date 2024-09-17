@@ -1,5 +1,4 @@
 mod world_generation;
-mod layer_map;
 pub mod constants;
 pub mod player;
 pub mod components;
@@ -8,7 +7,8 @@ pub mod util;
 pub mod mouse_controller;
 pub mod keyboard_controller;
 pub mod fog;
-mod sun;
+pub mod sun;
+pub mod tools;
 
 use bevy::app::*;
 use bevy::diagnostic::EntityCountDiagnosticsPlugin;
@@ -21,10 +21,11 @@ use constants::WINDOW_HEIGHT;
 use iyes_perf_ui::PerfUiPlugin;
 use keyboard_controller::process_key_event;
 use mouse_controller::check_mouse_click;
-use player::update_tool;
 use render::render_scene;
 use sun::move_sun;
 use sun::start_sun;
+use tools::spawn_tools;
+use tools::update_tool;
 use world_generation::setup_camera;
 use world_generation::setup_world;
 use world_generation::grid_tick;
@@ -55,7 +56,7 @@ fn main() {
           });
         })
         .insert_resource(ClearColor(Color::srgb(0.0, 0.0, 0.0)))
-        .add_systems(Startup, (setup_camera, setup_world, apply_deferred, start_sun).chain())
-        .add_systems(Update, (grid_tick, process_key_event, check_mouse_click, update_tool, update_money_text, render_scene))
+        .add_systems(Startup, (setup_camera, setup_world, apply_deferred, start_sun, spawn_tools).chain())
+        .add_systems(Update, (grid_tick, process_key_event, check_mouse_click, update_tool, update_money_text, render_scene, move_sun))
         .run();
 }

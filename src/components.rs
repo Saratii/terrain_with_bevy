@@ -20,13 +20,12 @@ pub struct Velocity {
 pub struct PlayerTag;
 
 #[derive(Component)]
-pub struct ShovelTag;
+pub struct Bool{
+    pub bool: bool
+}
 
 #[derive(Component)]
 pub struct FogImageTag;
-
-#[derive(Component)]
-pub struct PickaxeTag;
 
 #[derive(Component)]
 pub struct SellBoxTag;
@@ -153,20 +152,10 @@ pub enum PixelType {
     Chalcopyrite,
     Cloud,
     Light,
+    Steel,
 }
 
 #[derive(Component)]
 pub struct ErosionCoords{
     pub coords: HashSet<(usize, usize)>
-}
-
-#[derive(PartialEq)]
-pub enum Tool{
-    Shovel,
-    Pickaxe
-}
-
-#[derive(Component, PartialEq)]
-pub struct CurrentTool{
-    pub tool: Tool
 }

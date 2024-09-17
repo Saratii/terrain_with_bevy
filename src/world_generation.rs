@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use std::time::Duration;
 
 use bevy::color::palettes::css::GOLD;
-use bevy::prelude::{Query, TextBundle, Visibility, With, Without};
+use bevy::prelude::{Query, TextBundle, With, Without};
 use bevy::text::{Text, TextSection, TextStyle};
 use bevy::time::{Time, Timer, TimerMode};
 use iyes_perf_ui::entries::PerfUiBundle;
@@ -11,10 +11,11 @@ use bevy::utils::default;
 
 use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, sprite::SpriteBundle, transform::components::Transform};
 use rand::Rng;
-use crate::components::{ContentList, Count, CurrentTool, ErosionCoords, GravityCoords, GravityTick, Grid, ImageBuffer, MoneyTextTag, PickaxeTag, Pixel, PixelType, PlayerTag, Position, ShovelTag, SunTag, SunTick, TerrainGridTag, Tool, Velocity};
-use crate::constants::{CALCOPIRITE_RADIUS, CHALCOPIRITE_SPAWN_COUNT, CURSOR_RADIUS, GROUND_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, RAY_COUNT, ROCK_HEIGHT, SELL_BOX_HEIGHT, SELL_BOX_WIDTH, SKY_HEIGHT, SUN_HEIGHT, SUN_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH};
-use crate::player::{generate_pickaxe_grid, generate_player_image, generate_shovel_grid};
+use crate::components::{Count, ErosionCoords, GravityCoords, GravityTick, Grid, ImageBuffer, MoneyTextTag, Pixel, PixelType, PlayerTag, Position, SunTag, SunTick, TerrainGridTag, Velocity};
+use crate::constants::{CALCOPIRITE_RADIUS, CHALCOPIRITE_SPAWN_COUNT, GROUND_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, RAY_COUNT, ROCK_HEIGHT, SELL_BOX_HEIGHT, SELL_BOX_WIDTH, SKY_HEIGHT, SUN_HEIGHT, SUN_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::player::generate_player_image;
 use crate::sun::ray_cast;
+use crate::tools::{CurrentTool, ShovelTag, Tool};
 use crate::util::{c_to_tl, distance, flatten_index, flatten_index_standard_grid, grid_to_image};
 
 pub fn setup_camera(mut commands: Commands) {
@@ -23,13 +24,9 @@ pub fn setup_camera(mut commands: Commands) {
 }
 
 pub fn setup_world(mut commands: Commands, assets: Res<AssetServer>) {
-    let shovel_grid = generate_shovel_grid();
-    let pickaxe_grid = generate_pickaxe_grid();
     let mut terrain_grid = generate_terrain_grid();
     let terrain_image = grid_to_image(&terrain_grid, WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32, None);
     add_sell_box_to_grid(&mut terrain_grid);
-    let shovel_image = grid_to_image(&shovel_grid, CURSOR_RADIUS as u32 * 2, CURSOR_RADIUS as u32 * 2, None);
-    let pickaxe_image = grid_to_image(&pickaxe_grid, CURSOR_RADIUS as u32 * 2, CURSOR_RADIUS as u32 * 2, None);
     commands.spawn(TerrainGridTag)
             .insert(Grid{data: terrain_grid})
             .insert(
@@ -51,26 +48,9 @@ pub fn setup_world(mut commands: Commands, assets: Res<AssetServer>) {
                 ..default()
             })
             .insert(CurrentTool{tool: Tool::Shovel});
-    commands.spawn(ShovelTag)
-            .insert(SpriteBundle {
-                texture: assets.add(grid_to_image(&shovel_grid.clone(), CURSOR_RADIUS as u32 * 2, CURSOR_RADIUS as u32 * 2, None)),
-                transform: Transform { translation: Vec3 { x: PLAYER_SPAWN_X as f32, y: PLAYER_SPAWN_Y as f32, z: 1. }, ..default()},
-                ..default()})
-            .insert(ContentList{ contents: Vec::new() })
-            .insert(Grid { data: shovel_grid })
-            .insert(ImageBuffer{ data: shovel_image.data });
     commands.spawn(GravityTick{ timer: Timer::new(Duration::from_millis(7), TimerMode::Repeating) });
     commands.spawn(SunTick{ timer: Timer::new(Duration::from_millis(1000), TimerMode::Repeating) });
-    commands.spawn(PickaxeTag)
-            .insert(SpriteBundle {
-                texture: assets.add(grid_to_image(&pickaxe_grid.clone(), CURSOR_RADIUS as u32 * 2, CURSOR_RADIUS as u32 * 2, None)),
-                transform: Transform { translation: Vec3 { x: PLAYER_SPAWN_X as f32, y: PLAYER_SPAWN_Y as f32, z: 1. }, ..default()},
-                visibility: Visibility::Hidden,
-                ..default()})
-            .insert(Grid { data: pickaxe_grid })
-            .insert(ImageBuffer { data: pickaxe_image.data });
     commands.spawn(Count { count: 0. });
-
     commands.spawn((
         TextBundle::from_sections([
             TextSection::new(
