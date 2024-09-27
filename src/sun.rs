@@ -1,41 +1,60 @@
 use std::f32::consts::PI;
 
-use bevy::{asset::AssetServer, math::Vec3, prelude::{default, Commands, Query, Res, Transform, Visibility, With}, sprite::SpriteBundle, time::Time};
+use bevy::{asset::{AssetServer, Assets, Handle}, math::Vec3, prelude::{default, Commands, Component, Image, Query, Res, ResMut, Transform, Visibility, With, Without}, sprite::SpriteBundle, time::Time};
 
-use crate::{components::{Grid, ImageBuffer, Pixel, PixelType, SunTag, TerrainGridTag, F32}, constants::{FLASHLIGHT_RADIUS, MAX_SUN_DECAY_DISTANCE, RAY_COUNT, SKY_HEIGHT, SUN_HEIGHT, SUN_ORBIT_RADIUS, SUN_SPAWN_X, SUN_SPAWN_Y, SUN_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index_standard_grid, grid_to_image, tl_to_c}};
+use crate::{components::{Grid, ImageBuffer, Pixel, PixelType, SunTag, TerrainGridTag, F32}, constants::{FLASHLIGHT_RADIUS, MAX_SUN_DECAY_DISTANCE, RAY_COUNT, SHOW_RAYS, SHOW_SUN, SKY_HEIGHT, SUN_HEIGHT, SUN_ORBIT_RADIUS, SUN_SPAWN_X, SUN_SPAWN_Y, SUN_SPEED, SUN_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, render::render_grid, util::{c_to_tl, distance, flatten_index_standard_grid, grid_to_image, tl_to_c}};
 
 #[derive(Debug)]
-struct Triangle {
-    p1: (usize, usize),
-    p2: (usize, usize),
-    p3: (usize, usize),
+pub struct Triangle {
+    p1: (f32, f32),
+    p2: (f32, f32),
+    p3: (f32, f32),
 }
 
-pub fn start_sun(
-    mut grid_query: Query<&mut Grid<Pixel>, With<TerrainGridTag>>,
+#[derive(Component)]
+pub struct RayGridTag;
+
+pub fn spawn_sun(
     mut commands: Commands,
     assets: Res<AssetServer>,
 ) {
-    let mut grid = grid_query.get_single_mut().unwrap();
-    ray_cast(&mut grid, RAY_COUNT, (SUN_SPAWN_X, SUN_SPAWN_Y));
-    let sun_grid = generate_sun_grid();
-    let sun_image = grid_to_image(&sun_grid, SUN_WIDTH as u32, SUN_HEIGHT as u32, None);
-    let sun_spawn_c = tl_to_c(SUN_SPAWN_X as f32, SUN_SPAWN_Y as f32, SUN_WIDTH as f32, SUN_HEIGHT as f32);
-    commands.spawn(SunTag)
-            .insert(Grid{data: sun_grid})
-            .insert(F32{f32: 1.})
+    if SHOW_RAYS {
+        let ray_grid = vec![Pixel { pixel_type: PixelType::Clear, gamma: 0. }; WINDOW_WIDTH * WINDOW_HEIGHT];
+        let ray_image = grid_to_image(&ray_grid, WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32, None);
+        commands.spawn(RayGridTag)
+            .insert(Grid { data: ray_grid.clone() })
             .insert(
         SpriteBundle{
-                    texture: assets.add(sun_image.clone()),
-                    transform: Transform { translation: Vec3 { x: sun_spawn_c.0 - SUN_WIDTH as f32 / 2., y: sun_spawn_c.1 as f32 + SUN_HEIGHT as f32 / 2., z: 10. }, ..default()},
+                    texture: assets.add(ray_image.clone()),
+                    transform: Transform { translation: Vec3 { x: 0., y: 0., z: 0. }, ..default()},
                     ..default()
                 }
             )
-            .insert(ImageBuffer { data: sun_image.data });
+            .insert(ImageBuffer { data: ray_image.data });
+    }
+    if SHOW_SUN {
+        let sun_grid = generate_sun_grid();
+        let sun_image = grid_to_image(&sun_grid, SUN_WIDTH as u32, SUN_HEIGHT as u32, None);
+        commands.spawn(SunTag)
+                .insert(Grid { data: sun_grid })
+                .insert(F32 { f32: 1. })
+                .insert(
+            SpriteBundle {
+                        texture: assets.add(sun_image.clone()),
+                        transform: Transform { translation: Vec3 { x: SUN_SPAWN_X as f32, y: SUN_SPAWN_Y as f32, z: 10. }, ..default() },
+                        ..default()
+                    }
+                )
+                .insert(ImageBuffer { data: sun_image.data });
+    } else {
+        commands.spawn(SunTag)
+                .insert(F32 { f32: 1. })
+                .insert(Transform { translation: Vec3 { x: SUN_SPAWN_X as f32, y: SUN_SPAWN_Y as f32, z: 10. }, rotation: Default::default(), scale: Vec3::splat(1.) });
+    }
 }
 
 fn generate_sun_grid() -> Vec<Pixel> {
-    let mut data_buffer: Vec<Pixel> = vec![Pixel { pixel_type: PixelType::Clear, gamma: 0. }; SUN_WIDTH * SUN_HEIGHT];
+    let mut data_buffer: Vec<Pixel> = vec![Pixel { pixel_type: PixelType::Clear, gamma: 0. }; (SUN_WIDTH * SUN_HEIGHT) as usize];
     let angle_step = 2. * PI / RAY_COUNT as f32;
     for i in 0..RAY_COUNT {
         let mut ray_x = SUN_WIDTH as f32/2.;
@@ -46,7 +65,7 @@ fn generate_sun_grid() -> Vec<Pixel> {
         loop {
             ray_x += dx;
             ray_y += dy;
-            let index = flatten_index_standard_grid(&(ray_x as usize), &(ray_y as usize), SUN_WIDTH);
+            let index = flatten_index_standard_grid(&(ray_x as usize), &(ray_y as usize), SUN_WIDTH as usize);
             if ray_x < 0. || ray_x >= SUN_WIDTH as f32 || ray_y < 0. || ray_y >= SUN_HEIGHT as f32 || distance(ray_x as i32, ray_y as i32, SUN_WIDTH as i32/2, SUN_HEIGHT as i32/2) > SUN_WIDTH as f32/2. {
                 break
             }
@@ -58,7 +77,7 @@ fn generate_sun_grid() -> Vec<Pixel> {
 }
 
 #[inline(always)]
-fn sign_area(p1: &(usize, usize), p2: &(usize, usize), p3: &(usize, usize)) -> i32 {
+fn sign_area(p1: &(f32, f32), p2: &(f32, f32), p3: &(f32, f32)) -> i32 {
     let dx1 = p2.0 as i32 - p1.0 as i32;
     let dy1 = p2.1 as i32 - p1.1 as i32;
     let dx2 = p3.0 as i32 - p1.0 as i32;
@@ -66,21 +85,20 @@ fn sign_area(p1: &(usize, usize), p2: &(usize, usize), p3: &(usize, usize)) -> i
     dx1 * dy2 - dy1 * dx2
 }
 
-fn is_point_in_triangle(triangle: &Triangle, point: &(usize, usize)) -> bool {
+fn is_point_in_triangle(triangle: &Triangle, point: &(f32, f32)) -> bool {
     let area1 = sign_area(&triangle.p1, &triangle.p2, point);
     let area2 = sign_area(&triangle.p2, &triangle.p3, point);
     let area3 = sign_area(&triangle.p3, &triangle.p1, point);
     (area1 >= 0 && area2 >= 0 && area3 >= 0) || (area1 <= 0 && area2 <= 0 && area3 <= 0)
 }
 
-pub fn ray_cast(grid: &mut Grid<Pixel>, ray_count: usize, light_source: (usize, usize)) {
-    reset_gamma(grid);
+pub fn cast_rays(grid: &mut Grid<Pixel>, ray_count: usize, light_source_tl: (f32, f32), ray_grid: &mut Option<&mut Vec<Pixel>>) {
     let angle_step = 2. * PI / ray_count as f32;
     let mut triangles = Vec::with_capacity(ray_count - 1);
-    let mut last_ray: (usize, usize) = (1000000, 1000000);
+    let mut last_ray: (f32, f32) = (1000000., 1000000.);
     for i in 0..ray_count {
-        let mut ray_x = light_source.0 as f32;
-        let mut ray_y = light_source.1 as f32;
+        let mut ray_x = light_source_tl.0 + SUN_WIDTH as f32/2.;
+        let mut ray_y = light_source_tl.1 + SUN_HEIGHT as f32/2.;
         let angle = i as f32 * angle_step;
         let dx = angle.cos();
         let dy = angle.sin();
@@ -89,30 +107,27 @@ pub fn ray_cast(grid: &mut Grid<Pixel>, ray_count: usize, light_source: (usize, 
             ray_y += dy;
             let index = flatten_index_standard_grid(&(ray_x as usize), &(ray_y as usize), WINDOW_WIDTH);
             if ray_x < 0. || ray_x >= WINDOW_WIDTH as f32 || ray_y < 0. || ray_y >= WINDOW_HEIGHT as f32 || !matches!(grid.data[index].pixel_type, PixelType::Sky | PixelType::Light){
-                for _ in 0..FLASHLIGHT_RADIUS {
-                    if ray_x > 0. && ray_x < WINDOW_WIDTH as f32 && ray_y > 0. && ray_y < WINDOW_HEIGHT as f32 && grid.data[flatten_index_standard_grid(&(ray_x as usize), &(ray_y as usize), WINDOW_WIDTH)].pixel_type != PixelType::Sky {
-                        ray_x += dx;
-                        ray_y += dy;
-                    } else {
-                        break
-                    }
-                }
                 if i > 0 {
                     triangles.push(Triangle { 
-                        p1: light_source,
-                        p2: (ray_x as usize, ray_y as usize),
+                        p1: (light_source_tl.0 + SUN_WIDTH as f32/2., light_source_tl.1 + SUN_HEIGHT as f32/2.),
+                        p2: (ray_x, ray_y),
                         p3: (last_ray.0, last_ray.1),
                     });
                 }
-                last_ray = (ray_x as usize, ray_y as usize);
+                last_ray = (ray_x, ray_y);
                 break
             }
-        //    grid.data[index].pixel_type = PixelType::Light;
-        //    grid.data[index].gamma = 1.;
+            match ray_grid {
+                Some(ray_grid) => {
+                    ray_grid[index].pixel_type = PixelType::Light;
+                    ray_grid[index].gamma = 1.;
+                },
+                None => {}
+            }
         }
     }
     triangles.push(Triangle {
-        p1: light_source,
+        p1: (light_source_tl.0 + SUN_WIDTH as f32/2., light_source_tl.1 + SUN_HEIGHT as f32/2.),
         p2: (last_ray.0, last_ray.1),
         p3: triangles[0].p3,
     });
@@ -131,14 +146,13 @@ fn reset_gamma(grid: &mut Grid<Pixel>) {
 }
 
 fn light_triangle(triangle: &Triangle, grid: &mut Vec<Pixel>) {
-    let min_x = triangle.p1.0.min(triangle.p2.0).min(triangle.p3.0);
-    let max_x = triangle.p1.0.max(triangle.p2.0).max(triangle.p3.0);
-    let min_y = triangle.p1.1.min(triangle.p2.1).min(triangle.p3.1);
-    let max_y = triangle.p1.1.max(triangle.p2.1).max(triangle.p3.1);
-
+    let min_x = triangle.p1.0.min(triangle.p2.0).min(triangle.p3.0) as usize;
+    let max_x = triangle.p1.0.max(triangle.p2.0).max(triangle.p3.0) as usize;
+    let min_y = triangle.p1.1.min(triangle.p2.1).min(triangle.p3.1) as usize;
+    let max_y = triangle.p1.1.max(triangle.p2.1).max(triangle.p3.1).min(WINDOW_HEIGHT as f32) as usize;
     for y in min_y..max_y {
         for x in min_x..max_x {
-            if is_point_in_triangle(&triangle, &(x, y)) {
+            if is_point_in_triangle(&triangle, &(x as f32, y as f32)) {
                 let distance = distance(x as i32, y as i32, triangle.p1.0 as i32, triangle.p1.1 as i32);
                 let gamma = if distance < MAX_SUN_DECAY_DISTANCE {
                     1.0 - (distance / MAX_SUN_DECAY_DISTANCE)
@@ -151,24 +165,54 @@ fn light_triangle(triangle: &Triangle, grid: &mut Vec<Pixel>) {
     }
 }
 
-
+fn reset_ray_grid(grid: &mut Vec<Pixel>) {
+    for pixel in grid {
+        pixel.pixel_type = PixelType::Clear;
+    }
+}
 
 pub fn move_sun(
     mut sun_query: Query<&mut Transform, With<SunTag>>,
     mut sun_theta_query: Query<&mut F32, With<SunTag>>,
     time: Res<Time>,
-    mut sun_visability_query: Query<&mut Visibility, With<SunTag>>,
 ) {
     let mut sun_transform = sun_query.single_mut();
     let mut sun_theta = sun_theta_query.single_mut();
-    sun_theta.f32 += 0.1 * time.delta_seconds();
+    sun_theta.f32 += SUN_SPEED * time.delta_seconds();
     sun_transform.translation.x = SUN_ORBIT_RADIUS * sun_theta.f32.cos();
     sun_transform.translation.y = SUN_ORBIT_RADIUS * sun_theta.f32.sin();
-    let sun_position_tl = c_to_tl(&sun_transform.translation, SUN_WIDTH as f32, SUN_HEIGHT as f32);
-    let mut sun_visability = sun_visability_query.single_mut();
-    if sun_position_tl.1 as usize > SKY_HEIGHT {
-        *sun_visability = Visibility::Hidden;
+}
+
+pub fn lighting_update(
+    mut grid_query: Query<&mut Grid<Pixel>, (With<TerrainGridTag>, Without<RayGridTag>)>,
+    mut ray_grid_query: Query<&mut Grid<Pixel>, (With<RayGridTag>, Without<TerrainGridTag>)>,
+    sun_position_query: Query<&Transform, With<SunTag>>,
+) {
+    let mut grid = grid_query.get_single_mut().unwrap();
+    reset_gamma(&mut grid);
+    let sun_position_c = sun_position_query.single();
+    let sun_position_tl = c_to_tl(&sun_position_c.translation, SUN_WIDTH, SUN_HEIGHT);
+    if SHOW_RAYS {
+        let mut ray_grid = ray_grid_query.get_single_mut().unwrap();
+        reset_ray_grid(&mut ray_grid.data);
+        cast_rays(&mut grid, RAY_COUNT, (sun_position_tl.0, sun_position_tl.1), &mut Some(&mut ray_grid.data));
     } else {
-        *sun_visability = Visibility::Visible;
+        cast_rays(&mut grid, RAY_COUNT, (sun_position_tl.0, sun_position_tl.1), &mut None);
+    }
+}
+
+pub fn render_rays(
+    mut ray_grid_query: Query<&mut Grid<Pixel>, With<RayGridTag>>,
+    mut ray_image_buffer_query: Query<&mut ImageBuffer, With<RayGridTag>>,
+    mut images: ResMut<Assets<Image>>,
+    mut ray_image_query: Query<&Handle<Image>, With<RayGridTag>>,
+) {
+    if SHOW_RAYS {
+        let ray_grid = ray_grid_query.get_single_mut().unwrap();
+        let mut ray_image_buffer = ray_image_buffer_query.get_single_mut().unwrap();
+        render_grid(&ray_grid.data, &mut ray_image_buffer.data, None);
+        if let Some(image) = images.get_mut(ray_image_query.single_mut()) {
+            image.data = ray_image_buffer.data.clone();
+        }
     }
 }

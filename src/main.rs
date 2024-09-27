@@ -21,9 +21,11 @@ use constants::WINDOW_HEIGHT;
 use iyes_perf_ui::PerfUiPlugin;
 use keyboard_controller::process_key_event;
 use mouse_controller::check_mouse_click;
+use sun::render_rays;
 use render::render_scene;
+use sun::lighting_update;
 use sun::move_sun;
-use sun::start_sun;
+use sun::spawn_sun;
 use tools::spawn_tools;
 use tools::update_tool;
 use world_generation::setup_camera;
@@ -56,7 +58,7 @@ fn main() {
           });
         })
         .insert_resource(ClearColor(Color::srgb(0.0, 0.0, 0.0)))
-        .add_systems(Startup, (setup_camera, setup_world, apply_deferred, start_sun, spawn_tools).chain())
-        .add_systems(Update, (grid_tick, process_key_event, check_mouse_click, update_tool, update_money_text, render_scene, move_sun))
+        .add_systems(Startup, (setup_camera, setup_world, apply_deferred, spawn_sun).chain())
+        .add_systems(Update, (grid_tick, render_scene, lighting_update, render_rays, move_sun))
         .run();
 }

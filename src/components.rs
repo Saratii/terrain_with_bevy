@@ -1,7 +1,5 @@
-
 use std::collections::HashSet;
-
-use bevy::{prelude::Component, time::Timer};
+use bevy::{asset::{Asset, Handle}, pbr::Material, prelude::{Component, Image}, render::render_resource::{AsBindGroup, ShaderRef}, time::Timer};
 use rand::{distributions::Standard, prelude::Distribution, Rng};
 
 #[derive(Component, Debug, Clone)]
@@ -156,6 +154,6 @@ pub enum PixelType {
 }
 
 #[derive(Component)]
-pub struct ErosionCoords{
+pub struct ErosionCoords {
     pub coords: HashSet<(usize, usize)>
 }

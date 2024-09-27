@@ -1,6 +1,6 @@
 use bevy::{asset::{Assets, Handle}, prelude::{Image, Query, ResMut, With, Without}};
 
-use crate::{components::{DirtVariant, FogImageTag, GravelVariant, Grid, ImageBuffer, Pixel, PixelType, SunTag, TerrainGridTag}, constants::DEFAULT_GAMMA, tools::{HoeTag, PickaxeTag, ShovelTag}};
+use crate::{components::{DirtVariant, FogImageTag, GravelVariant, Grid, ImageBuffer, Pixel, PixelType, SunTag, TerrainGridTag}, constants::DEFAULT_GAMMA, sun::RayGridTag, tools::{HoeTag, PickaxeTag, ShovelTag}};
 
 pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>, perlin_mask: Option<&Vec<f32>>) {
     for i in 0..grid.len() {
@@ -128,10 +128,11 @@ pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>, perlin_mask: O
                 image_buffer[4*i+3] = (255) as u8;
             },
             PixelType::Steel => {
-                image_buffer[4*i] = (176. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
-                image_buffer[4*i+1] = (179. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
-                image_buffer[4*i+2] = (183. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
-                image_buffer[4*i+3] = (255. * grid[i].gamma.max(DEFAULT_GAMMA)) as u8;
+                let gamma = grid[i].gamma.max(DEFAULT_GAMMA);
+                image_buffer[4*i] = (176. * gamma) as u8;
+                image_buffer[4*i+1] = (179. * gamma) as u8;
+                image_buffer[4*i+2] = (183. * gamma) as u8;
+                image_buffer[4*i+3] = (255. * gamma) as u8;
             },
         };
     }
@@ -140,22 +141,22 @@ pub fn render_grid(grid: &Vec<Pixel>, image_buffer: &mut Vec<u8>, perlin_mask: O
 pub fn render_scene(
     mut grid_query: Query<&mut Grid<Pixel>, (With<TerrainGridTag>, Without<ShovelTag>)>,
     mut shovel_grid_query: Query<&mut Grid<Pixel>, (With<ShovelTag>, Without<TerrainGridTag>)>,
-    mut grid_image_buffer_query: Query<&mut ImageBuffer, (Without<PickaxeTag>, Without<ShovelTag>, Without<FogImageTag>, Without<SunTag>, Without<HoeTag>)>,
+    mut grid_image_buffer_query: Query<&mut ImageBuffer, (Without<PickaxeTag>, Without<ShovelTag>, Without<FogImageTag>, Without<SunTag>, Without<HoeTag>, Without<RayGridTag>)>,
     mut cursor_image_buffer_query: Query<&mut ImageBuffer, With<ShovelTag>>,
     mut images: ResMut<Assets<Image>>,
     mut grid_image_query: Query<&Handle<Image>, With<TerrainGridTag>>,
     mut cursor_image_query: Query<&Handle<Image>, With<ShovelTag>>,
 ) {
     let mut grid_image_buffer = grid_image_buffer_query.get_single_mut().unwrap();
-    let mut cursor_image_buffer = cursor_image_buffer_query.get_single_mut().unwrap();
-    let shovel_grid = shovel_grid_query.get_single_mut().unwrap();
+    // let mut cursor_image_buffer = cursor_image_buffer_query.get_single_mut().unwrap();
+    // let shovel_grid = shovel_grid_query.get_single_mut().unwrap();
     let grid = grid_query.get_single_mut().unwrap();
     render_grid(&grid.data, &mut grid_image_buffer.data, None);
-    render_grid(&shovel_grid.data, &mut cursor_image_buffer.data, None);
+    // render_grid(&shovel_grid.data, &mut cursor_image_buffer.data, None);
     if let Some(image) = images.get_mut(grid_image_query.single_mut()) {
         image.data = grid_image_buffer.data.clone();
     }
-    if let Some(image) = images.get_mut(cursor_image_query.single_mut()) {
-        image.data = cursor_image_buffer.data.clone()
-    }
+    // if let Some(image) = images.get_mut(cursor_image_query.single_mut()) {
+        // image.data = cursor_image_buffer.data.clone()
+    // }
 }

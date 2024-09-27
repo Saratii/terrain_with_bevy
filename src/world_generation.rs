@@ -1,5 +1,6 @@
 use std::cmp::{max, min};
 use std::collections::HashSet;
+use std::f32::consts::PI;
 use std::time::Duration;
 
 use bevy::color::palettes::css::GOLD;
@@ -12,9 +13,9 @@ use bevy::utils::default;
 use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, sprite::SpriteBundle, transform::components::Transform};
 use rand::Rng;
 use crate::components::{Count, ErosionCoords, GravityCoords, GravityTick, Grid, ImageBuffer, MoneyTextTag, Pixel, PixelType, PlayerTag, Position, SunTag, SunTick, TerrainGridTag, Velocity};
-use crate::constants::{CALCOPIRITE_RADIUS, CHALCOPIRITE_SPAWN_COUNT, GROUND_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, RAY_COUNT, ROCK_HEIGHT, SELL_BOX_HEIGHT, SELL_BOX_WIDTH, SKY_HEIGHT, SUN_HEIGHT, SUN_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::constants::{CALCOPIRITE_RADIUS, CHALCOPIRITE_SPAWN_COUNT, GROUND_HEIGHT, LIGHTS_PER_SUN, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, RAY_COUNT, ROCK_HEIGHT, SELL_BOX_HEIGHT, SELL_BOX_WIDTH, SHOW_RAYS, SKY_HEIGHT, SUN_HEIGHT, SUN_RADIUS, SUN_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH};
 use crate::player::generate_player_image;
-use crate::sun::ray_cast;
+use crate::sun::{cast_rays, RayGridTag};
 use crate::tools::{CurrentTool, ShovelTag, Tool};
 use crate::util::{c_to_tl, distance, flatten_index, flatten_index_standard_grid, grid_to_image};
 
@@ -39,31 +40,31 @@ pub fn setup_world(mut commands: Commands, assets: Res<AssetServer>) {
             .insert(ImageBuffer { data: terrain_image.data })
             .insert(GravityCoords{coords: HashSet::new()})
             .insert(ErosionCoords{coords: HashSet::new()});
-    commands.spawn(PlayerTag)
-            .insert(Position{x: PLAYER_SPAWN_X as f32, y: PLAYER_SPAWN_Y as f32})
-            .insert(Velocity{vx: 0.0, vy: 0.0})
-            .insert(SpriteBundle {
-                texture: assets.add(generate_player_image()),
-                transform: Transform { translation: Vec3 { x: PLAYER_SPAWN_X as f32, y: PLAYER_SPAWN_Y as f32, z: 1. }, ..default()},
-                ..default()
-            })
-            .insert(CurrentTool{tool: Tool::Shovel});
+    // commands.spawn(PlayerTag)
+    //         .insert(Position{x: PLAYER_SPAWN_X as f32, y: PLAYER_SPAWN_Y as f32})
+    //         .insert(Velocity{vx: 0.0, vy: 0.0})
+    //         .insert(SpriteBundle {
+    //             texture: assets.add(generate_player_image()),
+    //             transform: Transform { translation: Vec3 { x: PLAYER_SPAWN_X as f32, y: PLAYER_SPAWN_Y as f32, z: 1. }, ..default()},
+    //             ..default()
+    //         })
+    //         .insert(CurrentTool{tool: Tool::Shovel});
     commands.spawn(GravityTick{ timer: Timer::new(Duration::from_millis(7), TimerMode::Repeating) });
     commands.spawn(SunTick{ timer: Timer::new(Duration::from_millis(1000), TimerMode::Repeating) });
     commands.spawn(Count { count: 0. });
-    commands.spawn((
-        TextBundle::from_sections([
-            TextSection::new(
-                "$0.00 ",
-                TextStyle {
-                    font: assets.load("fonts/FiraSans-Bold.ttf"),
-                    font_size: 30.0,
-                    color: GOLD.into(),
-                    ..default()
-                },
-            ),
-        ]),
-    )).insert(MoneyTextTag);
+    // commands.spawn((
+    //     TextBundle::from_sections([
+    //         TextSection::new(
+    //             "$0.00 ",
+    //             TextStyle {
+    //                 font: assets.load("fonts/FiraSans-Bold.ttf"),
+    //                 font_size: 30.0,
+    //                 color: GOLD.into(),
+    //                 ..default()
+    //             },
+    //         ),
+    //     ]),
+    // )).insert(MoneyTextTag);
 }
 
 fn generate_terrain_grid() -> Vec<Pixel> {
@@ -80,40 +81,52 @@ fn generate_terrain_grid() -> Vec<Pixel> {
             grid.push(Pixel { pixel_type: PixelType::Rock, gamma: 0. });
         }
     }
-    for _ in 0..CHALCOPIRITE_SPAWN_COUNT {
-        let x = rng.gen_range(0..WINDOW_WIDTH);
-        let y = rng.gen_range(SKY_HEIGHT + GROUND_HEIGHT..SKY_HEIGHT + GROUND_HEIGHT + ROCK_HEIGHT);
-        let index = flatten_index_standard_grid(&x, &y, WINDOW_WIDTH);
-        grid[index] = Pixel { pixel_type: PixelType::Chalcopyrite, gamma: 0. };
-        for xx in max(0, x - CALCOPIRITE_RADIUS)..min(WINDOW_WIDTH, x + CALCOPIRITE_RADIUS){
-            for yy in max(0, y - CALCOPIRITE_RADIUS)..min(WINDOW_HEIGHT, y + CALCOPIRITE_RADIUS){
-                let distance = distance(xx as i32, yy as i32, x as i32, y as i32);
-                if distance < CALCOPIRITE_RADIUS as f32{
-                    if distance != 0. && rng.gen_range(0..distance as usize * 2) == 0 {
-                        let index = flatten_index_standard_grid(&xx, &yy, WINDOW_WIDTH);
-                        grid[index] = Pixel { pixel_type: PixelType::Chalcopyrite, gamma: 0. };
+    if SKY_HEIGHT + GROUND_HEIGHT < SKY_HEIGHT + GROUND_HEIGHT + ROCK_HEIGHT {
+        for _ in 0..CHALCOPIRITE_SPAWN_COUNT {
+            let x = rng.gen_range(0..WINDOW_WIDTH);
+            let y = rng.gen_range(SKY_HEIGHT + GROUND_HEIGHT..SKY_HEIGHT + GROUND_HEIGHT + ROCK_HEIGHT);
+            let index = flatten_index_standard_grid(&x, &y, WINDOW_WIDTH);
+            grid[index] = Pixel { pixel_type: PixelType::Chalcopyrite, gamma: 0. };
+            for xx in max(0, x - CALCOPIRITE_RADIUS)..min(WINDOW_WIDTH, x + CALCOPIRITE_RADIUS){
+                for yy in max(0, y - CALCOPIRITE_RADIUS)..min(WINDOW_HEIGHT, y + CALCOPIRITE_RADIUS){
+                    let distance = distance(xx as i32, yy as i32, x as i32, y as i32);
+                    if distance < CALCOPIRITE_RADIUS as f32{
+                        if distance != 0. && rng.gen_range(0..distance as usize * 2) == 0 {
+                            let index = flatten_index_standard_grid(&xx, &yy, WINDOW_WIDTH);
+                            grid[index] = Pixel { pixel_type: PixelType::Chalcopyrite, gamma: 0. };
+                        }
                     }
                 }
             }
+        }
+    }
+    for _ in 0..10 {
+        // Generate random starting x between 50 and 100 (exclusive)
+        let random_x: usize = rng.gen_range(0..WINDOW_WIDTH - 50);
+        // Generate random y offset between 225 and 265 (exclusive)
+        let random_y: usize = rng.gen_range(0..WINDOW_HEIGHT - 40);
+        for x in 50..100 {
+            for i in 0..40 {
+                grid[flatten_index_standard_grid(&(random_x + x), &(i as usize + random_y), WINDOW_WIDTH)] = Pixel {
+                    pixel_type: PixelType::Rock,
+                    gamma: 0.,
+                }
+            };
         }
     }
     grid
 }
 
 pub fn grid_tick(
-    mut grid_query: Query<&mut Grid<Pixel>, (With<TerrainGridTag>, Without<ShovelTag>)>,
+    mut grid_query: Query<&mut Grid<Pixel>, (With<TerrainGridTag>, Without<ShovelTag>, Without<RayGridTag>)>,
     time: Res<Time>,
     mut gravity_tick_timer_query: Query<&mut GravityTick>,
     mut gravity_coords_query: Query<&mut GravityCoords>,
     mut money_count_query: Query<&mut Count>,
-    sun_position_query: Query<&Transform, With<SunTag>>,
 ) {
     let mut gravity_tick_timer = gravity_tick_timer_query.get_single_mut().unwrap();
     gravity_tick_timer.timer.tick(time.delta());
     let mut grid = grid_query.get_single_mut().unwrap();
-    let sun_position = sun_position_query.single();
-    let sun_position_tl = c_to_tl(&sun_position.translation, SUN_WIDTH as f32, SUN_HEIGHT as f32);
-    ray_cast(&mut grid, RAY_COUNT, (sun_position_tl.0 as usize + SUN_WIDTH/2, sun_position_tl.1 as usize + SUN_HEIGHT/2));
     if gravity_tick_timer.timer.finished() {
         let mut money_count = money_count_query.get_single_mut().unwrap();
         let mut gravity_coords = gravity_coords_query.get_single_mut().unwrap();
