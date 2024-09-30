@@ -50,8 +50,8 @@ pub struct SunTag;
 pub struct TerrainGridTag;
 
 #[derive(Component, Debug)]
-pub struct ContentList{
-    pub contents: Vec<Pixel>
+pub struct ContentList {
+    pub contents: Vec<u8>
 }
 
 #[derive(Component, Debug)]
