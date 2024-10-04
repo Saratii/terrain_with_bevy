@@ -15,6 +15,7 @@ use iyes_perf_ui::entries::PerfUiBundle;
 use bevy::utils::default;
 
 use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, transform::components::Transform};
+use noise::{NoiseFn, Perlin};
 use rand::Rng;
 use crate::color_map::{dirt_variant_pmf, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, LIGHT, REFINED_COPPER, ROCK, SELL_BOX, SKY};
 use crate::components::{Count, GravityCoords, GravityTick, MoneyTextTag, SunTick, TerrainGridTag};
@@ -73,16 +74,23 @@ pub fn setup_world(
 
 fn generate_terrain_grid() -> Vec<u8> {
     let mut rng = rand::thread_rng();
-    let mut grid: Vec<u8> = Vec::with_capacity(WINDOW_WIDTH * WINDOW_HEIGHT);
-    for _ in 0..SKY_HEIGHT * WINDOW_WIDTH {
-        grid.push(SKY);
-    }
-    for _ in 0..GROUND_HEIGHT * WINDOW_WIDTH {
-        grid.push(dirt_variant_pmf());
-    }
-    for _ in GROUND_HEIGHT + SKY_HEIGHT .. WINDOW_HEIGHT {
-        for _ in 0..WINDOW_WIDTH {
-            grid.push(ROCK);
+    let mut grid: Vec<u8> = vec!(SKY; WINDOW_WIDTH * WINDOW_HEIGHT);
+    let perlin = Perlin::new(rng.gen());
+    let dirt_noise_smoothness = 0.002;
+    let rock_noise_smoothness = 0.004;
+    let dirt_variation = 15.;
+    let rock_variation = 80.;
+
+    for x in 0..WINDOW_WIDTH {
+        let noise_value = perlin.get([x as f64 * dirt_noise_smoothness, 0.0]);
+        let dirt_height = (GROUND_HEIGHT as f64 + (noise_value * dirt_variation)) as usize;
+        println!("{} + {} = {}", GROUND_HEIGHT, noise_value * dirt_variation, GROUND_HEIGHT + (noise_value * dirt_variation) as usize);
+        for y in dirt_height..WINDOW_HEIGHT {
+            if y < WINDOW_HEIGHT - (ROCK_HEIGHT as f64 - perlin.get([x as f64 * rock_noise_smoothness, 0.0]) * rock_variation) as usize {
+                grid[flatten_index_standard_grid(&x, &y, WINDOW_WIDTH)] = dirt_variant_pmf();
+            } else {
+                grid[flatten_index_standard_grid(&x, &y, WINDOW_WIDTH)] = ROCK;
+            }
         }
     }
     if SKY_HEIGHT + GROUND_HEIGHT < SKY_HEIGHT + GROUND_HEIGHT + ROCK_HEIGHT {

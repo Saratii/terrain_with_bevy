@@ -45,3 +45,5 @@ pub const SHOW_SUN: bool = false;
 pub const RAY_COUNT: usize = 25;
 pub const LIGHTS_PER_SUN: usize = 1;
 pub const SHOW_RAYS: bool = true;
+pub const NUM_BOXES_IN_TOOL_BAR: usize = 6;
+pub const TOOL_BAR_BOX_SIZE: usize = 30; 

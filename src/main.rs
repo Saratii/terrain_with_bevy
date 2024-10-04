@@ -10,6 +10,7 @@ pub mod fog;
 pub mod sun;
 pub mod tools;
 pub mod color_map;
+pub mod ui;
 
 use bevy::app::*;
 use bevy::diagnostic::EntityCountDiagnosticsPlugin;
