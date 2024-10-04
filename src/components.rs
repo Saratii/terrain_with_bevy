@@ -1,12 +1,6 @@
 use std::collections::HashSet;
-use bevy::{asset::{Asset, Handle}, pbr::Material, prelude::{Component, Image}, render::render_resource::{AsBindGroup, ShaderRef}, time::Timer};
+use bevy::{prelude::Component, time::Timer};
 use rand::{distributions::Standard, prelude::Distribution, Rng};
-
-#[derive(Component, Debug, Clone)]
-pub struct Position {
-    pub x: f32,
-    pub y: f32,
-}
 
 #[derive(Component, Debug)]
 pub struct Velocity {
@@ -125,32 +119,6 @@ pub struct MoneyTextTag;
 #[derive(Clone, Debug, PartialEq)]
 pub struct Rock {
     pub vertical_force: usize
-}
-
-#[derive(Clone, Debug)]
-pub struct Pixel {
-    pub pixel_type: PixelType,
-    pub gamma: f32
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum PixelType {
-    Ground(DirtVariant), 
-    Sky,
-    White,
-    TranslucentGrey,
-    Clear,
-    Rock,
-    Gravel(GravelVariant),
-    Red,
-    SellBox,
-    RefinedCopper,
-    Black,
-    PlayerSkin,
-    Chalcopyrite,
-    Cloud,
-    Light,
-    Steel,
 }
 
 #[derive(Component)]

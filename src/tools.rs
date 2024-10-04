@@ -1,9 +1,8 @@
 use std::cmp::min;
 
-use bevy::{asset::{AssetServer, Assets, Handle}, math::{Vec2, Vec3}, prelude::{default, Commands, Component, Image, Mesh, Query, Rectangle, Res, ResMut, Transform, Visibility, With, Without}, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}, sprite::{MaterialMesh2dBundle, SpriteBundle}, window::{PrimaryWindow, Window}};
-use rand::Rng;
+use bevy::{asset::{Assets, Handle}, math::{Vec2, Vec3}, prelude::{Commands, Component, Image, Mesh, Query, Rectangle, ResMut, Transform, Visibility, With, Without}, sprite::MaterialMesh2dBundle, window::{PrimaryWindow, Window}};
 
-use crate::{color_map::{gravel_variant_pmf, CLEAR, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, LIGHT, RED, ROCK, SKY, STEEL, TRANSLUCENT_GREY, WHITE}, components::{Bool, ContentList, GravityCoords, Grid, ImageBuffer, Pixel, PixelType, PlayerTag, TerrainGridTag, Velocity}, constants::{CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, HOE_HEIGHT, HOE_WIDTH, MAX_SHOVEL_CAPACITY, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{distance, flatten_index, flatten_index_standard_grid, grid_to_image}, world_generation::GridMaterial};
+use crate::{color_map::{gravel_variant_pmf, CLEAR, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, LIGHT, RED, ROCK, SKY, STEEL, TRANSLUCENT_GREY, WHITE}, components::{Bool, ContentList, GravityCoords, PlayerTag, TerrainGridTag, Velocity}, constants::{CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, HOE_HEIGHT, HOE_WIDTH, MAX_SHOVEL_CAPACITY, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index, flatten_index_standard_grid, grid_to_image}, world_generation::GridMaterial};
 
 #[derive(Component)]
 pub struct HoeTag;
@@ -28,7 +27,6 @@ pub struct CurrentTool{
 
 pub fn spawn_tools(
     mut commands: Commands,
-    assets: Res<AssetServer>,
     mut materials: ResMut<Assets<GridMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -40,13 +38,19 @@ pub fn spawn_tools(
     let pickaxe_image = grid_to_image(&pickaxe_grid, CURSOR_RADIUS as u32 * 2, CURSOR_RADIUS as u32 * 2, None);
     let hoe_image = grid_to_image(&hoe_grid, HOE_WIDTH as u32, HOE_HEIGHT as u32, None);
     commands.spawn(HoeTag)
-            .insert(SpriteBundle {
-                texture: assets.add(grid_to_image(&hoe_grid.clone(), HOE_WIDTH as u32, HOE_HEIGHT as u32, None)),
-                transform: Transform { translation: Vec3 { x: PLAYER_SPAWN_X as f32, y: PLAYER_SPAWN_Y as f32, z: 1. }, ..default()},
+            .insert(MaterialMesh2dBundle {
+                material: materials.add(GridMaterial {
+                    color_map: images.add(hoe_image),
+                    size: Vec2::new(HOE_WIDTH as f32, HOE_HEIGHT as f32),
+                }),
+                mesh: meshes
+                .add(Rectangle {
+                    half_size: Vec2::new((HOE_WIDTH/2) as f32, (HOE_HEIGHT/2) as f32),
+                })
+                .into(),
                 visibility: Visibility::Hidden,
-                ..default()})
-            .insert(Grid { data: hoe_grid })
-            .insert(ImageBuffer { data: hoe_image.data })
+                ..Default::default()
+            })
             .insert(Bool { bool: false });
     commands.spawn(ShovelTag)
             .insert(MaterialMesh2dBundle {
@@ -62,14 +66,20 @@ pub fn spawn_tools(
                 ..Default::default()
             })
             .insert(ContentList { contents: Vec::new() });
-    // commands.spawn(PickaxeTag)
-    //         .insert(SpriteBundle {
-    //             texture: assets.add(grid_to_image(&pickaxe_grid.clone(), CURSOR_RADIUS as u32 * 2, CURSOR_RADIUS as u32 * 2, None)),
-    //             transform: Transform { translation: Vec3 { x: PLAYER_SPAWN_X as f32, y: PLAYER_SPAWN_Y as f32, z: 1. }, ..default() },
-    //             visibility: Visibility::Hidden,
-    //             ..default()})
-    //         .insert(Grid { data: pickaxe_grid })
-    //         .insert(ImageBuffer { data: pickaxe_image.data });
+    commands.spawn(PickaxeTag)
+            .insert(MaterialMesh2dBundle {
+                material: materials.add(GridMaterial {
+                    color_map: images.add(pickaxe_image),
+                    size: Vec2::new((CURSOR_RADIUS * 2) as f32, (CURSOR_RADIUS * 2) as f32),
+                }),
+                mesh: meshes
+                .add(Rectangle {
+                    half_size: Vec2::new((CURSOR_RADIUS) as f32, (CURSOR_RADIUS) as f32),
+                })
+                .into(),
+                visibility: Visibility::Hidden,
+                ..Default::default()
+            });
 }
 
 fn generate_shovel_grid() -> Vec<u8>{
@@ -173,7 +183,7 @@ pub fn update_tool(
         } else {
             if tool_position.translation.x < potential_x {
                 for y in (tool_position.translation.y as i32 - HOE_HEIGHT as i32/2..tool_position.translation.y as i32 + HOE_HEIGHT as i32/2).rev() {
-                    let index = flatten_index(tool_position.translation.x as i32 + HOE_WIDTH as i32/2 + 1, y);
+                    let _index = flatten_index(tool_position.translation.x as i32 + HOE_WIDTH as i32/2 + 1, y);
                 } 
             }
         }
@@ -181,17 +191,17 @@ pub fn update_tool(
 }
 
 pub fn update_shovel_content_visual(shovel_image_grid: &mut Vec<u8>, shovel_contents: &Vec<u8>) {
-    for mut pixel in shovel_image_grid.iter_mut() {
-        if pixel == &mut DIRT1 || pixel == &mut DIRT2 || pixel == &mut DIRT3 || pixel == &mut GRAVEL1 || pixel == &mut GRAVEL2 || pixel == &mut GRAVEL3 || pixel == &mut COPPER {
-            pixel = &mut TRANSLUCENT_GREY;
+    for pixel in shovel_image_grid.iter_mut() {
+        if *pixel == DIRT1 || *pixel == DIRT2 || *pixel == DIRT3 || *pixel == GRAVEL1 || *pixel == GRAVEL2 || *pixel == GRAVEL3 || *pixel == COPPER {
+            *pixel = TRANSLUCENT_GREY;
         }
     }
     let mut drawn_content = 0;
-    for mut pixel in shovel_image_grid.iter_mut().rev() {
+    for pixel in shovel_image_grid.iter_mut().rev() {
         if drawn_content == shovel_contents.len() {
             return
         }
-        if pixel == &mut TRANSLUCENT_GREY {
+        if *pixel == TRANSLUCENT_GREY {
             *pixel = shovel_contents[drawn_content].clone();
             drawn_content += 1;
         }
@@ -230,41 +240,14 @@ pub fn left_click_shovel(shovel_position: &Transform, shovel_contents: &mut Vec<
     for y in bottom..top {
         for x in left..right {
             if distance(x, y, shovel_position.translation.x as i32, shovel_position.translation.y as i32) < CURSOR_RADIUS as f32 - CURSOR_BORDER_WIDTH {
-                let index = flatten_index(x as i32, y as i32);
-                if terrain_grid[index] == DIRT1 || terrain_grid[index] == DIRT2 || terrain_grid[index] == DIRT3 {
+                let pos_tl = c_to_tl(&Vec3::new(x as f32, y as f32, 0.), 1., 1.);
+                let index = flatten_index_standard_grid(&(pos_tl.0 as usize), &(pos_tl.1 as usize), WINDOW_WIDTH);
+                if terrain_grid[index] == DIRT1 || terrain_grid[index] == DIRT2 || terrain_grid[index] == DIRT3 || terrain_grid[index] == GRAVEL1 || terrain_grid[index] == GRAVEL2 || terrain_grid[index] == GRAVEL3 || terrain_grid[index] == COPPER{
                     shovel_contents.push(terrain_grid[index]);
                     terrain_grid[index] = SKY;
-                    if let Some(y) = search_upward_for_non_sky_pixel(terrain_grid, index % WINDOW_WIDTH, index / WINDOW_WIDTH){
-                        gravity_coords.coords.insert((index % WINDOW_WIDTH, y));
+                    if let Some(y) = search_upward_for_non_sky_pixel(terrain_grid, pos_tl.0 as usize, pos_tl.1 as usize) {
+                        gravity_coords.coords.insert((pos_tl.0 as usize, y));
                     }
-                    if index % WINDOW_WIDTH < min_x {
-                        min_x = index % WINDOW_WIDTH;
-                    } else if index % WINDOW_WIDTH > max_x {
-                        max_x = index % WINDOW_WIDTH;
-                    }
-                    if shovel_contents.len() == MAX_SHOVEL_CAPACITY {
-                        update_shovel_content_visual(shovel_grid, shovel_contents);
-                        return
-                    }
-                } else if terrain_grid[index] == GRAVEL1 || terrain_grid[index] == GRAVEL2 || terrain_grid[index] == GRAVEL3 {
-                    shovel_contents.push(terrain_grid[index]);
-                    terrain_grid[index] = SKY;
-                    if let Some(y) = search_upward_for_non_sky_pixel(terrain_grid, index % WINDOW_WIDTH, index / WINDOW_WIDTH){
-                        gravity_coords.coords.insert((index % WINDOW_WIDTH, y));
-                    }
-                    if index % WINDOW_WIDTH < min_x {
-                        min_x = index % WINDOW_WIDTH;
-                    } else if index % WINDOW_WIDTH > max_x {
-                        max_x = index % WINDOW_WIDTH;
-                    }
-                    if shovel_contents.len() == MAX_SHOVEL_CAPACITY {
-                        update_shovel_content_visual(shovel_grid, shovel_contents);
-                        return
-                    }
-                } else if terrain_grid[index] == COPPER {
-                    shovel_contents.push(COPPER);
-                    terrain_grid[index] = SKY;
-                    gravity_coords.coords.insert((index % WINDOW_WIDTH, index / WINDOW_WIDTH));
                     if index % WINDOW_WIDTH < min_x {
                         min_x = index % WINDOW_WIDTH;
                     } else if index % WINDOW_WIDTH > max_x {
@@ -307,7 +290,7 @@ fn search_upward_for_non_sky_pixel(terrain_grid: &Vec<u8>, x: usize, y: usize) -
         if y - y_level == 0{
             return None
         }
-        if terrain_grid[flatten_index_standard_grid(&x, &(y - y_level), WINDOW_WIDTH)] == SKY {
+        if terrain_grid[flatten_index_standard_grid(&x, &(y - y_level), WINDOW_WIDTH)] != SKY {
             return Some(y - y_level)
         }
         y_level += 1;

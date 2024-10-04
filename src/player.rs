@@ -1,6 +1,31 @@
-use bevy::{math::Vec3, prelude::{Image, Res}, time::Time};
+use bevy::{asset::Assets, math::{Vec2, Vec3}, prelude::{Commands, Image, Mesh, Rectangle, Res, ResMut, Transform}, sprite::MaterialMesh2dBundle, time::Time};
 
-use crate::{color_map::{BLACK, LIGHT, PLAYER_SKIN, RED, SELL_BOX, SKY, WHITE}, components::{Pixel, PixelType, Velocity}, constants::{PLAYER_HEIGHT, PLAYER_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, flatten_index_standard_grid, grid_to_image}};
+use crate::{color_map::{BLACK, LIGHT, PLAYER_SKIN, RED, SELL_BOX, SKY, WHITE}, components::{PlayerTag, Velocity}, constants::{PLAYER_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, PLAYER_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, tools::{CurrentTool, Tool}, util::{c_to_tl, flatten_index_standard_grid, grid_to_image}, world_generation::GridMaterial};
+
+
+pub fn spawn_player(
+    mut commands: Commands,
+    mut materials: ResMut<Assets<GridMaterial>>,
+    mut images: ResMut<Assets<Image>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+) {
+    commands.spawn(PlayerTag)
+            .insert(Velocity { vx: 0.0, vy: 0.0})
+            .insert(MaterialMesh2dBundle {
+                material: materials.add(GridMaterial {
+                    color_map: images.add(generate_player_image()),
+                    size: Vec2::new(PLAYER_WIDTH as f32, PLAYER_HEIGHT as f32),
+                }),
+                mesh: meshes
+                .add(Rectangle {
+                    half_size: Vec2::new((PLAYER_WIDTH/2) as f32, (PLAYER_HEIGHT/2) as f32),
+                })
+                .into(),
+                transform: Transform { translation: Vec3::new(PLAYER_SPAWN_X as f32, PLAYER_SPAWN_Y as f32, 0.0), ..Default::default() },
+                ..Default::default()
+            })
+            .insert(CurrentTool { tool: Tool::Shovel });
+}
 
 pub fn generate_player_image() -> Image{
     let mut data_buffer: Vec<u8> = Vec::new();

@@ -1,16 +1,16 @@
-use std::io::{self, Write}; // Import the Write trait
+use std::io::{self, Write};
 use std::fs::File;
 
 use bevy::{math::Vec3, prelude::Image, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}};
 
-use crate::{constants::{WINDOW_HEIGHT, WINDOW_WIDTH}, render::render_grid, components::Pixel};
+use crate::constants::{WINDOW_HEIGHT, WINDOW_WIDTH};
 
 pub fn flatten_index(x: i32, y: i32) -> usize {
     let index = ((WINDOW_HEIGHT as i32 / 2) - y) * WINDOW_WIDTH as i32 + (x + WINDOW_WIDTH as i32 / 2);
     return index as usize;
 }
 
-pub fn grid_to_image(grid: &Vec<u8>, width: u32, height: u32, perlin_mask: Option<&Vec<f32>>) -> Image {
+pub fn grid_to_image(grid: &Vec<u8>, width: u32, height: u32, _perlin_mask: Option<&Vec<f32>>) -> Image {
     if grid.len() != (width * height) as usize {
         panic!("Grid and image dimensions do not match");
     }

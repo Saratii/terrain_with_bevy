@@ -1,15 +1,12 @@
 use std::cmp::{max, min};
 use std::collections::HashSet;
-use std::f32::consts::PI;
-use std::process::exit;
 use std::time::Duration;
 
 use bevy::asset::{Asset, Assets, Handle};
 use bevy::color::palettes::css::GOLD;
 use bevy::math::Vec2;
-use bevy::prelude::{Image, Mesh, Query, Rectangle, ResMut, TextBundle, With, Without};
-use bevy::render::render_asset::RenderAssetUsages;
-use bevy::render::render_resource::{AsBindGroup, Extent3d, ShaderRef, TextureDimension, TextureFormat};
+use bevy::prelude::{Image, Mesh, Query, Rectangle, ResMut, TextBundle, With};
+use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy::sprite::{Material2d, MaterialMesh2dBundle};
 use bevy::text::{Text, TextSection, TextStyle};
 use bevy::time::{Time, Timer, TimerMode};
@@ -17,14 +14,12 @@ use bevy_reflect::TypePath;
 use iyes_perf_ui::entries::PerfUiBundle;
 use bevy::utils::default;
 
-use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, sprite::SpriteBundle, transform::components::Transform};
+use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, transform::components::Transform};
 use rand::Rng;
 use crate::color_map::{dirt_variant_pmf, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, LIGHT, REFINED_COPPER, ROCK, SELL_BOX, SKY};
-use crate::components::{Count, ErosionCoords, GravityCoords, GravityTick, Grid, ImageBuffer, MoneyTextTag, Pixel, PixelType, PlayerTag, Position, SunTag, SunTick, TerrainGridTag, Velocity};
-use crate::constants::{CALCOPIRITE_RADIUS, CHALCOPIRITE_SPAWN_COUNT, GROUND_HEIGHT, LIGHTS_PER_SUN, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, RAY_COUNT, ROCK_HEIGHT, SELL_BOX_HEIGHT, SELL_BOX_WIDTH, SHOW_RAYS, SKY_HEIGHT, SUN_HEIGHT, SUN_RADIUS, SUN_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH};
-use crate::player::generate_player_image;
-use crate::tools::{CurrentTool, ShovelTag, Tool};
-use crate::util::{c_to_tl, distance, flatten_index, flatten_index_standard_grid, grid_to_image, write_u8s_to_file};
+use crate::components::{Count, GravityCoords, GravityTick, MoneyTextTag, SunTick, TerrainGridTag};
+use crate::constants::{CALCOPIRITE_RADIUS, CHALCOPIRITE_SPAWN_COUNT, GROUND_HEIGHT, ROCK_HEIGHT, SELL_BOX_HEIGHT, SELL_BOX_WIDTH, SKY_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::util::{c_to_tl, distance, flatten_index_standard_grid, grid_to_image};
 
 pub fn setup_camera(mut commands: Commands) {
     commands.spawn(PerfUiBundle::default());
@@ -38,8 +33,8 @@ pub fn setup_world(
     mut meshes: ResMut<Assets<Mesh>>,
     assets: Res<AssetServer>,
 ) {
-    let color_map = grid_to_image(&generate_terrain_grid(), WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32, None);
-    // add_sell_box_to_grid(&mut terrain_grid);
+    let mut color_map = grid_to_image(&generate_terrain_grid(), WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32, None);
+    add_sell_box_to_grid(&mut color_map.data);
     commands.spawn(TerrainGridTag)
             .insert(MaterialMesh2dBundle {
                 material: materials.add(GridMaterial {
@@ -58,31 +53,22 @@ pub fn setup_world(
                 ..Default::default()
             })
             .insert(GravityCoords { coords: HashSet::new() });
-    commands.spawn(PlayerTag)
-            .insert(Position { x: PLAYER_SPAWN_X as f32, y: PLAYER_SPAWN_Y as f32 })
-            .insert(Velocity { vx: 0.0, vy: 0.0})
-            .insert(SpriteBundle {
-                texture: assets.add(generate_player_image()),
-                transform: Transform { translation: Vec3 { x: PLAYER_SPAWN_X as f32, y: PLAYER_SPAWN_Y as f32, z: 1. }, ..default()},
-                ..default()
-            })
-            .insert(CurrentTool { tool: Tool::Shovel });
     commands.spawn(GravityTick { timer: Timer::new(Duration::from_millis(7), TimerMode::Repeating) });
     commands.spawn(SunTick { timer: Timer::new(Duration::from_millis(1000), TimerMode::Repeating) });
     commands.spawn(Count { count: 0. });
-    // commands.spawn((
-    //     TextBundle::from_sections([
-    //         TextSection::new(
-    //             "$0.00 ",
-    //             TextStyle {
-    //                 font: assets.load("fonts/FiraSans-Bold.ttf"),
-    //                 font_size: 30.0,
-    //                 color: GOLD.into(),
-    //                 ..default()
-    //             },
-    //         ),
-    //     ]),
-    // )).insert(MoneyTextTag);
+    commands.spawn((
+        TextBundle::from_sections([
+            TextSection::new(
+                "$0.00 ",
+                TextStyle {
+                    font: assets.load("fonts/FiraSans-Bold.ttf"),
+                    font_size: 30.0,
+                    color: GOLD.into(),
+                    ..default()
+                },
+            ),
+        ]),
+    )).insert(MoneyTextTag);
 }
 
 fn generate_terrain_grid() -> Vec<u8> {
@@ -167,13 +153,10 @@ pub fn does_gravity_apply_to_entity(entity_pos_c: Vec3, entity_width: i32, entit
 fn gravity_tick(gravity_coords: &mut HashSet<(usize, usize)>, grid: &mut Vec<u8>, money_count: &mut f32) {
     let mut new_coords = HashSet::new();
     for coord in gravity_coords.iter() {
-        println!("coord: {:?}", coord);
         let index = flatten_index_standard_grid(&coord.0, &coord.1, WINDOW_WIDTH);
         if grid[index] == DIRT1 || grid[index] == DIRT2 || grid[index] == DIRT3 || grid[index] == GRAVEL1 || grid[index] == GRAVEL2 || grid[index] == GRAVEL3 || grid[index] == COPPER {
-            println!("bongo");
             let mut below_index = flatten_index_standard_grid(&coord.0, &(coord.1 + 1), WINDOW_WIDTH);
             if grid[below_index] == SKY || grid[below_index] == LIGHT { 
-                println!("bunga");
                 let mut looking_at_y = coord.1 + 1;
                 new_coords.insert((coord.0, looking_at_y));
                 loop {
@@ -213,14 +196,14 @@ fn gravity_tick(gravity_coords: &mut HashSet<(usize, usize)>, grid: &mut Vec<u8>
     *gravity_coords = new_coords;
 }
 
-fn add_sell_box_to_grid(grid: &mut Vec<Pixel>) {
+fn add_sell_box_to_grid(grid: &mut Vec<u8>) {
     for y in SKY_HEIGHT - SELL_BOX_HEIGHT..SKY_HEIGHT{
         for x in 800..800+SELL_BOX_WIDTH{
             let index = flatten_index_standard_grid(&x, &y, WINDOW_WIDTH);
             if x < 800 + SELL_BOX_WIDTH - 1 - 2 && y < SKY_HEIGHT - 1 - 2 && x > 800 + 2{
-                grid[index] = Pixel { pixel_type: PixelType::SellBox, gamma: 0. };
+                grid[index] = SELL_BOX;
             } else {
-                grid[index] = Pixel { pixel_type: PixelType::RefinedCopper, gamma: 0. };
+                grid[index] = REFINED_COPPER;
             }
         }
     }
