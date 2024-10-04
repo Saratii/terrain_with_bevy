@@ -297,23 +297,23 @@ fn search_upward_for_non_sky_pixel(terrain_grid: &Vec<u8>, x: usize, y: usize) -
     }
 }
 
-pub fn left_click_hoe(hoe_position: &mut Transform, grid: &mut Vec<u8>, is_locked: &mut bool) {
-    for x in (hoe_position.translation.x - HOE_WIDTH as f32 /2.) as i32 .. (hoe_position.translation.x + HOE_WIDTH as f32 / 2.) as i32 {
-        for y in (hoe_position.translation.y - HOE_HEIGHT as f32 / 2.) as i32 .. (hoe_position.translation.y + HOE_HEIGHT as f32 / 2.) as i32{
+pub fn left_click_hoe(hoe_position_c: &mut Transform, grid: &mut Vec<u8>, is_locked: &mut bool) {
+    for x in (hoe_position_c.translation.x - HOE_WIDTH as f32 /2.) as i32 .. (hoe_position_c.translation.x + HOE_WIDTH as f32 / 2.) as i32 {
+        for y in (hoe_position_c.translation.y - HOE_HEIGHT as f32 / 2.) as i32 .. (hoe_position_c.translation.y + HOE_HEIGHT as f32 / 2.) as i32{
             let index = flatten_index(x as i32, y as i32);
-            if grid[index] == SKY {
+            if grid[index] != SKY {
                 return;
             }
         }
     }
     for _ in 0..10 {
-        for x in (hoe_position.translation.x - HOE_WIDTH as f32 /2.) as i32 .. (hoe_position.translation.x + HOE_WIDTH as f32 / 2.) as i32 {
-            let index = flatten_index(x as i32, (hoe_position.translation.y - HOE_HEIGHT as f32 / 2.) as i32 - 1);
+        for x in (hoe_position_c.translation.x - HOE_WIDTH as f32 /2.) as i32 .. (hoe_position_c.translation.x + HOE_WIDTH as f32 / 2.) as i32 {
+            let index = flatten_index(x as i32, (hoe_position_c.translation.y - HOE_HEIGHT as f32 / 2.) as i32 - 1);
             if grid[index] == SKY {
                 *is_locked = true;
                 return;
             }
-            hoe_position.translation.y -= 1.;
+            hoe_position_c.translation.y -= 1.;
         }
     }
     *is_locked = true;

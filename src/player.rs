@@ -21,7 +21,7 @@ pub fn spawn_player(
                     half_size: Vec2::new((PLAYER_WIDTH/2) as f32, (PLAYER_HEIGHT/2) as f32),
                 })
                 .into(),
-                transform: Transform { translation: Vec3::new(PLAYER_SPAWN_X as f32, PLAYER_SPAWN_Y as f32, 0.0), ..Default::default() },
+                transform: Transform { translation: Vec3::new(PLAYER_SPAWN_X as f32, PLAYER_SPAWN_Y as f32, -1.), ..Default::default() },
                 ..Default::default()
             })
             .insert(CurrentTool { tool: Tool::Shovel });
@@ -31,17 +31,22 @@ pub fn generate_player_image() -> Image{
     let mut data_buffer: Vec<u8> = Vec::new();
     for y in 0..PLAYER_HEIGHT {
         for _ in 0..PLAYER_WIDTH {
-            if y < 15 {
+            if y < PLAYER_HEIGHT / 3 {
                 data_buffer.push(PLAYER_SKIN);
             } else {
                 data_buffer.push(BLACK);
             }
         }
     }
-    for i in 0..2 {
+    for i in 0..7 {
         data_buffer[flatten_index_standard_grid(&(2 + i), &5, PLAYER_WIDTH)] = WHITE;
-        data_buffer[flatten_index_standard_grid(&(PLAYER_WIDTH - 2 - i), &5, PLAYER_WIDTH)] = WHITE;
+        data_buffer[flatten_index_standard_grid(&(PLAYER_WIDTH - 3 - i), &5, PLAYER_WIDTH)] = WHITE;
+        data_buffer[flatten_index_standard_grid(&(2 + i), &4, PLAYER_WIDTH)] = WHITE;
+        data_buffer[flatten_index_standard_grid(&(PLAYER_WIDTH - 3 - i), &4, PLAYER_WIDTH)] = WHITE;
     }
+    data_buffer[flatten_index_standard_grid(&(2+3), &5, PLAYER_WIDTH)] = BLACK;
+    data_buffer[flatten_index_standard_grid(&(PLAYER_WIDTH - 3 - 3), &5, PLAYER_WIDTH)] = BLACK;
+
     for i in 0..PLAYER_WIDTH - 4 {
         data_buffer[flatten_index_standard_grid(&(2 + i), &10, PLAYER_WIDTH)] = RED;
     }
@@ -77,15 +82,15 @@ pub fn apply_velocity(
 
 fn horizontal_collision(velocity: &f32, terrain_grid: &Vec<u8>, entity_position_tl: &(f32, f32)) -> bool {
     if velocity < &0. {
-        for y in 0..PLAYER_HEIGHT {
-            let index = flatten_index_standard_grid(&(entity_position_tl.0 as usize - 1), &(y as usize + entity_position_tl.1 as usize), WINDOW_WIDTH);
+        for y in entity_position_tl.1 as usize..entity_position_tl.1 as usize + PLAYER_HEIGHT {
+            let index = flatten_index_standard_grid(&(entity_position_tl.0 as usize - 1), &y, WINDOW_WIDTH);
             if terrain_grid[index] != SKY && terrain_grid[index] != SELL_BOX && terrain_grid[index] != LIGHT {
                 return true
             }
         }
     } else if velocity > &0.{
-        for y in 0..PLAYER_HEIGHT {
-            let index = flatten_index_standard_grid(&(entity_position_tl.0 as usize + PLAYER_WIDTH + 1), &(y as usize + entity_position_tl.1 as usize), WINDOW_WIDTH);
+        for y in entity_position_tl.1 as usize..entity_position_tl.1 as usize + PLAYER_HEIGHT {
+            let index = flatten_index_standard_grid(&(entity_position_tl.0 as usize + PLAYER_WIDTH), &y, WINDOW_WIDTH);
             if terrain_grid[index] != SKY && terrain_grid[index] != SELL_BOX && terrain_grid[index] != LIGHT {
                 return true
             }
