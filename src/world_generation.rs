@@ -56,7 +56,7 @@ pub fn setup_world(
             })
             .insert(GravityCoords { coords: HashSet::new() });
     commands.spawn(TimerComponent { timer: Timer::new(Duration::from_millis(7), TimerMode::Repeating) }).insert(TerrainGridTag);
-    commands.spawn(TimerComponent { timer: Timer::new(Duration::from_millis(100), TimerMode::Repeating) }).insert(DrillTag);
+    commands.spawn(TimerComponent { timer: Timer::new(Duration::from_millis(20), TimerMode::Repeating) }).insert(DrillTag);
     commands.spawn(SunTick { timer: Timer::new(Duration::from_millis(1000), TimerMode::Repeating) });
     commands.spawn(Count { count: 0. });
     commands.spawn((

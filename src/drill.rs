@@ -1,6 +1,6 @@
 use bevy::{asset::{AssetServer, Assets, Handle}, math::{Vec2, Vec3}, prelude::{default, Commands, Component, Image, Query, Res, ResMut, Transform, With}, sprite::SpriteBundle, time::Time};
 
-use crate::{color_map::{gravel_variant_pmf, COPPER, DRILL_BLACK, DRILL_GREY, GRAVITY_AFFECTED, ROCK, SKY}, components::{ContentList, GravityCoords, TerrainGridTag, TimerComponent, USize}, constants::WINDOW_WIDTH, util::{flatten_index, flatten_index_standard_grid, tl_to_c}, world_generation::GridMaterial};
+use crate::{color_map::{gravel_variant_pmf, COPPER, DRILL_BLACK, DRILL_GREY, GRAVITY_AFFECTED, ROCK, SKY}, components::{ContentList, GravityCoords, TerrainGridTag, TimerComponent, USize}, constants::{WINDOW_HEIGHT, WINDOW_WIDTH}, util::{flatten_index, flatten_index_standard_grid, tl_to_c}, world_generation::GridMaterial};
 
 pub const DRILL_SCALE: f32 = 2.;
 pub const DRILL_WIDTH: f32 = 21. * DRILL_SCALE;
@@ -51,6 +51,9 @@ pub fn drill_tick(
         let mut gravity_coords = gravity_coords_query.get_single_mut().unwrap();
         'outer: for (drill_transform, mut drill_depth, mut contents) in drill_query.iter_mut() {
             let y = drill_transform.translation.y as i32 - DRILL_HEIGHT as i32/2 - drill_depth.usize as i32;
+            if y <= (WINDOW_HEIGHT as i32 / 2 - 1) * -1 {
+                continue;
+            }
             let mut dug_count = 0;
             for x in 0..3 * DRILL_SCALE as i32 {
                 let index = flatten_index(drill_transform.translation.x as i32 + x + DRILL_PIPE_OFFSET, y);
@@ -63,6 +66,7 @@ pub fn drill_tick(
                         terrain_grid[index] = gravel_variant_pmf();
                         dug_count += 1;
                     } else if terrain_grid[index] == SKY {
+                    } else if terrain_grid[index] == 19 || terrain_grid[index] == 20 {
                     } else {
                         panic!("drill hit something unhandeled: {}", terrain_grid[index]);
                     }
@@ -76,7 +80,9 @@ pub fn drill_tick(
                         continue 'outer;
                     }
                 }
-                drill_depth.usize += 1;
+                if drill_transform.translation.y as i32 - DRILL_HEIGHT as i32/2 - drill_depth.usize as i32 - 2 > -1 * WINDOW_HEIGHT as i32 / 2 {
+                    drill_depth.usize += 1;
+                }
                 for x in 0..DRILL_SCALE as i32 {
                     let index = flatten_index(drill_transform.translation.x as i32 + x + DRILL_PIPE_OFFSET, y);
                     terrain_grid[index] = DRILL_BLACK;
