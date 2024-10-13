@@ -1,6 +1,6 @@
-use bevy::{asset::{AssetServer, Assets, Handle}, input::ButtonInput, prelude::{Commands, Image, MouseButton, Query, Res, ResMut, Transform, With, Without}, window::{PrimaryWindow, Window}};
+use bevy::{asset::{AssetServer, Assets, Handle}, input::ButtonInput, prelude::{Camera, Commands, GlobalTransform, Image, MouseButton, Query, Res, ResMut, Transform, With, Without}, window::{PrimaryWindow, Window}};
 
-use crate::{color_map::ROCK, components::{Bool, ContentList, GravityCoords, TerrainGridTag}, constants::{MAX_SHOVEL_CAPACITY, WINDOW_WIDTH}, drill::{spawn_drill, DRILL_HEIGHT, DRILL_WIDTH}, tools::{left_click_hoe, left_click_pickaxe, left_click_shovel, right_click_hoe, right_click_shovel, CurrentTool, HoeTag, PickaxeTag, ShovelTag, Tool}, util::{flatten_index_standard_grid, valid_machine_spawn}, world_generation::GridMaterial};
+use crate::{color_map::ROCK, components::{Bool, ContentList, GravityCoords, TerrainGridTag}, constants::{GRID_WIDTH, MAX_SHOVEL_CAPACITY}, drill::{spawn_drill, DRILL_HEIGHT, DRILL_WIDTH}, tools::{left_click_hoe, left_click_pickaxe, left_click_shovel, right_click_hoe, right_click_shovel, CurrentTool, HoeTag, PickaxeTag, ShovelTag, Tool}, util::{c_to_tl, flatten_index_standard_grid, valid_machine_spawn}, world_generation::{CameraTag, GridMaterial}};
 
 pub fn check_mouse_click(
     buttons: Res<ButtonInput<MouseButton>>,
@@ -18,6 +18,7 @@ pub fn check_mouse_click(
     commands: Commands, 
     asset_server: Res<AssetServer>,
     q_windows: Query<&Window, With<PrimaryWindow>>,
+    q_camera: Query<(&Camera, &GlobalTransform), With<CameraTag>>,
 ) {
     let mut cursor_contents = cursor_contents_query.get_single_mut().unwrap();
     let current_tool = current_tool_query.get_single().unwrap();
@@ -41,9 +42,13 @@ pub fn check_mouse_click(
                 left_click_hoe(&mut hoe_position_query.get_single_mut().unwrap(), &mut terrain_grid.data, &mut is_hoe_locked.get_single_mut().unwrap().bool);
             },
             Tool::SpawnDrill => {
-                if let Some(position) = q_windows.single().cursor_position() {
-                    if valid_machine_spawn(&terrain_grid.data, position, DRILL_WIDTH as usize, DRILL_HEIGHT as usize) {
-                        spawn_drill(commands, asset_server, position, &terrain_grid.data);
+                let (camera, camera_transform) = q_camera.single();
+                if let Some(position_c) = q_windows.single().cursor_position()
+                    .and_then(|cursor| camera.viewport_to_world(camera_transform, cursor))
+                    .map(|ray| ray.origin) {
+                    let position_tl = c_to_tl(&position_c, DRILL_WIDTH, DRILL_HEIGHT);
+                    if valid_machine_spawn(&terrain_grid.data, position_tl, DRILL_WIDTH as usize, DRILL_HEIGHT as usize) {
+                        spawn_drill(commands, asset_server, position_tl, &terrain_grid.data);
                     }
                 }
             }
@@ -57,7 +62,7 @@ pub fn check_mouse_click(
         let terrain_grid = &mut images.get_mut(&terrain_id).unwrap().data;
         for x in 50..100{
             for i in 0..40{
-                terrain_grid[flatten_index_standard_grid(&x, &((50 + i) as usize), WINDOW_WIDTH)] = ROCK;
+                terrain_grid[flatten_index_standard_grid(&x, &((50 + i) as usize), GRID_WIDTH)] = ROCK;
                 gravity_coords.coords.insert(( x, 50 + i));
             }
         }

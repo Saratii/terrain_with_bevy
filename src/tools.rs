@@ -1,8 +1,8 @@
 use std::cmp::min;
 
-use bevy::{asset::{Assets, Handle}, math::{Vec2, Vec3}, prelude::{Commands, Component, Image, Mesh, Query, Rectangle, ResMut, Transform, Visibility, With, Without}, sprite::MaterialMesh2dBundle, window::{PrimaryWindow, Window}};
+use bevy::{asset::{Assets, Handle}, math::{Vec2, Vec3}, prelude::{Camera, Commands, Component, GlobalTransform, Image, Mesh, Query, Rectangle, ResMut, Transform, Visibility, With, Without}, sprite::MaterialMesh2dBundle, window::{PrimaryWindow, Window}};
 
-use crate::{color_map::{gravel_variant_pmf, CLEAR, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, LIGHT, RED, ROCK, SKY, STEEL, TRANSLUCENT_GREY, WHITE}, components::{Bool, ContentList, GravityCoords, PlayerTag, TerrainGridTag, Velocity}, constants::{CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, HOE_HEIGHT, HOE_WIDTH, MAX_SHOVEL_CAPACITY, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index, flatten_index_standard_grid, grid_to_image}, world_generation::GridMaterial};
+use crate::{color_map::{gravel_variant_pmf, CLEAR, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, LIGHT, RED, ROCK, SKY, STEEL, TRANSLUCENT_GREY, WHITE}, components::{Bool, ContentList, GravityCoords, PlayerTag, TerrainGridTag, Velocity}, constants::{CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, GRID_WIDTH, HOE_HEIGHT, HOE_WIDTH, MAX_SHOVEL_CAPACITY}, util::{c_to_tl, distance, flatten_index, flatten_index_standard_grid, grid_to_image}, world_generation::{CameraTag, GridMaterial}};
 
 #[derive(Component)]
 pub struct HoeTag;
@@ -138,6 +138,8 @@ pub fn update_tool(
     mut materials: ResMut<Assets<GridMaterial>>,
     terrain_material_handle: Query<&Handle<GridMaterial>, With<TerrainGridTag>>,
     mut images: ResMut<Assets<Image>>,
+
+    q_camera: Query<(&Camera, &GlobalTransform), With<CameraTag>>,
 ) {
     let player = player_query.get_single_mut().unwrap();
     let current_tool = current_tool_query.get_single().unwrap();
@@ -158,11 +160,12 @@ pub fn update_tool(
             return
         }
     }
-    if let Some(position) = q_windows.single().cursor_position() {
-        let converted_position_x = position.x - WINDOW_WIDTH as f32 / 2.;
-        let converted_position_y = (position.y - WINDOW_HEIGHT as f32 / 2.) * -1.;
-        let angle = (converted_position_y - player.0.translation.y).atan2(converted_position_x - player.0.translation.x);
-        let distance_from_player = distance(player.0.translation.x as i32, player.0.translation.y as i32, converted_position_x as i32, converted_position_y as i32);
+    let (camera, camera_transform) = q_camera.single();
+    if let Some(position_c) = q_windows.single().cursor_position()
+            .and_then(|cursor| camera.viewport_to_world(camera_transform, cursor))
+            .map(|ray| ray.origin.truncate()) {
+        let angle = (position_c.y - player.0.translation.y).atan2(position_c.x - player.0.translation.x);
+        let distance_from_player = distance(player.0.translation.x as i32, player.0.translation.y as i32, position_c.x as i32, position_c.y as i32);
         let min_distance = min(CURSOR_ORBITAL_RADIUS as usize, distance_from_player as usize) as f32;
         let mut potential_x = player.0.translation.x + min_distance * angle.cos();
         let mut potential_y = player.0.translation.y + min_distance * angle.sin();
@@ -225,7 +228,7 @@ pub fn right_click_shovel(shovel_grid: &mut Vec<u8>, terrain_grid: &mut Vec<u8>,
                 if terrain_grid[main_grid_index] == SKY || terrain_grid[main_grid_index] == LIGHT {
                     let pixel = cursor_contents.pop().unwrap();
                     terrain_grid[main_grid_index] = pixel;
-                    gravity_coords.coords.insert((main_grid_index % WINDOW_WIDTH, main_grid_index / WINDOW_WIDTH));
+                    gravity_coords.coords.insert((main_grid_index % GRID_WIDTH, main_grid_index / GRID_WIDTH));
                 }
             }
         }
@@ -238,24 +241,24 @@ pub fn left_click_shovel(shovel_position: &Transform, shovel_contents: &mut Vec<
     let right = shovel_position.translation.x as i32 + CURSOR_RADIUS as i32;
     let top = shovel_position.translation.y as i32 + CURSOR_RADIUS as i32; 
     let bottom = shovel_position.translation.y as i32 - CURSOR_RADIUS as i32;
-    let mut min_x = WINDOW_WIDTH + 1;
+    let mut min_x = GRID_WIDTH + 1;
     let mut max_x = 0;
     let starting_count = shovel_contents.len();
     for y in bottom..top {
         for x in left..right {
             if distance(x, y, shovel_position.translation.x as i32, shovel_position.translation.y as i32) < CURSOR_RADIUS as f32 - CURSOR_BORDER_WIDTH {
                 let pos_tl = c_to_tl(&Vec3::new(x as f32, y as f32, 0.), 1., 1.);
-                let index = flatten_index_standard_grid(&(pos_tl.0 as usize), &(pos_tl.1 as usize), WINDOW_WIDTH);
+                let index = flatten_index_standard_grid(&(pos_tl.0 as usize), &(pos_tl.1 as usize), GRID_WIDTH);
                 if terrain_grid[index] == DIRT1 || terrain_grid[index] == DIRT2 || terrain_grid[index] == DIRT3 || terrain_grid[index] == GRAVEL1 || terrain_grid[index] == GRAVEL2 || terrain_grid[index] == GRAVEL3 || terrain_grid[index] == COPPER{
                     shovel_contents.push(terrain_grid[index]);
                     terrain_grid[index] = SKY;
                     if let Some(y) = search_upward_for_non_sky_pixel(terrain_grid, pos_tl.0 as usize, pos_tl.1 as usize) {
                         gravity_coords.coords.insert((pos_tl.0 as usize, y));
                     }
-                    if index % WINDOW_WIDTH < min_x {
-                        min_x = index % WINDOW_WIDTH;
-                    } else if index % WINDOW_WIDTH > max_x {
-                        max_x = index % WINDOW_WIDTH;
+                    if index % GRID_WIDTH < min_x {
+                        min_x = index % GRID_WIDTH;
+                    } else if index % GRID_WIDTH > max_x {
+                        max_x = index % GRID_WIDTH;
                     }
                     if shovel_contents.len() == MAX_SHOVEL_CAPACITY {
                         update_shovel_content_visual(shovel_grid, shovel_contents);
@@ -281,7 +284,7 @@ pub fn left_click_pickaxe(pickaxe_position: &Transform, grid: &mut Vec<u8>, grav
                 let index = flatten_index(x as i32, y as i32);
                 if grid[index] == ROCK {
                     grid[index] = gravel_variant_pmf();
-                    gravity_coords.coords.insert((index % WINDOW_WIDTH, index / WINDOW_WIDTH));
+                    gravity_coords.coords.insert((index % GRID_WIDTH, index / GRID_WIDTH));
                 }
             }
         }
@@ -294,7 +297,7 @@ fn search_upward_for_non_sky_pixel(terrain_grid: &Vec<u8>, x: usize, y: usize) -
         if y - y_level == 0{
             return None
         }
-        if terrain_grid[flatten_index_standard_grid(&x, &(y - y_level), WINDOW_WIDTH)] != SKY {
+        if terrain_grid[flatten_index_standard_grid(&x, &(y - y_level), GRID_WIDTH)] != SKY {
             return Some(y - y_level)
         }
         y_level += 1;

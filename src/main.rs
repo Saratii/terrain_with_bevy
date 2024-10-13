@@ -2,7 +2,6 @@ mod world_generation;
 pub mod constants;
 pub mod player;
 pub mod components;
-pub mod render;
 pub mod util;
 pub mod mouse_controller;
 pub mod keyboard_controller;
@@ -65,3 +64,14 @@ fn main() {
         .add_systems(Update, (grid_tick, process_key_event, update_tool, check_mouse_click, update_money_text, drill_tick))
         .run();
 }
+
+// pub fn a(
+//   mut materials: ResMut<Assets<GridMaterial>>,
+//   mut images: ResMut<bevy::asset::Assets<Image>>,
+//   terrain_material_handle: Query<&Handle<GridMaterial>, With<TerrainGridTag>>,
+// ) {
+//   let handle = terrain_material_handle.get_single().unwrap();
+//   let material = materials.get_mut(handle).unwrap();
+//   let color_map = &material.color_map;
+//   let terrain_grid = images.get(color_map).unwrap();
+// }
