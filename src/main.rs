@@ -11,6 +11,7 @@ pub mod sun;
 pub mod tools;
 pub mod color_map;
 pub mod ui;
+pub mod drill;
 
 use bevy::app::*;
 use bevy::diagnostic::EntityCountDiagnosticsPlugin;
@@ -21,6 +22,7 @@ use bevy::prelude::*;
 use bevy::sprite::Material2dPlugin;
 use bevy::window::PresentMode;
 use constants::WINDOW_HEIGHT;
+use drill::drill_tick;
 use iyes_perf_ui::PerfUiPlugin;
 use keyboard_controller::process_key_event;
 use mouse_controller::check_mouse_click;
@@ -60,6 +62,6 @@ fn main() {
         })
         .insert_resource(ClearColor(Color::srgb(0.0, 0.0, 0.0)))
         .add_systems(Startup, (setup_camera, setup_world, spawn_player, apply_deferred, spawn_tools).chain())
-        .add_systems(Update, (grid_tick, process_key_event, update_tool, check_mouse_click, update_money_text))
+        .add_systems(Update, (grid_tick, process_key_event, update_tool, check_mouse_click, update_money_text, drill_tick))
         .run();
 }

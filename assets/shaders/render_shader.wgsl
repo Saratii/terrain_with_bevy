@@ -72,6 +72,12 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
     if (tile_map_value == 18) {
         color = vec4<f32>(0., 0., 0., 1.0); //black
     }
+    if (tile_map_value == 19) {
+        color = vec4<f32>(35/255., 36/255., 37/255., 1.0); //drill black
+    }
+    if (tile_map_value == 20) {
+        color = vec4<f32>(132/255., 136/255., 136/255., 1.0); //drill grey
+    }
     return vec4<f32>(
         inverse_gamma_correct(color.r),
         inverse_gamma_correct(color.g),

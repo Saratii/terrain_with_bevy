@@ -12,6 +12,7 @@ pub enum Tool{
     Shovel,
     Pickaxe,
     Hoe,
+    SpawnDrill,
 }
 
 #[derive(Component)]
@@ -152,6 +153,9 @@ pub fn update_tool(
         },
         Tool::Hoe => {
             tool_position = hoe_query.get_single_mut().unwrap();
+        },
+        Tool::SpawnDrill => {
+            return
         }
     }
     if let Some(position) = q_windows.single().cursor_position() {

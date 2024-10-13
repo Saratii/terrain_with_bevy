@@ -1,6 +1,6 @@
-use bevy::{asset::{Assets, Handle}, input::ButtonInput, prelude::{Image, MouseButton, Query, Res, ResMut, Transform, With, Without}};
+use bevy::{asset::{AssetServer, Assets, Handle}, input::ButtonInput, prelude::{Commands, Image, MouseButton, Query, Res, ResMut, Transform, With, Without}, window::{PrimaryWindow, Window}};
 
-use crate::{color_map::ROCK, components::{Bool, ContentList, GravityCoords, TerrainGridTag}, constants::{MAX_SHOVEL_CAPACITY, WINDOW_WIDTH}, tools::{left_click_hoe, left_click_pickaxe, left_click_shovel, right_click_hoe, right_click_shovel, CurrentTool, HoeTag, PickaxeTag, ShovelTag, Tool}, util::flatten_index_standard_grid, world_generation::GridMaterial};
+use crate::{color_map::ROCK, components::{Bool, ContentList, GravityCoords, TerrainGridTag}, constants::{MAX_SHOVEL_CAPACITY, WINDOW_WIDTH}, drill::{spawn_drill, DRILL_HEIGHT, DRILL_WIDTH}, tools::{left_click_hoe, left_click_pickaxe, left_click_shovel, right_click_hoe, right_click_shovel, CurrentTool, HoeTag, PickaxeTag, ShovelTag, Tool}, util::{flatten_index_standard_grid, valid_machine_spawn}, world_generation::GridMaterial};
 
 pub fn check_mouse_click(
     buttons: Res<ButtonInput<MouseButton>>,
@@ -15,6 +15,9 @@ pub fn check_mouse_click(
     mut materials: ResMut<Assets<GridMaterial>>,
     mut images: ResMut<Assets<Image>>,
     shovel_material_handle: Query<&Handle<GridMaterial>, (With<ShovelTag>, Without<TerrainGridTag>)>,
+    commands: Commands, 
+    asset_server: Res<AssetServer>,
+    q_windows: Query<&Window, With<PrimaryWindow>>,
 ) {
     let mut cursor_contents = cursor_contents_query.get_single_mut().unwrap();
     let current_tool = current_tool_query.get_single().unwrap();
@@ -37,6 +40,13 @@ pub fn check_mouse_click(
             Tool::Hoe => {
                 left_click_hoe(&mut hoe_position_query.get_single_mut().unwrap(), &mut terrain_grid.data, &mut is_hoe_locked.get_single_mut().unwrap().bool);
             },
+            Tool::SpawnDrill => {
+                if let Some(position) = q_windows.single().cursor_position() {
+                    if valid_machine_spawn(&terrain_grid.data, position, DRILL_WIDTH as usize, DRILL_HEIGHT as usize) {
+                        spawn_drill(commands, asset_server, position, &terrain_grid.data);
+                    }
+                }
+            }
         }
         images.insert(&terrain_id, terrain_grid);
     }
@@ -68,6 +78,7 @@ pub fn check_mouse_click(
             },
             Tool::Pickaxe => {},
             Tool::Hoe => right_click_hoe(&mut is_hoe_locked.get_single_mut().unwrap().bool),
+            Tool::SpawnDrill => {},
         }
     }
 }

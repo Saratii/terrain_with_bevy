@@ -1,8 +1,4 @@
 
-use bevy::{asset::Assets, math::{Vec2, Vec3}, prelude::{Commands, Component, Image, Mesh, Rectangle, ResMut, Transform}, sprite::MaterialMesh2dBundle};
-
-use crate::{color_map::{CLEAR, WHITE}, constants::{NUM_BOXES_IN_TOOL_BAR, TOOL_BAR_BOX_SIZE, WINDOW_HEIGHT, WINDOW_WIDTH}, util::grid_to_image, world_generation::GridMaterial};
-
 // #[derive(Component)]
 // pub struct ToolBarTag;
 

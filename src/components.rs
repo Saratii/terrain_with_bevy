@@ -59,7 +59,7 @@ pub struct FogIndicesToUncover {
 }
 
 #[derive(Component)]
-pub struct GravityTick {
+pub struct TimerComponent {
     pub timer: Timer,
 }
 
@@ -124,4 +124,9 @@ pub struct Rock {
 #[derive(Component)]
 pub struct ErosionCoords {
     pub coords: HashSet<(usize, usize)>
+}
+
+#[derive(Component)]
+pub struct USize {
+    pub usize: usize
 }

@@ -19,6 +19,10 @@ pub const RED: u8 = 15;
 pub const STEEL: u8 = 16;
 pub const PLAYER_SKIN: u8 = 17;
 pub const BLACK: u8 = 18;
+pub const DRILL_BLACK: u8 = 19;
+pub const DRILL_GREY: u8 = 20;
+
+pub const GRAVITY_AFFECTED: [u8; 6] = [DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3];
 
 pub fn dirt_variant_pmf() -> u8 {
     let mut rng = rand::thread_rng();

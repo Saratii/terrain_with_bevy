@@ -1,8 +1,10 @@
 use std::io::{self, Write};
 use std::fs::File;
 
+use bevy::math::Vec2;
 use bevy::{math::Vec3, prelude::Image, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}};
 
+use crate::color_map::SKY;
 use crate::constants::{WINDOW_HEIGHT, WINDOW_WIDTH};
 
 pub fn flatten_index(x: i32, y: i32) -> usize {
@@ -31,8 +33,12 @@ pub fn c_to_tl(entity_position_c: &Vec3, width: f32, height: f32) -> (f32, f32){
     (entity_position_c.x + (WINDOW_HEIGHT/2) as f32 - width/2., (entity_position_c.y - (WINDOW_WIDTH/2) as f32) * -1. - height/2.)
 }
 
-pub fn tl_to_c(x: f32, y: f32, width: f32, height: f32) -> (f32, f32) {
-    (x  + width/2. - WINDOW_HEIGHT as f32/2., (y + height/2.) * -1. + (WINDOW_WIDTH/2) as f32)
+pub fn tl_to_c(x: f32, y: f32, width: f32, height: f32) -> Vec3 {
+    Vec3 {
+        x: x + width/2. - WINDOW_HEIGHT as f32/2.,
+        y: (y + height/2.) * -1. + (WINDOW_WIDTH/2) as f32,
+        z: 0.
+    }
 }
 
 pub fn flatten_index_standard_grid(x: &usize, y: &usize, grid_width: usize) -> usize {
@@ -59,4 +65,15 @@ pub fn write_u8s_to_file(width: usize, data: Vec<u8>, file_path: &str) -> io::Re
     }
 
     Ok(())
+}
+
+pub fn valid_machine_spawn(terrain_grid: &Vec<u8>, position_tl: Vec2, width: usize, height: usize) -> bool {
+    for i in 0..height {
+        for j in 0..width {
+            if terrain_grid[flatten_index_standard_grid(&(position_tl.x as usize + j), &(position_tl.y as usize + i), WINDOW_WIDTH)] != SKY {
+                return false;
+            }
+        }
+    }
+    true
 }

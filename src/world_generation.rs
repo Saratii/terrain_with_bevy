@@ -18,8 +18,9 @@ use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::syst
 use noise::{NoiseFn, Perlin};
 use rand::Rng;
 use crate::color_map::{dirt_variant_pmf, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, LIGHT, REFINED_COPPER, ROCK, SELL_BOX, SKY};
-use crate::components::{Count, GravityCoords, GravityTick, MoneyTextTag, SunTick, TerrainGridTag};
+use crate::components::{Count, GravityCoords, TimerComponent, MoneyTextTag, SunTick, TerrainGridTag};
 use crate::constants::{CALCOPIRITE_RADIUS, CHALCOPIRITE_SPAWN_COUNT, GROUND_HEIGHT, ROCK_HEIGHT, SELL_BOX_HEIGHT, SELL_BOX_WIDTH, SKY_HEIGHT, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::drill::DrillTag;
 use crate::util::{c_to_tl, distance, flatten_index_standard_grid, grid_to_image};
 
 pub fn setup_camera(mut commands: Commands) {
@@ -54,7 +55,8 @@ pub fn setup_world(
                 ..Default::default()
             })
             .insert(GravityCoords { coords: HashSet::new() });
-    commands.spawn(GravityTick { timer: Timer::new(Duration::from_millis(7), TimerMode::Repeating) });
+    commands.spawn(TimerComponent { timer: Timer::new(Duration::from_millis(7), TimerMode::Repeating) }).insert(TerrainGridTag);
+    commands.spawn(TimerComponent { timer: Timer::new(Duration::from_millis(100), TimerMode::Repeating) }).insert(DrillTag);
     commands.spawn(SunTick { timer: Timer::new(Duration::from_millis(1000), TimerMode::Repeating) });
     commands.spawn(Count { count: 0. });
     commands.spawn((
@@ -76,7 +78,7 @@ fn generate_terrain_grid() -> Vec<u8> {
     let mut rng = rand::thread_rng();
     let mut grid: Vec<u8> = vec!(SKY; WINDOW_WIDTH * WINDOW_HEIGHT);
     let perlin = Perlin::new(rng.gen());
-    let dirt_noise_smoothness = 0.002;
+    let dirt_noise_smoothness = 0.003;
     let rock_noise_smoothness = 0.004;
     let dirt_variation = 15.;
     let rock_variation = 80.;
@@ -84,7 +86,6 @@ fn generate_terrain_grid() -> Vec<u8> {
     for x in 0..WINDOW_WIDTH {
         let noise_value = perlin.get([x as f64 * dirt_noise_smoothness, 0.0]);
         let dirt_height = (GROUND_HEIGHT as f64 + (noise_value * dirt_variation)) as usize;
-        println!("{} + {} = {}", GROUND_HEIGHT, noise_value * dirt_variation, GROUND_HEIGHT + (noise_value * dirt_variation) as usize);
         for y in dirt_height..WINDOW_HEIGHT {
             if y < WINDOW_HEIGHT - (ROCK_HEIGHT as f64 - perlin.get([x as f64 * rock_noise_smoothness, 0.0]) * rock_variation) as usize {
                 grid[flatten_index_standard_grid(&x, &y, WINDOW_WIDTH)] = dirt_variant_pmf();
@@ -130,7 +131,7 @@ pub fn grid_tick(
     terrain_material_handle: Query<&Handle<GridMaterial>, With<TerrainGridTag>>,
     mut images: ResMut<Assets<Image>>,
     time: Res<Time>,
-    mut gravity_tick_timer_query: Query<&mut GravityTick>,
+    mut gravity_tick_timer_query: Query<&mut TimerComponent, With<TerrainGridTag>>,
     mut gravity_coords_query: Query<&mut GravityCoords>,
     mut money_count_query: Query<&mut Count>,
 ) {
