@@ -1,6 +1,6 @@
 use bevy::{asset::Assets, math::{Vec2, Vec3}, prelude::{Commands, Image, Mesh, Rectangle, Res, ResMut, Transform}, sprite::MaterialMesh2dBundle, time::Time};
 
-use crate::{color_map::{BLACK, LIGHT, PLAYER_SKIN, RED, SELL_BOX, SKY, WHITE}, components::{PlayerTag, Velocity}, constants::{GRID_HEIGHT, GRID_WIDTH, PLAYER_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, PLAYER_WIDTH}, tools::{CurrentTool, Tool}, util::{c_to_tl, flatten_index_standard_grid, grid_to_image}, world_generation::GridMaterial};
+use crate::{color_map::{BLACK, LIGHT, PLAYER_SKIN, RED, SELL_BOX, SKY, WHITE}, components::{PlayerTag, Velocity}, constants::{CHUNK_SIZE, GLOBAL_MAX_X, GLOBAL_MIN_X, PLAYER_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, PLAYER_WIDTH}, tools::{CurrentTool, Tool}, util::{c_to_tl, flatten_index_standard_grid, grid_to_image}, world_generation::GridMaterial};
 
 
 pub fn spawn_player(
@@ -56,13 +56,13 @@ pub fn generate_player_image() -> Image{
 pub fn apply_velocity(
     entity_position_c: &mut Vec3,
     velocity: &mut Velocity,
-    terrain_grid: &Vec<u8>,
+    chunk_map: &Vec<Vec<u8>>,
     time: &Res<Time>,
 ) {
-    let min_x_c = -1. * GRID_WIDTH as f32 / 2. + PLAYER_WIDTH as f32 / 2.;
-    let max_x_c = GRID_WIDTH as f32 / 2. - PLAYER_WIDTH as f32 / 2.;
+    let min_x_c = GLOBAL_MIN_X as f32 + PLAYER_WIDTH as f32 / 2.;
+    let max_x_c = GLOBAL_MAX_X as f32 - PLAYER_WIDTH as f32 / 2.;
     let entity_position_tl = c_to_tl(entity_position_c, PLAYER_WIDTH as f32, PLAYER_HEIGHT as f32);
-    if velocity.vx != 0. && horizontal_collision(&velocity.vx, terrain_grid, &entity_position_tl) {
+    if velocity.vx != 0. && horizontal_collision(&velocity.vx, chunk_map, &entity_position_tl) {
         velocity.vx = 0.;
     }
     if entity_position_c.x < min_x_c {
@@ -72,39 +72,38 @@ pub fn apply_velocity(
         entity_position_c.x = max_x_c;
         velocity.vx = 0.;
     }
-    if velocity.vy > 0. && ((entity_position_c.y as i32 + PLAYER_HEIGHT as i32 / 2) >= (GRID_HEIGHT as i32 / 2) - 1 
-        || vertical_collision(terrain_grid, &entity_position_tl)) {
+    if velocity.vy > 0. && vertical_collision(chunk_map, &entity_position_tl) {
         velocity.vy = 0.;
     }
     entity_position_c.x += velocity.vx * time.delta_seconds();
     entity_position_c.y += velocity.vy * time.delta_seconds();
 }
 
-fn horizontal_collision(velocity: &f32, terrain_grid: &Vec<u8>, entity_position_tl: &(f32, f32)) -> bool {
-    if velocity < &0. {
-        for y in entity_position_tl.1 as usize..entity_position_tl.1 as usize + PLAYER_HEIGHT {
-            let index = flatten_index_standard_grid(&(entity_position_tl.0 as usize - 1), &y, GRID_WIDTH);
-            if terrain_grid[index] != SKY && terrain_grid[index] != SELL_BOX && terrain_grid[index] != LIGHT {
-                return true
-            }
-        }
-    } else if velocity > &0.{
-        for y in entity_position_tl.1 as usize..entity_position_tl.1 as usize + PLAYER_HEIGHT {
-            let index = flatten_index_standard_grid(&(entity_position_tl.0 as usize + PLAYER_WIDTH), &y, GRID_WIDTH);
-            if terrain_grid[index] != SKY && terrain_grid[index] != SELL_BOX && terrain_grid[index] != LIGHT {
-                return true
-            }
-        }
-    }
+fn horizontal_collision(velocity: &f32, chunk_map: &Vec<Vec<u8>>, entity_position_tl: &(f32, f32)) -> bool {
+    // if velocity < &0. {
+    //     for y in entity_position_tl.1 as usize..entity_position_tl.1 as usize + PLAYER_HEIGHT {
+    //         let index = flatten_index_standard_grid(&(entity_position_tl.0 as usize - 1), &y, CHUNK_SIZE as usize);
+    //         if terrain_grid[index] != SKY && terrain_grid[index] != SELL_BOX && terrain_grid[index] != LIGHT {
+    //             return true
+    //         }
+    //     }
+    // } else if velocity > &0.{
+    //     for y in entity_position_tl.1 as usize..entity_position_tl.1 as usize + PLAYER_HEIGHT {
+    //         let index = flatten_index_standard_grid(&(entity_position_tl.0 as usize + PLAYER_WIDTH), &y, CHUNK_SIZE as usize);
+    //         if terrain_grid[index] != SKY && terrain_grid[index] != SELL_BOX && terrain_grid[index] != LIGHT {
+    //             return true
+    //         }
+    //     }
+    // }
     false
 }
 
-fn vertical_collision(terrain_grid: &Vec<u8>, entity_position_tl: &(f32, f32)) -> bool {
-    for x in entity_position_tl.0 as usize..entity_position_tl.0 as usize + PLAYER_WIDTH as usize {
-        let index = flatten_index_standard_grid(&x, &(entity_position_tl.1 as usize - 1), GRID_WIDTH);
-        if terrain_grid[index] != SKY && terrain_grid[index] != SELL_BOX && terrain_grid[index] != LIGHT {
-            return true
-        }
-    }
+fn vertical_collision(chunk_map: &Vec<Vec<u8>>, entity_position_tl: &(f32, f32)) -> bool {
+    // for x in entity_position_tl.0 as usize..entity_position_tl.0 as usize + PLAYER_WIDTH as usize {
+    //     let index = flatten_index_standard_grid(&x, &(entity_position_tl.1 as usize - 1), CHUNK_SIZE as usize);
+    //     if terrain_grid[index] != SKY && terrain_grid[index] != SELL_BOX && terrain_grid[index] != LIGHT {
+    //         return true
+    //     }
+    // }
     false
 }

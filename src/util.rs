@@ -1,13 +1,14 @@
 use std::io::{self, Write};
 use std::fs::File;
+use std::process::exit;
 
 use bevy::{math::Vec3, prelude::Image, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}};
 
 use crate::color_map::SKY;
-use crate::constants::{GRID_HEIGHT, GRID_WIDTH};
+use crate::constants::{CHUNKS_HORIZONTAL, CHUNKS_VERTICAL, CHUNK_SIZE};
 
 pub fn flatten_index(x: i32, y: i32) -> usize {
-    let index = ((GRID_HEIGHT as i32 / 2) - y) * GRID_WIDTH as i32 + (x + GRID_WIDTH as i32 / 2);
+    let index = ((CHUNK_SIZE as i32 / 2) - y) * CHUNK_SIZE as i32 + (x + CHUNK_SIZE as i32 / 2);
     return index as usize;
 }
 
@@ -29,13 +30,13 @@ pub fn grid_to_image(grid: &Vec<u8>, width: u32, height: u32, _perlin_mask: Opti
 }
 
 pub fn c_to_tl(entity_position_c: &Vec3, width: f32, height: f32) -> (f32, f32) {
-    (entity_position_c.x + (GRID_HEIGHT/2) as f32 - width/2., (entity_position_c.y - (GRID_WIDTH/2) as f32) * -1. - height/2.)
+    (entity_position_c.x + CHUNK_SIZE/2. - width/2., entity_position_c.y - CHUNK_SIZE/2. * -1. - height/2.)
 }
 
 pub fn tl_to_c(x: f32, y: f32, width: f32, height: f32) -> Vec3 {
     Vec3 {
-        x: x + width/2. - GRID_HEIGHT as f32/2.,
-        y: (y + height/2.) * -1. + (GRID_WIDTH/2) as f32,
+        x: x + width/2. - CHUNK_SIZE as f32/2.,
+        y: (y + height/2.) * -1. + CHUNK_SIZE/2.,
         z: 0.
     }
 }
@@ -60,13 +61,74 @@ pub fn write_u8s_to_file(width: usize, data: Vec<u8>, file_path: &str) -> io::Re
     Ok(())
 }
 
-pub fn valid_machine_spawn(terrain_grid: &Vec<u8>, position_tl: (f32, f32), width: usize, height: usize) -> bool {
-    for i in 0..height {
-        for j in 0..width {
-            if terrain_grid[flatten_index_standard_grid(&(position_tl.0 as usize + j), &(position_tl.1 as usize + i), GRID_WIDTH)] != SKY {
+pub fn valid_machine_spawn(chunk_map: &Vec<Vec<u8>>, position_g: Vec3, width: usize, height: usize) -> bool {
+    for y in position_g.y as i32 - height as i32/2..position_g.y as i32 + height as i32/2 {
+        for x in position_g.x as i32 - width as i32/2..position_g.x as i32 + width as i32/2 {
+            let chunk_x_g = get_chunk_x_g(x as f32);
+            let chunk_y_g = get_chunk_x_g(y as f32);
+            let chunk_x_v = get_chunk_x_v(chunk_x_g);
+            let chunk_y_v = get_chunk_x_v(chunk_y_g);
+            let chunk_index = flatten_index_standard_grid(&chunk_x_v, &chunk_y_v, CHUNKS_HORIZONTAL as usize);
+            let local_x = get_local_x(x);
+            let local_y = get_local_y(y);
+            let local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
+            if chunk_map[chunk_index][local_index] != SKY {
                 return false;
             }
         }
     }
     true
+}
+
+pub fn world_grid_index_to_chunk_vec_index_shift(x: i32, y: i32) -> (usize, usize) {
+    ((x + CHUNKS_HORIZONTAL as i32 / 2) as usize, (y + CHUNKS_VERTICAL as i32 / 2) as usize)
+}
+
+pub fn get_chunk_x_v(x_g: i32) -> usize {
+    (x_g + CHUNKS_HORIZONTAL as i32 / 2) as usize
+}
+
+pub fn get_chunk_y_v(y_g: i32) -> usize {
+    (y_g + CHUNKS_VERTICAL as i32 / 2) as usize
+}
+
+//shifts a chunk index to the center of the world grid
+pub fn chunk_index_x_y_to_world_grid_index_shift(x: usize, y: usize) -> (i32, i32) {
+    (x as i32 - CHUNKS_HORIZONTAL as i32 / 2, y as i32 - CHUNKS_VERTICAL as i32 / 2)
+}
+
+//global_chunk_index and top left Y to world coordinate:
+pub fn get_global_y_coordinate(chunk_y_g: i32, y: usize) -> i32 {
+    chunk_y_g * CHUNK_SIZE as i32 + CHUNK_SIZE as i32 / 2 as i32 - y as i32
+}
+
+pub fn get_global_x_coordinate(chunk_x_g: i32, x: usize) -> i32 {
+    chunk_x_g * CHUNK_SIZE as i32 - CHUNK_SIZE as i32 / 2 as i32 + x as i32
+}
+
+pub fn get_local_x(global_x: i32) -> usize {
+    let x = CHUNK_SIZE as i32 / 2 + (global_x % CHUNK_SIZE as i32);
+    if x > CHUNK_SIZE as i32{
+        return (x - CHUNK_SIZE as i32) as usize;
+    }
+    x as usize
+}
+
+pub fn get_local_y(global_y: i32) -> usize {
+    let y = CHUNK_SIZE as i32 / 2 - (global_y % CHUNK_SIZE as i32);
+    if y < 0 {
+        return (CHUNK_SIZE as i32 + y) as usize;
+    }
+    if y > CHUNK_SIZE as i32 {
+        return (y - CHUNK_SIZE as i32) as usize;
+    }
+    y as usize
+}
+
+pub fn get_chunk_x_g(x_g: f32) -> i32 {
+    ((x_g + CHUNK_SIZE/2.) / CHUNK_SIZE).floor() as i32
+}
+
+pub fn get_chunk_y_g(y_g: f32) -> i32 {
+    ((y_g + CHUNK_SIZE/2.) / CHUNK_SIZE).floor() as i32
 }

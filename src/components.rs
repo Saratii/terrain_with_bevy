@@ -41,7 +41,10 @@ pub struct F32 {
 pub struct SunTag;
 
 #[derive(Component)]
-pub struct TerrainGridTag;
+pub struct TerrainImageTag;
+
+#[derive(Component)]
+pub struct ChunkMapTag;
 
 #[derive(Component, Debug)]
 pub struct ContentList {
@@ -50,7 +53,7 @@ pub struct ContentList {
 
 #[derive(Component, Debug)]
 pub struct GravityCoords {
-    pub coords: HashSet<(usize, usize)>
+    pub coords: HashSet<(i32, i32)>
 }
 
 #[derive(Component)]
@@ -129,4 +132,14 @@ pub struct ErosionCoords {
 #[derive(Component)]
 pub struct USize {
     pub usize: usize
+}
+
+#[derive(Component)]
+pub struct ChunkMap {
+    pub map: Vec<Vec<u8>>,
+}
+
+#[derive(Component)]
+pub struct RelativePosition {
+    pub pos: (i32, i32)
 }

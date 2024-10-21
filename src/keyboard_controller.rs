@@ -1,6 +1,6 @@
-use bevy::{asset::{Assets, Handle}, input::ButtonInput, prelude::{Image, KeyCode, Query, Res, ResMut, Transform, Visibility, With, Without}, time::Time};
+use bevy::{input::ButtonInput, prelude::{KeyCode, Query, Res, Transform, Visibility, With, Without}, time::Time};
 
-use crate::{components::{Bool, ContentList, PlayerTag, TerrainGridTag, Velocity}, constants::{FRICTION, MAX_PLAYER_SPEED, PLAYER_ACCELERATION, PLAYER_HEIGHT, PLAYER_WIDTH}, player::apply_velocity, tools::{CurrentTool, HoeTag, PickaxeTag, ShovelTag, Tool}, world_generation::{does_gravity_apply_to_entity, CameraTag, GridMaterial}};
+use crate::{components::{Bool, ChunkMap, ContentList, PlayerTag, Velocity}, constants::{FRICTION, MAX_PLAYER_SPEED, PLAYER_ACCELERATION, PLAYER_HEIGHT, PLAYER_WIDTH}, player::apply_velocity, tools::{CurrentTool, HoeTag, PickaxeTag, ShovelTag, Tool}, world_generation::does_gravity_apply_to_entity};
 
 pub fn process_key_event(
     keys: Res<ButtonInput<KeyCode>>,
@@ -12,16 +12,13 @@ pub fn process_key_event(
     mut pickaxe_visability_query: Query<&mut Visibility, (With<PickaxeTag>, Without<ShovelTag>, Without<HoeTag>)>,
     mut hoe_visability_query: Query<&mut Visibility, (With<HoeTag>, Without<PickaxeTag>, Without<ShovelTag>)>,
     mut hoe_is_locked_query: Query<&mut Bool, With<HoeTag>>,
-    mut materials: ResMut<Assets<GridMaterial>>,
-    mut images: ResMut<bevy::asset::Assets<Image>>,
-    terrain_material_handle: Query<&Handle<GridMaterial>, With<TerrainGridTag>>,
-    mut camera_query: Query<&mut Transform, (With<CameraTag>, Without<PlayerTag>)>,
+    chunk_map_query: Query<&ChunkMap>,
 ) {
     let shovel_contents = shovel_contents_query.get_single().unwrap();
-    let terrain_grid = &mut images.get_mut(&materials.get_mut(terrain_material_handle.get_single().unwrap()).unwrap().color_map).unwrap().data;
+    let chunk_map = chunk_map_query.get_single().unwrap();
     let mut hoe_is_locked = hoe_is_locked_query.get_single_mut().unwrap();
     let mut player = player_query.get_single_mut().unwrap();
-    let does_gravity_apply = does_gravity_apply_to_entity(player.0.translation, PLAYER_WIDTH as i32, PLAYER_HEIGHT as i32, &terrain_grid);
+    let does_gravity_apply = does_gravity_apply_to_entity(player.0.translation, PLAYER_WIDTH as i32, PLAYER_HEIGHT as i32, &chunk_map.map);
     if does_gravity_apply {
         player.1.vy -= 300. * time.delta_seconds();
     } else {
@@ -82,7 +79,5 @@ pub fn process_key_event(
     if keys.pressed(KeyCode::Space) && !does_gravity_apply {
         player.1.vy += 150.;
     }
-    apply_velocity(&mut player.0.translation, &mut player.1, &terrain_grid, &time);
-    let mut camera_transform = camera_query.get_single_mut().unwrap();
-    camera_transform.translation = player.0.translation;
+    apply_velocity(&mut player.0.translation, &mut player.1, &chunk_map.map, &time);
 }

@@ -1,6 +1,6 @@
 use bevy::{asset::{AssetServer, Assets, Handle}, math::Vec3, prelude::{default, Commands, Component, Image, Query, Res, ResMut, Transform, With}, sprite::SpriteBundle, time::Time};
 
-use crate::{color_map::{gravel_variant_pmf, COPPER, DRILL_BLACK, DRILL_GREY, GRAVITY_AFFECTED, ROCK, SKY}, components::{ContentList, GravityCoords, TerrainGridTag, TimerComponent, USize}, constants::{GRID_HEIGHT, GRID_WIDTH}, util::{flatten_index, flatten_index_standard_grid, tl_to_c}, world_generation::GridMaterial};
+use crate::{color_map::{gravel_variant_pmf, COPPER, DRILL_BLACK, DRILL_GREY, GRAVITY_AFFECTED, ROCK, SKY}, components::{ContentList, GravityCoords, TerrainImageTag, TimerComponent, USize}, constants::{CHUNKS_HORIZONTAL, CHUNK_SIZE}, util::{flatten_index, flatten_index_standard_grid, get_chunk_x_g, get_chunk_x_v, get_local_x, get_local_y, tl_to_c}, world_generation::GridMaterial};
 
 pub const DRILL_SCALE: f32 = 2.;
 pub const DRILL_WIDTH: f32 = 21. * DRILL_SCALE;
@@ -13,19 +13,27 @@ const DRILL_OUTPUT_OFFSET_X: i32 = -21;
 #[derive(Component)]
 pub struct DrillTag;
 
-pub fn spawn_drill(mut commands: Commands, asset_server: Res<AssetServer>, mut position_tl: (f32, f32), terrain_grid: &Vec<u8>) {
+pub fn spawn_drill(mut commands: Commands, asset_server: Res<AssetServer>, mut position_g: Vec3, chunk_map: &Vec<Vec<u8>>) {
     'outer: loop {
-        for x in (position_tl.0 as usize)..(position_tl.0 + DRILL_WIDTH) as usize {
-            if terrain_grid[flatten_index_standard_grid(&x, &((position_tl.1 + DRILL_HEIGHT) as usize), GRID_WIDTH)] != SKY {
+        for x_g in position_g.x as i32 - DRILL_WIDTH as i32 / 2 .. position_g.x as i32 + DRILL_WIDTH as i32 / 2 {
+            let chunk_x_g = get_chunk_x_g(x_g as f32);
+            let chunk_y_g = get_chunk_x_g(position_g.y - DRILL_HEIGHT / 2.);
+            let chunk_x_v = get_chunk_x_v(chunk_x_g);
+            let chunk_y_v = get_chunk_x_v(chunk_y_g);
+            let chunk_index = flatten_index_standard_grid(&chunk_x_v, &chunk_y_v, CHUNKS_HORIZONTAL as usize);
+            let local_x = get_local_x(x_g);
+            let local_y = get_local_y((position_g.y - DRILL_HEIGHT / 2.) as i32);
+            let local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
+            if chunk_map[chunk_index][local_index] != SKY {
                 break 'outer;
             }
         }
-        position_tl.1 += 1.;
+        position_g.y -= 1.;
     }
     commands.spawn(SpriteBundle { 
         texture: asset_server.load("sprites/drill_sprite.png"), 
         transform: Transform {
-            translation: tl_to_c(position_tl.0, position_tl.1, DRILL_WIDTH, DRILL_HEIGHT), 
+            translation: position_g, 
             scale: Vec3::new(DRILL_SCALE, DRILL_SCALE, 1.),
             ..Default::default()
         },
@@ -41,7 +49,7 @@ pub fn drill_tick(
     mut images: ResMut<Assets<Image>>,
     time: Res<Time>,
     mut materials: ResMut<Assets<GridMaterial>>,
-    terrain_material_handle: Query<&Handle<GridMaterial>, With<TerrainGridTag>>,
+    terrain_material_handle: Query<&Handle<GridMaterial>, With<TerrainImageTag>>,
     mut gravity_coords_query: Query<&mut GravityCoords>,
 ) {
     let mut drill_tick = drill_tick_query.get_single_mut().unwrap();
@@ -53,7 +61,7 @@ pub fn drill_tick(
         let mut gravity_coords = gravity_coords_query.get_single_mut().unwrap();
         'outer: for (drill_transform, mut drill_depth, mut contents) in drill_query.iter_mut() {
             let y = drill_transform.translation.y as i32 - DRILL_HEIGHT as i32/2 - drill_depth.usize as i32;
-            if y <= (GRID_WIDTH as i32 / 2 - 1) * -1 {
+            if y <= (CHUNK_SIZE as i32 / 2 - 1) * -1 {
                 continue;
             }
             let mut dug_count = 0;
@@ -82,7 +90,7 @@ pub fn drill_tick(
                         continue 'outer;
                     }
                 }
-                if drill_transform.translation.y as i32 - DRILL_HEIGHT as i32/2 - drill_depth.usize as i32 - 2 > -1 * GRID_HEIGHT as i32 / 2 {
+                if drill_transform.translation.y as i32 - DRILL_HEIGHT as i32/2 - drill_depth.usize as i32 - 2 > -1 * CHUNK_SIZE as i32 / 2 {
                     drill_depth.usize += 1;
                 }
                 for x in 0..DRILL_SCALE as i32 {
@@ -108,7 +116,7 @@ fn flush_buffer(contents: &mut Vec<u8>, terrain_grid: &mut Vec<u8>, drill_transf
         if terrain_grid[index] == SKY {
             if contents.len() != 0 {
                 terrain_grid[index] = contents.remove(0);
-                gravity_coords.coords.insert((index % GRID_WIDTH, index / GRID_WIDTH));
+                // gravity_coords.coords.insert((index % CHUNK_SIZE as usize, index / CHUNK_SIZE as usize));
             }
         }
     }
