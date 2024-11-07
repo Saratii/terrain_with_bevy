@@ -93,25 +93,26 @@ pub fn setup_world(
 }
 
 fn generate_chunk(perlin: &Perlin, chunk_x_g: i32, chunk_y_g: i32) -> Vec<u8> {
-    let mut grid: Vec<u8> = Vec::with_capacity((CHUNK_SIZE * CHUNK_SIZE) as usize);
     let dirt_noise_smoothness = 0.003;
     let rock_noise_smoothness = 0.004;
     let dirt_variation = 15.;
     let rock_variation = 80.;
-    for y in 0..CHUNK_SIZE as usize {
-        let global_y = get_global_y_coordinate(chunk_y_g, y);
-        for x in 0..CHUNK_SIZE as usize {
-            let global_x = get_global_x_coordinate(chunk_x_g, x);
-            let max_dirt_height_per_column_g = MAX_DIRT_HEIGHT_G + (perlin.get([global_x as f64 * dirt_noise_smoothness, 0.0]) * dirt_variation);
+    let mut grid = vec![0; (CHUNK_SIZE * CHUNK_SIZE) as usize];
+    for x in 0..CHUNK_SIZE as usize {
+        let global_x = get_global_x_coordinate(chunk_x_g, x);
+        let max_dirt_height_per_column_g = MAX_DIRT_HEIGHT_G + (perlin.get([global_x as f64 * dirt_noise_smoothness, 0.0]) * dirt_variation);
+        let max_rock_height_per_column_c = MAX_ROCK_HEIGHT_G + perlin.get([global_x as f64 * rock_noise_smoothness, 0.0]) * rock_variation;
+        for y in 0..CHUNK_SIZE as usize {
+            let global_y = get_global_y_coordinate(chunk_y_g, y);
+            let index = y * CHUNK_SIZE as usize + x;
             if global_y > max_dirt_height_per_column_g as i32 {
-                grid.push(SKY);
+                grid[index] = SKY;
                 continue;
             }
-            let max_rock_height_per_column_c = MAX_ROCK_HEIGHT_G + perlin.get([global_x as f64 * rock_noise_smoothness, 0.0]) * rock_variation;
             if global_y > max_rock_height_per_column_c as i32 {
-                grid.push(dirt_variant_pmf());
+                grid[index] = dirt_variant_pmf();
             } else {
-                grid.push(ROCK);
+                grid[index] = ROCK;
             }
         }
     }
