@@ -16,6 +16,7 @@ use bevy::utils::default;
 
 use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, transform::components::Transform};
 use noise::{NoiseFn, Perlin};
+use rand::rngs::ThreadRng;
 use rand::Rng;
 use crate::color_map::{dirt_variant_pmf, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, LIGHT, REFINED_COPPER, ROCK, SELL_BOX, SKY};
 use crate::components::{ChunkMap, Count, GravityCoords, MoneyTextTag, RelativePosition, SunTick, TerrainImageTag, TimerComponent};
@@ -44,7 +45,7 @@ pub fn setup_world(
     for y in 0..CHUNKS_VERTICAL as usize {
         for x in 0..CHUNKS_HORIZONTAL as usize {
             let (world_chunk_x, world_chunk_y) = chunk_index_x_y_to_world_grid_index_shift(x, y);
-            chunk_map.push(generate_chunk(&perlin, world_chunk_x, world_chunk_y));
+            chunk_map.push(generate_chunk(&perlin, world_chunk_x, world_chunk_y, &mut rng));
         }
     }
     commands.spawn(ChunkMap { map: chunk_map });
@@ -92,7 +93,7 @@ pub fn setup_world(
     )).insert(MoneyTextTag);
 }
 
-fn generate_chunk(perlin: &Perlin, chunk_x_g: i32, chunk_y_g: i32) -> Vec<u8> {
+fn generate_chunk(perlin: &Perlin, chunk_x_g: i32, chunk_y_g: i32, rng: &mut ThreadRng) -> Vec<u8> {
     let dirt_noise_smoothness = 0.003;
     let rock_noise_smoothness = 0.004;
     let dirt_variation = 15.;
@@ -110,7 +111,7 @@ fn generate_chunk(perlin: &Perlin, chunk_x_g: i32, chunk_y_g: i32) -> Vec<u8> {
                 continue;
             }
             if global_y > max_rock_height_per_column_c as i32 {
-                grid[index] = dirt_variant_pmf();
+                grid[index] = dirt_variant_pmf(rng);
             } else {
                 grid[index] = ROCK;
             }

@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::{rngs::ThreadRng, Rng};
 
 pub const SKY: u8 = 0;
 pub const DIRT1: u8 = 1;
@@ -24,8 +24,7 @@ pub const DRILL_GREY: u8 = 20;
 
 pub const GRAVITY_AFFECTED: [u8; 6] = [DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3];
 
-pub fn dirt_variant_pmf() -> u8 {
-    let mut rng = rand::thread_rng();
+pub fn dirt_variant_pmf(rng: &mut ThreadRng) -> u8 {
     match rng.gen_range(0..6) {
         0 => DIRT1,
         4 => DIRT1,
