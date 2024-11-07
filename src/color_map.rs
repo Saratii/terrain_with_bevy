@@ -24,14 +24,14 @@ pub const DRILL_GREY: u8 = 20;
 
 pub const GRAVITY_AFFECTED: [u8; 6] = [DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3];
 
-pub fn dirt_variant_pmf(rng: &mut ThreadRng) -> u8 {
-    match rng.gen_range(0..6) {
-        0 => DIRT1,
-        4 => DIRT1,
-        5 => DIRT1,
-        1 => DIRT2,
-        2 => DIRT2,
-        _ => DIRT3,
+pub fn dirt_variant_pmf() -> u8 {
+    let rand_value = fastrand::f32();
+    if rand_value < 0.5 {
+        DIRT1
+    } else if rand_value < 0.8333333 {
+        DIRT2
+    } else {
+        DIRT3
     }
 }
 

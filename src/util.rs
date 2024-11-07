@@ -97,6 +97,14 @@ pub fn chunk_index_x_y_to_world_grid_index_shift(x: usize, y: usize) -> (i32, i3
     (x as i32 - CHUNKS_HORIZONTAL as i32 / 2, y as i32 - CHUNKS_VERTICAL as i32 / 2)
 }
 
+pub fn chunk_index_x_to_world_grid_index_shift(x: usize) -> i32 {
+    x as i32 - CHUNKS_HORIZONTAL as i32 / 2
+}
+
+pub fn chunk_index_y_to_world_grid_index_shift(y: usize) -> i32 {
+    y as i32 - CHUNKS_VERTICAL as i32 / 2
+}
+
 //global_chunk_index and top left Y to world coordinate:
 pub fn get_global_y_coordinate(chunk_y_g: i32, y: usize) -> i32 {
     chunk_y_g * CHUNK_SIZE as i32 + CHUNK_SIZE as i32 / 2 as i32 - y as i32

@@ -1,4 +1,3 @@
-use std::cmp::{max, min};
 use std::collections::HashSet;
 use std::time::Duration;
 
@@ -16,13 +15,12 @@ use bevy::utils::default;
 
 use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, transform::components::Transform};
 use noise::{NoiseFn, Perlin};
-use rand::rngs::ThreadRng;
 use rand::Rng;
 use crate::color_map::{dirt_variant_pmf, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, LIGHT, REFINED_COPPER, ROCK, SELL_BOX, SKY};
 use crate::components::{ChunkMap, Count, GravityCoords, MoneyTextTag, RelativePosition, SunTick, TerrainImageTag, TimerComponent};
 use crate::constants::{CHUNKS_HORIZONTAL, CHUNKS_VERTICAL, CHUNK_SIZE, COPPER_SPAWN_RADIUS, GLOBAL_MAX_X, GLOBAL_MAX_Y, GLOBAL_MIN_X, GLOBAL_MIN_Y, GROUND_HEIGHT, MAX_COPPER_ORE_SPAWNS, MAX_DIRT_HEIGHT_G, MAX_ROCK_HEIGHT_G, RENDER_SIZE, ROCK_HEIGHT, SELL_BOX_HEIGHT, SELL_BOX_WIDTH, SKY_HEIGHT};
 use crate::drill::DrillTag;
-use crate::util::{chunk_index_x_y_to_world_grid_index_shift, distance, flatten_index_standard_grid, get_chunk_x_g, get_chunk_x_v, get_global_x_coordinate, get_global_y_coordinate, get_local_x, get_local_y, grid_to_image};
+use crate::util::{chunk_index_x_to_world_grid_index_shift, chunk_index_x_y_to_world_grid_index_shift, chunk_index_y_to_world_grid_index_shift, distance, flatten_index_standard_grid, get_chunk_x_g, get_chunk_x_v, get_global_x_coordinate, get_global_y_coordinate, get_local_x, get_local_y, grid_to_image};
 
 #[derive(Component)]
 pub struct CameraTag;
@@ -42,10 +40,21 @@ pub fn setup_world(
     let mut rng = rand::thread_rng();
     let perlin = Perlin::new(rng.gen());
     let mut chunk_map: Vec<Vec<u8>> = Vec::with_capacity(CHUNKS_VERTICAL as usize * CHUNKS_HORIZONTAL as usize);
+    let mut dirt_perlin_values = [0.; CHUNKS_HORIZONTAL as usize * CHUNK_SIZE as usize];
+    let mut rock_perlin_values = [0.; CHUNKS_HORIZONTAL as usize * CHUNK_SIZE as usize];
+    let dirt_noise_smoothness = 0.003;
+    let rock_noise_smoothness = 0.004;
+    let dirt_variation = 15.;
+    let rock_variation = 80.;
+    for x in 0..dirt_perlin_values.len() {
+        dirt_perlin_values[x] = MAX_DIRT_HEIGHT_G + perlin.get([x as f64 * dirt_noise_smoothness, 0.0]) * dirt_variation;
+        rock_perlin_values[x] = MAX_ROCK_HEIGHT_G + perlin.get([x as f64 * rock_noise_smoothness, 0.0]) * rock_variation;
+    }
     for y in 0..CHUNKS_VERTICAL as usize {
+        let world_chunk_y = chunk_index_y_to_world_grid_index_shift(y);
         for x in 0..CHUNKS_HORIZONTAL as usize {
-            let (world_chunk_x, world_chunk_y) = chunk_index_x_y_to_world_grid_index_shift(x, y);
-            chunk_map.push(generate_chunk(&perlin, world_chunk_x, world_chunk_y, &mut rng));
+            let world_chunk_x = chunk_index_x_to_world_grid_index_shift(x);
+            chunk_map.push(generate_chunk(world_chunk_x, world_chunk_y, &dirt_perlin_values, &rock_perlin_values));
         }
     }
     commands.spawn(ChunkMap { map: chunk_map });
@@ -93,25 +102,20 @@ pub fn setup_world(
     )).insert(MoneyTextTag);
 }
 
-fn generate_chunk(perlin: &Perlin, chunk_x_g: i32, chunk_y_g: i32, rng: &mut ThreadRng) -> Vec<u8> {
-    let dirt_noise_smoothness = 0.003;
-    let rock_noise_smoothness = 0.004;
-    let dirt_variation = 15.;
-    let rock_variation = 80.;
+fn generate_chunk(chunk_x_g: i32, chunk_y_g: i32, dirt_perlin_values: &[f64], rock_perlin_values: &[f64]) -> Vec<u8> {
     let mut grid = vec![0; (CHUNK_SIZE * CHUNK_SIZE) as usize];
+    let x_tl = (chunk_x_g + CHUNKS_HORIZONTAL as i32/2) as usize * CHUNK_SIZE as usize;
     for x in 0..CHUNK_SIZE as usize {
-        let global_x = get_global_x_coordinate(chunk_x_g, x);
-        let max_dirt_height_per_column_g = MAX_DIRT_HEIGHT_G + (perlin.get([global_x as f64 * dirt_noise_smoothness, 0.0]) * dirt_variation);
-        let max_rock_height_per_column_c = MAX_ROCK_HEIGHT_G + perlin.get([global_x as f64 * rock_noise_smoothness, 0.0]) * rock_variation;
+        let x_g_tl = x_tl + x;
         for y in 0..CHUNK_SIZE as usize {
             let global_y = get_global_y_coordinate(chunk_y_g, y);
             let index = y * CHUNK_SIZE as usize + x;
-            if global_y > max_dirt_height_per_column_g as i32 {
+            if global_y > dirt_perlin_values[x_g_tl] as i32 {
                 grid[index] = SKY;
                 continue;
             }
-            if global_y > max_rock_height_per_column_c as i32 {
-                grid[index] = dirt_variant_pmf(rng);
+            if global_y > rock_perlin_values[x_g_tl] as i32 {
+                grid[index] = dirt_variant_pmf();
             } else {
                 grid[index] = ROCK;
             }
