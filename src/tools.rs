@@ -228,28 +228,35 @@ pub fn update_shovel_content_visual(shovel_image_grid: &mut Vec<u8>, shovel_cont
     }
 }
 
-pub fn right_click_shovel(shovel_grid: &mut Vec<u8>, chunk_map: &mut Vec<Vec<u8>>, cursor_position: &Transform, cursor_contents: &mut Vec<u8>, gravity_coords: &mut GravityCoords) {
-    // for y in 0..CURSOR_RADIUS * 2 {
-    //     for x in 0..CURSOR_RADIUS * 2 {
-    //         if cursor_contents.len() == 0{
-    //             update_shovel_content_visual(shovel_grid, cursor_contents);
-    //             return
-    //         }
-    //         let shovel_grid_index = flatten_index_standard_grid(&x, &y, CURSOR_RADIUS * 2);
-    //         if shovel_grid[shovel_grid_index] == DIRT1 || shovel_grid[shovel_grid_index] == DIRT2 || shovel_grid[shovel_grid_index] == DIRT3 || shovel_grid[shovel_grid_index] == COPPER || shovel_grid[shovel_grid_index] == GRAVEL1 ||shovel_grid[shovel_grid_index] == GRAVEL2 || shovel_grid[shovel_grid_index] == GRAVEL3 {
-    //             let main_grid_index = flatten_index(cursor_position.translation.x as i32 - CURSOR_RADIUS as i32 + x as i32, cursor_position.translation.y as i32 - CURSOR_RADIUS as i32 + (CURSOR_RADIUS * 2 - y - 1) as i32);
-    //             if terrain_grid[main_grid_index] == SKY || terrain_grid[main_grid_index] == LIGHT {
-    //                 let pixel = cursor_contents.pop().unwrap();
-    //                 terrain_grid[main_grid_index] = pixel;
-    //                 // gravity_coords.coords.insert((main_grid_index % CHUNK_SIZE as usize, main_grid_index / CHUNK_SIZE as usize));
-    //             }
-    //         }
-    //     }
-    // }
-    // update_shovel_content_visual(shovel_grid, cursor_contents);
+pub fn right_click_shovel(shovel_grid: &mut Vec<u8>, chunk_map: &mut Vec<Vec<u8>>, cursor_position: &Transform, cursor_contents: &mut Vec<u8>) {
+    for y in 0..CURSOR_RADIUS * 2 {
+        for x in 0..CURSOR_RADIUS * 2 {
+            if cursor_contents.len() == 0{
+                update_shovel_content_visual(shovel_grid, cursor_contents);
+                return
+            }
+            let shovel_grid_index = flatten_index_standard_grid(&x, &y, CURSOR_RADIUS * 2);
+            if shovel_grid[shovel_grid_index] == DIRT1 || shovel_grid[shovel_grid_index] == DIRT2 || shovel_grid[shovel_grid_index] == DIRT3 || shovel_grid[shovel_grid_index] == COPPER || shovel_grid[shovel_grid_index] == GRAVEL1 ||shovel_grid[shovel_grid_index] == GRAVEL2 || shovel_grid[shovel_grid_index] == GRAVEL3 {                
+                let chunk_x_g = get_chunk_x_g(cursor_position.translation.x - CURSOR_RADIUS as f32 + x as f32);
+                let chunk_y_g = get_chunk_x_g(cursor_position.translation.y - CURSOR_RADIUS as f32 + (CURSOR_RADIUS * 2 - y - 1) as f32);
+                let chunk_x_v = get_chunk_x_v(chunk_x_g);
+                let chunk_y_v = get_chunk_x_v(chunk_y_g);
+                let chunk_index = flatten_index_standard_grid(&chunk_x_v, &chunk_y_v, CHUNKS_HORIZONTAL as usize);
+                let local_x = get_local_x(cursor_position.translation.x as i32 - CURSOR_RADIUS as i32 + x as i32);
+                let local_y = get_local_y(cursor_position.translation.y as i32 - CURSOR_RADIUS as i32 + (CURSOR_RADIUS * 2 - y - 1) as i32);
+                let local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
+                if chunk_map[chunk_index][local_index] == SKY ||chunk_map[chunk_index][local_index] == LIGHT {
+                    let pixel = cursor_contents.pop().unwrap();
+                    chunk_map[chunk_index][local_index] = pixel;
+                    // gravity_coords.coords.insert((main_grid_index % CHUNK_SIZE as usize, main_grid_index / CHUNK_SIZE as usize));
+                }
+            }
+        }
+    }
+    update_shovel_content_visual(shovel_grid, cursor_contents);
 }
 
-pub fn left_click_shovel(shovel_position: &Transform, shovel_contents: &mut Vec<u8>, chunk_map: &mut Vec<Vec<u8>>, gravity_coords: &mut GravityCoords, shovel_grid: &mut Vec<u8>) {
+pub fn left_click_shovel(shovel_position: &Transform, shovel_contents: &mut Vec<u8>, chunk_map: &mut Vec<Vec<u8>>, shovel_grid: &mut Vec<u8>) {
     let left = shovel_position.translation.x as i32 - CURSOR_RADIUS as i32;
     let right = shovel_position.translation.x as i32 + CURSOR_RADIUS as i32;
     let top = shovel_position.translation.y as i32 + CURSOR_RADIUS as i32; 
@@ -271,9 +278,9 @@ pub fn left_click_shovel(shovel_position: &Transform, shovel_contents: &mut Vec<
                 if chunk_map[chunk_index][local_index] == DIRT1 || chunk_map[chunk_index][local_index] == DIRT2 || chunk_map[chunk_index][local_index] == DIRT3 || chunk_map[chunk_index][local_index] == GRAVEL1 || chunk_map[chunk_index][local_index] == GRAVEL2 || chunk_map[chunk_index][local_index] == GRAVEL3 || chunk_map[chunk_index][local_index] == COPPER{
                     shovel_contents.push(chunk_map[chunk_index][local_index]);
                     chunk_map[chunk_index][local_index] = SKY;
-                    if let Some(y) = search_upward_for_non_sky_pixel(chunk_map, x, y) {
-                        gravity_coords.coords.insert((x, y));
-                    }
+                    // if let Some(y) = search_upward_for_non_sky_pixel(chunk_map, x, y) {
+                    //     gravity_coords.coords.insert((x, y));
+                    // }
                     // if (index % CHUNK_SIZE as usize) < min_x {
                     //     min_x = index % CHUNK_SIZE as usize;
                     // } else if (index % CHUNK_SIZE as usize) > max_x {
