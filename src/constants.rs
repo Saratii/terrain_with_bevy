@@ -1,7 +1,7 @@
 //Cheats
 pub const MAX_SHOVEL_CAPACITY: usize = 575 * 100000000;
-pub const CURSOR_RADIUS: usize = 15 * 1;
-pub const CURSOR_ORBITAL_RADIUS: f32 = 100.* 1.;
+pub const CURSOR_RADIUS: usize = 15 * 10;
+pub const CURSOR_ORBITAL_RADIUS: f32 = 100.* 10.;
 
 //Setup
 pub const WINDOW_WIDTH: usize = 1200;

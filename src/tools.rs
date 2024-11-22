@@ -279,14 +279,7 @@ pub fn left_click_pickaxe(pickaxe_position: &Transform, chunk_map: &mut Vec<Vec<
     for y_g in bottom..top{
         for x_g in left..right{
             if distance(x_g, y_g, pickaxe_position.translation.x as i32, pickaxe_position.translation.y as i32) < CURSOR_RADIUS as f32 - CURSOR_BORDER_WIDTH {
-                let chunk_x_g = get_chunk_x_g(x_g as f32);
-                let chunk_y_g = get_chunk_x_g(y_g as f32);
-                let chunk_x_v = get_chunk_x_v(chunk_x_g);
-                let chunk_y_v = get_chunk_x_v(chunk_y_g);
-                let chunk_index = flatten_index_standard_grid(&chunk_x_v, &chunk_y_v, CHUNKS_HORIZONTAL as usize);
-                let local_x = get_local_x(x_g);
-                let local_y = get_local_y(y_g);
-                let local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
+                let (chunk_index, local_index) = global_to_chunk_index_and_local_index(x_g, y_g);
                 if chunk_map[chunk_index][local_index] == ROCK {
                     chunk_map[chunk_index][local_index] = gravel_variant_pmf();
                     gravity_coords.coords.insert((x_g, y_g));

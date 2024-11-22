@@ -12,3 +12,8 @@ iyes_perf_ui = "0.3.0"
 noise = "0.9.0"
 rand = "0.8.5"
 rayon = "1.10.0"
+
+# Cargo.toml
+[profile.opdebug]
+inherits = "release"
+debug-assertions = true

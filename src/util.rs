@@ -128,7 +128,7 @@ pub fn get_local_y(global_y: i32) -> usize {
     if y < 0 {
         return (CHUNK_SIZE as i32 + y) as usize;
     }
-    if y > CHUNK_SIZE as i32 {
+    if y >= CHUNK_SIZE as i32 {
         return (y - CHUNK_SIZE as i32) as usize;
     }
     y as usize
@@ -201,6 +201,11 @@ mod tests {
 
     #[test]
     fn test_get_local_x_chunk_edge() {
+        assert_eq!(get_local_x(300), 0);
+    }
+
+    #[test]
+    fn test_get_local_y_chunk_edge() {
         assert_eq!(get_local_x(300), 0);
     }
 }
