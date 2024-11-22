@@ -2,7 +2,7 @@ use std::cmp::min;
 
 use bevy::{asset::Assets, math::Vec2, prelude::{Camera, Commands, Component, GlobalTransform, Image, Mesh, Query, Rectangle, ResMut, Transform, Visibility, With, Without}, sprite::MaterialMesh2dBundle, window::{PrimaryWindow, Window}};
 
-use crate::{color_map::{gravel_variant_pmf, CLEAR, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, LIGHT, RED, ROCK, SKY, STEEL, TRANSLUCENT_GREY, WHITE}, components::{Bool, ChunkMap, ContentList, GravityCoords, PlayerTag, Velocity}, constants::{CHUNKS_HORIZONTAL, CHUNK_SIZE, CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, GLOBAL_MAX_Y, HOE_HEIGHT, HOE_WIDTH, MAX_SHOVEL_CAPACITY}, util::{distance, flatten_index, flatten_index_standard_grid, get_chunk_x_g, get_chunk_x_v, get_chunk_y_g, get_chunk_y_v, get_local_x, get_local_y, grid_to_image}, world_generation::{CameraTag, GridMaterial}};
+use crate::{color_map::{gravel_variant_pmf, CLEAR, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, LIGHT, RED, ROCK, SKY, STEEL, TRANSLUCENT_GREY, WHITE}, components::{Bool, ChunkMap, ContentList, GravityCoords, PlayerTag, Velocity}, constants::{CHUNKS_HORIZONTAL, CHUNK_SIZE, CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, GLOBAL_MAX_Y, HOE_HEIGHT, HOE_WIDTH, MAX_SHOVEL_CAPACITY}, util::{distance, flatten_index, flatten_index_standard_grid, get_chunk_x_g, get_chunk_x_v, get_chunk_y_g, get_chunk_y_v, get_local_x, get_local_y, global_to_chunk_index_and_local_index, grid_to_image}, world_generation::{CameraTag, GridMaterial}};
 
 #[derive(Component)]
 pub struct HoeTag;
@@ -177,25 +177,11 @@ pub fn update_tool(
         }
         dx = -dx.abs() * (potential_x - player.0.translation.x).signum();
         dy = -dy.abs() * (potential_y - player.0.translation.y).signum();
-        let chunk_x_g = get_chunk_x_g(potential_x);
-        let chunk_y_g = get_chunk_x_g(potential_y);
-        let chunk_x_v = get_chunk_x_v(chunk_x_g);
-        let chunk_y_v = get_chunk_x_v(chunk_y_g);
-        let mut chunk_index = flatten_index_standard_grid(&chunk_x_v, &chunk_y_v, CHUNKS_HORIZONTAL as usize);
-        let local_x = get_local_x(potential_x as i32);
-        let local_y = get_local_y(potential_y as i32);
-        let mut local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
+        let (mut chunk_index, mut local_index) = global_to_chunk_index_and_local_index(potential_x as i32, potential_y as i32);
         while chunk_map.map[chunk_index][local_index] != SKY && chunk_map.map[chunk_index][local_index] != LIGHT {
             potential_x += dx as f32;
             potential_y += dy as f32;
-            let chunk_x_g = get_chunk_x_g(potential_x);
-            let chunk_y_g = get_chunk_x_g(potential_y);
-            let chunk_x_v = get_chunk_x_v(chunk_x_g);
-            let chunk_y_v = get_chunk_x_v(chunk_y_g);
-            chunk_index = flatten_index_standard_grid(&chunk_x_v, &chunk_y_v, CHUNKS_HORIZONTAL as usize);
-            let local_x = get_local_x(potential_x as i32);
-            let local_y = get_local_y(potential_y as i32);
-            local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
+            (chunk_index, local_index) = global_to_chunk_index_and_local_index(potential_x as i32, potential_y as i32);
         }
         if !hoe_is_locked.bool {
             tool_position.translation.y = potential_y;
@@ -236,16 +222,9 @@ pub fn right_click_shovel(shovel_grid: &mut Vec<u8>, chunk_map: &mut Vec<Vec<u8>
                 return
             }
             let shovel_grid_index = flatten_index_standard_grid(&x, &y, CURSOR_RADIUS * 2);
-            if shovel_grid[shovel_grid_index] == DIRT1 || shovel_grid[shovel_grid_index] == DIRT2 || shovel_grid[shovel_grid_index] == DIRT3 || shovel_grid[shovel_grid_index] == COPPER || shovel_grid[shovel_grid_index] == GRAVEL1 ||shovel_grid[shovel_grid_index] == GRAVEL2 || shovel_grid[shovel_grid_index] == GRAVEL3 {                
-                let chunk_x_g = get_chunk_x_g(cursor_position.translation.x - CURSOR_RADIUS as f32 + x as f32);
-                let chunk_y_g = get_chunk_y_g(cursor_position.translation.y - CURSOR_RADIUS as f32 + (CURSOR_RADIUS * 2 - y - 1) as f32);
-                let chunk_x_v = get_chunk_x_v(chunk_x_g);
-                let chunk_y_v = get_chunk_y_v(chunk_y_g);
-                let chunk_index = flatten_index_standard_grid(&chunk_x_v, &chunk_y_v, CHUNKS_HORIZONTAL as usize);
-                let local_x = get_local_x(cursor_position.translation.x as i32 - CURSOR_RADIUS as i32 + x as i32);
-                let local_y = get_local_y(cursor_position.translation.y as i32 - CURSOR_RADIUS as i32 + (CURSOR_RADIUS * 2 - y - 1) as i32);
-                let local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
-                if chunk_map[chunk_index][local_index] == SKY ||chunk_map[chunk_index][local_index] == LIGHT {
+            if shovel_grid[shovel_grid_index] == DIRT1 || shovel_grid[shovel_grid_index] == DIRT2 || shovel_grid[shovel_grid_index] == DIRT3 || shovel_grid[shovel_grid_index] == COPPER || shovel_grid[shovel_grid_index] == GRAVEL1 ||shovel_grid[shovel_grid_index] == GRAVEL2 || shovel_grid[shovel_grid_index] == GRAVEL3 {
+                let (chunk_index, local_index) = global_to_chunk_index_and_local_index(cursor_position.translation.x as i32 - CURSOR_RADIUS as i32 + x as i32, cursor_position.translation.y as i32 - CURSOR_RADIUS as i32 + (CURSOR_RADIUS * 2 - y - 1) as i32);
+                if chunk_map[chunk_index][local_index] == SKY || chunk_map[chunk_index][local_index] == LIGHT {
                     let pixel = cursor_contents.pop().unwrap();
                     chunk_map[chunk_index][local_index] = pixel;
                     gravity_coords.coords.insert((cursor_position.translation.x as i32 - CURSOR_RADIUS as i32 + x as i32, cursor_position.translation.y as i32 - CURSOR_RADIUS as i32 + (CURSOR_RADIUS * 2 - y - 1) as i32));
@@ -267,14 +246,7 @@ pub fn left_click_shovel(shovel_position: &Transform, shovel_contents: &mut Vec<
     for y in bottom..top {
         for x in left..right {
             if distance(x, y, shovel_position.translation.x as i32, shovel_position.translation.y as i32) < CURSOR_RADIUS as f32 - CURSOR_BORDER_WIDTH {
-                let chunk_x_g = get_chunk_x_g(x as f32);
-                let chunk_y_g = get_chunk_x_g(y as f32);
-                let chunk_x_v = get_chunk_x_v(chunk_x_g);
-                let chunk_y_v = get_chunk_x_v(chunk_y_g);
-                let chunk_index = flatten_index_standard_grid(&chunk_x_v, &chunk_y_v, CHUNKS_HORIZONTAL as usize);
-                let local_x = get_local_x(x);
-                let local_y = get_local_y(y);
-                let local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
+                let (chunk_index, local_index) = global_to_chunk_index_and_local_index(x, y);
                 if chunk_map[chunk_index][local_index] == DIRT1 || chunk_map[chunk_index][local_index] == DIRT2 || chunk_map[chunk_index][local_index] == DIRT3 || chunk_map[chunk_index][local_index] == GRAVEL1 || chunk_map[chunk_index][local_index] == GRAVEL2 || chunk_map[chunk_index][local_index] == GRAVEL3 || chunk_map[chunk_index][local_index] == COPPER{
                     shovel_contents.push(chunk_map[chunk_index][local_index]);
                     chunk_map[chunk_index][local_index] = SKY;
@@ -327,14 +299,7 @@ pub fn left_click_pickaxe(pickaxe_position: &Transform, chunk_map: &mut Vec<Vec<
 fn search_upward_for_non_sky_pixel(chunk_map: &Vec<Vec<u8>>, x_g: i32, y_g: i32) -> Option<i32> {
     let mut y_level = 1;
     while y_g + y_level < y_g + CURSOR_ORBITAL_RADIUS as i32 * 2 {
-        let chunk_x_g = get_chunk_x_g(x_g as f32);
-        let chunk_y_g = get_chunk_y_g((y_g + y_level) as f32);
-        let chunk_x_v = get_chunk_x_v(chunk_x_g);
-        let chunk_y_v = get_chunk_y_v(chunk_y_g);
-        let chunk_index = flatten_index_standard_grid(&chunk_x_v, &chunk_y_v, CHUNKS_HORIZONTAL as usize);
-        let local_x = get_local_x(x_g);
-        let local_y = get_local_y(y_g + y_level);
-        let local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
+        let (chunk_index, local_index) = global_to_chunk_index_and_local_index(x_g, y_g + y_level);
         if chunk_map[chunk_index][local_index] != SKY {
             return Some(y_g + y_level)
         }

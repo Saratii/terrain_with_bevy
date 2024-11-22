@@ -115,7 +115,7 @@ pub fn get_global_x_coordinate(chunk_x_g: i32, x: usize) -> i32 {
 
 pub fn get_local_x(global_x: i32) -> usize {
     let x = CHUNK_SIZE as i32 / 2 + (global_x % CHUNK_SIZE as i32);
-    if x > CHUNK_SIZE as i32{
+    if x >= CHUNK_SIZE as i32{
         return (x - CHUNK_SIZE as i32) as usize;
     } else if x < 0 {
         return (CHUNK_SIZE as i32 + x) as usize;
@@ -140,6 +140,7 @@ pub fn get_chunk_x_g(x_g: f32) -> i32 {
 
 pub fn get_chunk_y_g(y_g: f32) -> i32 {
     ((y_g + CHUNK_SIZE/2.) / CHUNK_SIZE).floor() as i32
+    //301 + 300 / 600
 }
 
 pub fn global_to_chunk_index_and_local_index(x_g: i32, y_g: i32) -> (usize, usize) {
@@ -151,6 +152,16 @@ pub fn global_to_chunk_index_and_local_index(x_g: i32, y_g: i32) -> (usize, usiz
     let chunk_y_v = get_chunk_y_v(chunk_y_g);
     let chunk_index = flatten_index_standard_grid(&chunk_x_v, &chunk_y_v, CHUNKS_HORIZONTAL as usize);
     let local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
+    #[cfg(debug_assertions)]
+    {
+        if local_index >= CHUNK_SIZE as usize * CHUNK_SIZE as usize {
+            println!("Whoopsie: conversion failed with input: {} {} -> {}", x_g, y_g, local_index);
+            println!("Chunk x_g: {}, Chunk y_g: {}", chunk_x_g, chunk_y_g);
+            println!("Chunk x_v: {}, Chunk y_v: {}", chunk_x_v, chunk_y_v);
+            println!("Local x: {}, Local y: {}", local_x, local_y);
+            panic!();
+        }
+    }
     (chunk_index, local_index)
 }
 
@@ -186,5 +197,10 @@ mod tests {
     #[test]
     fn test_get_local_x_chunk_n2_1() {
         assert_eq!(get_local_x(300 + -1 * CHUNK_SIZE as i32 + 200), 200);
+    }
+
+    #[test]
+    fn test_get_local_x_chunk_edge() {
+        assert_eq!(get_local_x(300), 0);
     }
 }
