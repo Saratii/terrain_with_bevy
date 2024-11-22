@@ -144,14 +144,7 @@ pub fn grid_tick(
 
 pub fn does_gravity_apply_to_entity(entity_pos_g: Vec3, entity_width: i32, entity_height: i32, chunk_map: &Vec<Vec<u8>>) -> bool {
     for x in (entity_pos_g.x - entity_width as f32/2.) as i32..(entity_pos_g.x + entity_width as f32/2.) as i32 {
-        let chunk_x_g = get_chunk_x_g(entity_pos_g.x);
-        let chunk_y_g = get_chunk_x_g(entity_pos_g.y);
-        let chunk_x_v = get_chunk_x_v(chunk_x_g);
-        let chunk_y_v = get_chunk_x_v(chunk_y_g);
-        let chunk_index = flatten_index_standard_grid(&chunk_x_v, &chunk_y_v, CHUNKS_HORIZONTAL as usize);
-        let local_x = get_local_x(x);
-        let local_y = get_local_y(entity_pos_g.y as i32 - entity_height/2);
-        let local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
+        let (chunk_index, local_index) = global_to_chunk_index_and_local_index(x, entity_pos_g.y as i32 - entity_height/2);
         match &chunk_map[chunk_index][local_index]{
             &SKY => continue,
             &SELL_BOX => continue,

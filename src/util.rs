@@ -140,7 +140,6 @@ pub fn get_chunk_x_g(x_g: f32) -> i32 {
 
 pub fn get_chunk_y_g(y_g: f32) -> i32 {
     ((y_g + CHUNK_SIZE/2.) / CHUNK_SIZE).floor() as i32
-    //301 + 300 / 600
 }
 
 pub fn global_to_chunk_index_and_local_index(x_g: i32, y_g: i32) -> (usize, usize) {
@@ -155,11 +154,13 @@ pub fn global_to_chunk_index_and_local_index(x_g: i32, y_g: i32) -> (usize, usiz
     #[cfg(debug_assertions)]
     {
         if local_index >= CHUNK_SIZE as usize * CHUNK_SIZE as usize {
-            println!("Whoopsie: conversion failed with input: {} {} -> {}", x_g, y_g, local_index);
-            println!("Chunk x_g: {}, Chunk y_g: {}", chunk_x_g, chunk_y_g);
-            println!("Chunk x_v: {}, Chunk y_v: {}", chunk_x_v, chunk_y_v);
-            println!("Local x: {}, Local y: {}", local_x, local_y);
-            panic!();
+            panic!(
+                "Whoopsie: conversion failed with input: {} {} -> {}\n\
+                Chunk x_g: {}, Chunk y_g: {}\n\
+                Chunk x_v: {}, Chunk y_v: {}\n\
+                Local x: {}, Local y: {}",
+                x_g, y_g, local_index, chunk_x_g, chunk_y_g, chunk_x_v, chunk_y_v, local_x, local_y
+            );
         }
     }
     (chunk_index, local_index)
