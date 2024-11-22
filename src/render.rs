@@ -1,6 +1,6 @@
 use bevy::{asset::{Assets, Handle}, prelude::{Image, Query, ResMut, Transform, With, Without}};
 
-use crate::{components::{ChunkMap, PlayerTag, TerrainImageTag}, constants::{CHUNKS_HORIZONTAL, CHUNK_SIZE}, util::{flatten_index_standard_grid, get_chunk_x_g, get_chunk_x_v, get_chunk_y_g, get_chunk_y_v, world_grid_index_to_chunk_vec_index_shift}, world_generation::{CameraTag, GridMaterial}};
+use crate::{components::{ChunkMap, PlayerTag, TerrainImageTag}, constants::{CHUNKS_HORIZONTAL, CHUNK_SIZE}, util::{flatten_index_standard_grid, get_chunk_x_g, get_chunk_x_v, get_chunk_y_g, get_chunk_y_v}, world_generation::{CameraTag, GridMaterial}};
 
 pub fn render(
     mut materials: ResMut<Assets<GridMaterial>>,

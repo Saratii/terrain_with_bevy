@@ -16,11 +16,11 @@ use bevy::utils::default;
 use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, transform::components::Transform};
 use noise::{NoiseFn, Perlin};
 use rand::Rng;
-use crate::color_map::{dirt_variant_pmf, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, LIGHT, REFINED_COPPER, ROCK, SELL_BOX, SKY};
+use crate::color_map::{dirt_variant_pmf, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, GRAVITY_AFFECTED, LIGHT, REFINED_COPPER, ROCK, SELL_BOX, SKY};
 use crate::components::{ChunkMap, Count, GravityCoords, MoneyTextTag, RelativePosition, SunTick, TerrainImageTag, TimerComponent};
-use crate::constants::{CHUNKS_HORIZONTAL, CHUNKS_VERTICAL, CHUNK_SIZE, COPPER_SPAWN_RADIUS, GLOBAL_MAX_X, GLOBAL_MAX_Y, GLOBAL_MIN_X, GLOBAL_MIN_Y, GROUND_HEIGHT, MAX_COPPER_ORE_SPAWNS, MAX_DIRT_HEIGHT_G, MAX_ROCK_HEIGHT_G, RENDER_SIZE, ROCK_HEIGHT, SELL_BOX_HEIGHT, SELL_BOX_WIDTH, SKY_HEIGHT};
+use crate::constants::{CHUNKS_HORIZONTAL, CHUNKS_VERTICAL, CHUNK_SIZE, COPPER_SPAWN_RADIUS, GLOBAL_MAX_X, GLOBAL_MAX_Y, GLOBAL_MIN_X, GLOBAL_MIN_Y, MAX_COPPER_ORE_SPAWNS, MAX_DIRT_HEIGHT_G, MAX_ROCK_HEIGHT_G, RENDER_SIZE};
 use crate::drill::DrillTag;
-use crate::util::{chunk_index_x_to_world_grid_index_shift, chunk_index_x_y_to_world_grid_index_shift, chunk_index_y_to_world_grid_index_shift, distance, flatten_index_standard_grid, get_chunk_x_g, get_chunk_x_v, get_global_x_coordinate, get_global_y_coordinate, get_local_x, get_local_y, grid_to_image};
+use crate::util::{chunk_index_x_to_world_grid_index_shift, chunk_index_y_to_world_grid_index_shift, distance, flatten_index_standard_grid, get_chunk_x_g, get_chunk_x_v, get_chunk_y_g, get_chunk_y_v, get_global_y_coordinate, get_local_x, get_local_y, global_to_chunk_index_and_local_index, grid_to_image};
 
 #[derive(Component)]
 pub struct CameraTag;
@@ -57,6 +57,7 @@ pub fn setup_world(
             chunk_map.push(generate_chunk(world_chunk_x, world_chunk_y, &dirt_perlin_values, &rock_perlin_values));
         }
     }
+    commands.spawn(GravityCoords { coords: HashSet::new() });
     commands.spawn(ChunkMap { map: chunk_map });
     for x in -1 * RENDER_SIZE / 2..=RENDER_SIZE / 2 {
         for y in -1 * RENDER_SIZE / 2..=RENDER_SIZE / 2 {
@@ -77,7 +78,6 @@ pub fn setup_world(
                             },
                             ..Default::default()
                         })
-                        .insert(GravityCoords { coords: HashSet::new() })
                         .insert(RelativePosition { pos: (x, y) });
         }
     }
@@ -126,23 +126,19 @@ fn generate_chunk(chunk_x_g: i32, chunk_y_g: i32, dirt_perlin_values: &[f64], ro
 
 
 pub fn grid_tick(
-    mut materials: ResMut<Assets<GridMaterial>>,
-    terrain_material_handle: Query<&Handle<GridMaterial>, With<TerrainImageTag>>,
-    mut images: ResMut<Assets<Image>>,
     time: Res<Time>,
     mut gravity_tick_timer_query: Query<&mut TimerComponent, With<TerrainImageTag>>,
     mut gravity_coords_query: Query<&mut GravityCoords>,
     mut money_count_query: Query<&mut Count>,
+    mut chunk_map_query: Query<&mut ChunkMap>,
 ) {
     let mut gravity_tick_timer = gravity_tick_timer_query.get_single_mut().unwrap();
     gravity_tick_timer.timer.tick(time.delta());
-    let material_handle = terrain_material_handle.get_single().unwrap();
-    let material = materials.get_mut(material_handle).unwrap();
-    let terrain_grid = &mut images.get_mut(&material.color_map).unwrap().data;
+    let mut chunk_map = chunk_map_query.get_single_mut().unwrap();
     if gravity_tick_timer.timer.finished() {
         let mut money_count = money_count_query.get_single_mut().unwrap();
         let mut gravity_coords = gravity_coords_query.get_single_mut().unwrap();
-        gravity_tick(&mut gravity_coords.coords, terrain_grid, &mut money_count.count);
+        gravity_tick(&mut gravity_coords.coords, &mut chunk_map.map, &mut money_count.count);
     }
 }
 
@@ -168,50 +164,50 @@ pub fn does_gravity_apply_to_entity(entity_pos_g: Vec3, entity_width: i32, entit
     true
 }
 
-fn gravity_tick(gravity_coords: &mut HashSet<(i32, i32)>, grid: &mut Vec<u8>, money_count: &mut f32) {
-    // let mut new_coords = HashSet::new();
-    // for coord in gravity_coords.iter() {
-    //     let index = flatten_index_standard_grid(&coord.0, &coord.1, CHUNK_SIZE as usize);
-    //     if grid[index] == DIRT1 || grid[index] == DIRT2 || grid[index] == DIRT3 || grid[index] == GRAVEL1 || grid[index] == GRAVEL2 || grid[index] == GRAVEL3 || grid[index] == COPPER {
-    //         let mut below_index = flatten_index_standard_grid(&coord.0, &(coord.1 + 1), CHUNK_SIZE as usize);
-    //         if grid[below_index] == SKY || grid[below_index] == LIGHT { 
-    //             let mut looking_at_y = coord.1 + 1;
-    //             new_coords.insert((coord.0, looking_at_y));
-    //             loop {
-    //                 below_index = flatten_index_standard_grid(&coord.0, &looking_at_y, CHUNK_SIZE as usize);
-    //                 let above_index = flatten_index_standard_grid(&coord.0, &(looking_at_y - 1), CHUNK_SIZE as usize);
-    //                 if grid[above_index] == SKY || grid[above_index] == REFINED_COPPER ||  grid[above_index] == ROCK || grid[above_index] == LIGHT {
-    //                     break;
-    //                 }
-    //                 grid[below_index] = grid[above_index].clone();
-    //                 grid[above_index] = SKY;
-    //                 looking_at_y -= 1;
-    //             }
-    //         } else if grid[below_index] == SELL_BOX {
-    //             let mut looking_at_y = coord.1 + 1;
-    //             new_coords.insert((coord.0, looking_at_y));
-    //             loop {
-    //                 let above_index = flatten_index_standard_grid(&coord.0, &(looking_at_y - 1), CHUNK_SIZE as usize);
-    //                 if grid[above_index] == SKY || grid[above_index] == REFINED_COPPER {
-    //                     break;
-    //                 }
-    //                 match grid[above_index] {
-    //                     COPPER => *money_count += 0.5,
-    //                     DIRT1 => *money_count += 0.01,
-    //                     DIRT2 => *money_count += 0.01,
-    //                     DIRT3 => *money_count += 0.01,
-    //                     GRAVEL1 => *money_count += 0.01,
-    //                     GRAVEL2 => *money_count += 0.01,
-    //                     GRAVEL3 => *money_count += 0.01,
-    //                     _ => {}
-    //                 }
-    //                 grid[above_index] = SKY;
-    //                 looking_at_y -= 1;
-    //             }
-    //         }
-    //     }
-    // };
-    // *gravity_coords = new_coords;
+fn gravity_tick(gravity_coords: &mut HashSet<(i32, i32)>, chunk_map: &mut Vec<Vec<u8>>, money_count: &mut f32) {
+    let mut new_coords = HashSet::new();
+    for (x, y) in gravity_coords.iter() {
+        let (chunk_index, local_index) = global_to_chunk_index_and_local_index(*x, *y);
+        if GRAVITY_AFFECTED.contains(&chunk_map[chunk_index][local_index]) {
+            let (below_chunk_index, below_local_index) = global_to_chunk_index_and_local_index(*x, *y-1);
+            if chunk_map[below_chunk_index][below_local_index] == SKY || chunk_map[below_chunk_index][below_local_index] == LIGHT { 
+                let mut looking_at_y = y - 1;
+                new_coords.insert((*x, looking_at_y));
+                loop {
+                    let (below_chunk_index, below_local_index) = global_to_chunk_index_and_local_index(*x, looking_at_y);
+                    let (above_chunk_index, above_local_index) = global_to_chunk_index_and_local_index(*x, looking_at_y + 1);
+                    if chunk_map[above_chunk_index][above_local_index] == SKY || chunk_map[above_chunk_index][above_local_index] == REFINED_COPPER || chunk_map[above_chunk_index][above_local_index] == ROCK || chunk_map[above_chunk_index][above_local_index] == LIGHT {
+                        break;
+                    }
+                    chunk_map[below_chunk_index][below_local_index] = chunk_map[above_chunk_index][above_local_index].clone();
+                    chunk_map[above_chunk_index][above_local_index] = SKY;
+                    looking_at_y += 1;
+                }
+            } else if chunk_map[below_chunk_index][below_local_index] == SELL_BOX {
+                let mut looking_at_y = y - 1;
+                new_coords.insert((*x, looking_at_y));
+                loop {
+                    let (above_chunk_index, above_local_index) = global_to_chunk_index_and_local_index(*x, looking_at_y + 1);
+                    if chunk_map[above_chunk_index][above_local_index] == SKY || chunk_map[above_chunk_index][above_local_index] == REFINED_COPPER {
+                        break;
+                    }
+                    match chunk_map[above_chunk_index][above_local_index] {
+                        COPPER => *money_count += 0.5,
+                        DIRT1 => *money_count += 0.01,
+                        DIRT2 => *money_count += 0.01,
+                        DIRT3 => *money_count += 0.01,
+                        GRAVEL1 => *money_count += 0.01,
+                        GRAVEL2 => *money_count += 0.01,
+                        GRAVEL3 => *money_count += 0.01,
+                        _ => {}
+                    }
+                    chunk_map[above_chunk_index][above_local_index] = SKY;
+                    looking_at_y += 1;
+                }
+            }
+        }
+    };
+    *gravity_coords = new_coords;
 }
 
 // fn add_sell_box_to_grid(grid: &mut Vec<u8>) {

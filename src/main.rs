@@ -76,8 +76,8 @@ fn main() {
         })
         .insert_resource(ClearColor(Color::srgb(0.0, 0.0, 0.0)))
         .add_systems(Startup, (setup_camera, setup_world, spawn_player, apply_deferred, spawn_tools).chain())
-        .add_systems(Update, (render, process_key_event, update_tool, check_mouse_click))
-        // .add_systems(Update, (grid_tick, process_key_event, update_tool, check_mouse_click, update_money_text, drill_tick))
+        .add_systems(Update, (render, process_key_event, update_tool, check_mouse_click, grid_tick))
+        // .add_systems(Update, (update_money_text, drill_tick))
         .run();
 }
 

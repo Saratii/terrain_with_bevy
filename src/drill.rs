@@ -1,6 +1,6 @@
 use bevy::{asset::{AssetServer, Assets, Handle}, math::Vec3, prelude::{default, Commands, Component, Image, Query, Res, ResMut, Transform, With}, sprite::SpriteBundle, time::Time};
 
-use crate::{color_map::{gravel_variant_pmf, COPPER, DRILL_BLACK, DRILL_GREY, GRAVITY_AFFECTED, ROCK, SKY}, components::{ContentList, GravityCoords, TerrainImageTag, TimerComponent, USize}, constants::{CHUNKS_HORIZONTAL, CHUNK_SIZE}, util::{flatten_index, flatten_index_standard_grid, get_chunk_x_g, get_chunk_x_v, get_local_x, get_local_y, tl_to_c}, world_generation::GridMaterial};
+use crate::{color_map::{gravel_variant_pmf, COPPER, DRILL_BLACK, DRILL_GREY, GRAVITY_AFFECTED, ROCK, SKY}, components::{ContentList, GravityCoords, TerrainImageTag, TimerComponent, USize}, constants::{CHUNKS_HORIZONTAL, CHUNK_SIZE}, util::{flatten_index, flatten_index_standard_grid, get_chunk_x_g, get_chunk_x_v, get_local_x, get_local_y}, world_generation::GridMaterial};
 
 pub const DRILL_SCALE: f32 = 2.;
 pub const DRILL_WIDTH: f32 = 21. * DRILL_SCALE;

@@ -1,6 +1,6 @@
 use bevy::{asset::{AssetServer, Assets, Handle}, input::ButtonInput, prelude::{Camera, Commands, GlobalTransform, Image, MouseButton, Query, Res, ResMut, Transform, With, Without}, window::{PrimaryWindow, Window}};
 
-use crate::{color_map::ROCK, components::{Bool, ChunkMap, ContentList, GravityCoords, TerrainImageTag}, constants::{CHUNK_SIZE, MAX_SHOVEL_CAPACITY}, drill::{spawn_drill, DRILL_HEIGHT, DRILL_WIDTH}, tools::{left_click_hoe, left_click_pickaxe, left_click_shovel, right_click_hoe, right_click_shovel, CurrentTool, HoeTag, PickaxeTag, ShovelTag, Tool}, util::{c_to_tl, flatten_index_standard_grid, valid_machine_spawn}, world_generation::{CameraTag, GridMaterial}};
+use crate::{components::{Bool, ChunkMap, ContentList, GravityCoords, TerrainImageTag}, constants::MAX_SHOVEL_CAPACITY, drill::{spawn_drill, DRILL_HEIGHT, DRILL_WIDTH}, tools::{left_click_hoe, left_click_pickaxe, left_click_shovel, right_click_hoe, right_click_shovel, CurrentTool, HoeTag, PickaxeTag, ShovelTag, Tool}, util::valid_machine_spawn, world_generation::{CameraTag, GridMaterial}};
 
 pub fn check_mouse_click(
     buttons: Res<ButtonInput<MouseButton>>,
@@ -26,11 +26,11 @@ pub fn check_mouse_click(
     if buttons.just_pressed(MouseButton::Left) && cursor_contents.contents.len() < MAX_SHOVEL_CAPACITY {
         match current_tool.tool {
             Tool::Shovel => {
-                // let mut gravity_coords = gravity_coords_query.get_single_mut().unwrap();
+                let mut gravity_coords = gravity_coords_query.get_single_mut().unwrap();
                 let shovel_material_handle = shovel_material_handle.get_single().unwrap();
                 let shovel_id = materials.get_mut(shovel_material_handle).unwrap().color_map.clone();
                 let mut shovel_image = images.remove(&shovel_id).unwrap();
-                left_click_shovel(&shovel_position_query.get_single_mut().unwrap(), &mut cursor_contents.contents, &mut chunk_map.map, &mut shovel_image.data);    
+                left_click_shovel(&shovel_position_query.get_single_mut().unwrap(), &mut cursor_contents.contents, &mut chunk_map.map, &mut shovel_image.data, &mut gravity_coords);    
                 images.insert(&shovel_id, shovel_image);        
             },
             Tool::Pickaxe => {
@@ -64,12 +64,12 @@ pub fn check_mouse_click(
     if buttons.just_pressed(MouseButton::Right) {
         match current_tool.tool {
             Tool::Shovel => {
-                // let mut gravity_coords = gravity_coords_query.get_single_mut().unwrap();
+                let mut gravity_coords = gravity_coords_query.get_single_mut().unwrap();
                 let tool_position = shovel_position_query.get_single_mut().unwrap();
                 let shovel_material_handle = shovel_material_handle.get_single().unwrap();
                 let shovel_id = materials.get_mut(shovel_material_handle).unwrap().color_map.clone();
                 let mut shovel_image = images.remove(&shovel_id).unwrap();
-                right_click_shovel(&mut shovel_image.data, &mut chunk_map.map, &tool_position, &mut cursor_contents.contents);
+                right_click_shovel(&mut shovel_image.data, &mut chunk_map.map, &tool_position, &mut cursor_contents.contents, &mut gravity_coords);
                 images.insert(&shovel_id, shovel_image);
             },
             Tool::Pickaxe => {},

@@ -1,6 +1,5 @@
 use std::io::{self, Write};
 use std::fs::File;
-use std::process::exit;
 
 use bevy::{math::Vec3, prelude::Image, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}};
 
@@ -118,6 +117,8 @@ pub fn get_local_x(global_x: i32) -> usize {
     let x = CHUNK_SIZE as i32 / 2 + (global_x % CHUNK_SIZE as i32);
     if x > CHUNK_SIZE as i32{
         return (x - CHUNK_SIZE as i32) as usize;
+    } else if x < 0 {
+        return (CHUNK_SIZE as i32 + x) as usize;
     }
     x as usize
 }
@@ -139,4 +140,51 @@ pub fn get_chunk_x_g(x_g: f32) -> i32 {
 
 pub fn get_chunk_y_g(y_g: f32) -> i32 {
     ((y_g + CHUNK_SIZE/2.) / CHUNK_SIZE).floor() as i32
+}
+
+pub fn global_to_chunk_index_and_local_index(x_g: i32, y_g: i32) -> (usize, usize) {
+    let chunk_x_g = get_chunk_x_g(x_g as f32);
+    let local_x = get_local_x(x_g);
+    let chunk_y_g = get_chunk_y_g(y_g as f32);
+    let local_y = get_local_y(y_g);
+    let chunk_x_v = get_chunk_x_v(chunk_x_g);
+    let chunk_y_v = get_chunk_y_v(chunk_y_g);
+    let chunk_index = flatten_index_standard_grid(&chunk_x_v, &chunk_y_v, CHUNKS_HORIZONTAL as usize);
+    let local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
+    (chunk_index, local_index)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{constants::CHUNK_SIZE, util::get_local_x};
+
+    #[test]
+    fn test_get_local_x_chunk_0_0() {
+        assert_eq!(get_local_x(-300), 0);
+        assert_eq!(get_local_x(0), 300);
+        assert_eq!(get_local_x(100), 400);
+        assert_eq!(get_local_x(-100), 200);
+    }
+
+    #[test]
+    fn test_get_local_x_chunk_1_0() {
+        assert_eq!(get_local_x(301), 1);
+        assert_eq!(get_local_x(400), 100);
+    }
+
+    #[test]
+    fn test_get_local_x_chunk_2_0() {
+        assert_eq!(get_local_x(300 + 1 * CHUNK_SIZE as i32 + 200), 200);
+    }
+
+    #[test]
+    fn test_get_local_x_chunk_n1_0() {
+        assert_eq!(get_local_x(-301), 599);
+        assert_eq!(get_local_x(-400), 500);
+    }
+
+    #[test]
+    fn test_get_local_x_chunk_n2_1() {
+        assert_eq!(get_local_x(300 + -1 * CHUNK_SIZE as i32 + 200), 200);
+    }
 }

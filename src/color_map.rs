@@ -1,4 +1,4 @@
-use rand::{rngs::ThreadRng, Rng};
+use rand::Rng;
 
 pub const SKY: u8 = 0;
 pub const DIRT1: u8 = 1;
