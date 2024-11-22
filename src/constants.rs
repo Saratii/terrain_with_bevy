@@ -63,3 +63,5 @@ pub const GLOBAL_MIN_Y: i32 = -1 * GLOBAL_MAX_Y;
 pub const RENDER_SIZE: i32 = 3;
 pub const MAX_DIRT_HEIGHT_G: f64 = 0.;
 pub const MAX_ROCK_HEIGHT_G: f64 = -100.; 
+pub const SELL_BOX_SPAWN_X: i32 = 400;
+pub const SELL_BOX_SPAWN_Y: i32 = 400;

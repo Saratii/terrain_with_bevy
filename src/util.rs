@@ -153,7 +153,7 @@ pub fn global_to_chunk_index_and_local_index(x_g: i32, y_g: i32) -> (usize, usiz
     let local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
     #[cfg(debug_assertions)]
     {
-        if local_index >= CHUNK_SIZE as usize * CHUNK_SIZE as usize {
+        if local_index >= CHUNK_SIZE as usize * CHUNK_SIZE as usize || chunk_index > CHUNKS_HORIZONTAL as usize * CHUNKS_VERTICAL as usize {
             panic!(
                 "Whoopsie: conversion failed with input: {} {} -> {}\n\
                 Chunk x_g: {}, Chunk y_g: {}\n\

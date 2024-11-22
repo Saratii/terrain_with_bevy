@@ -15,7 +15,6 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
     let pixel_coords = vec2<i32>(i32(mesh.uv.x * size.x), i32(mesh.uv.y * size.y));
     let tile_map_value = textureLoad(tile_map, pixel_coords, 0).r * 255.0;
     var color = vec4<f32>(9., 1.0, 1.0, 1.0); //default
-    
     if (tile_map_value == 0) {
         color = vec4<f32>(135/255., 206/255., 234/255., 1.0); //sky
     } else if (tile_map_value == 1) {
@@ -58,6 +57,8 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
         color = vec4<f32>(35/255., 36/255., 37/255., 1.0); //drill black
     } else if (tile_map_value == 20) {
         color = vec4<f32>(132/255., 136/255., 136/255., 1.0); //drill grey
+    } else if (tile_map_value == 21) {
+        color = vec4<f32>(192/255., 192/255., 192/255., 1.0); //silver
     }
     let is_edge = pixel_coords.x == 0 || pixel_coords.x == i32(size.x) - 1 ||
                   pixel_coords.y == 0 || pixel_coords.y == i32(size.y) - 1;

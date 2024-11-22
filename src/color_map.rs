@@ -21,8 +21,10 @@ pub const PLAYER_SKIN: u8 = 17;
 pub const BLACK: u8 = 18;
 pub const DRILL_BLACK: u8 = 19;
 pub const DRILL_GREY: u8 = 20;
+pub const SILVER: u8 = 21;
 
 pub const GRAVITY_AFFECTED: [u8; 6] = [DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3];
+pub const GROUND: [u8; 9] = [DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, COPPER, SILVER, ROCK];
 
 pub fn dirt_variant_pmf() -> u8 {
     let rand_value = fastrand::f32();

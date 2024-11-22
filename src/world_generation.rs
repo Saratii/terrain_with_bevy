@@ -15,10 +15,11 @@ use bevy::utils::default;
 
 use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, transform::components::Transform};
 use noise::{NoiseFn, Perlin};
+use rand::rngs::ThreadRng;
 use rand::Rng;
-use crate::color_map::{dirt_variant_pmf, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, GRAVITY_AFFECTED, LIGHT, REFINED_COPPER, ROCK, SELL_BOX, SKY};
+use crate::color_map::{dirt_variant_pmf, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, GRAVITY_AFFECTED, GROUND, LIGHT, REFINED_COPPER, ROCK, SELL_BOX, SILVER, SKY};
 use crate::components::{ChunkMap, Count, GravityCoords, MoneyTextTag, RelativePosition, SunTick, TerrainImageTag, TimerComponent};
-use crate::constants::{CHUNKS_HORIZONTAL, CHUNKS_VERTICAL, CHUNK_SIZE, COPPER_SPAWN_RADIUS, GLOBAL_MAX_X, GLOBAL_MAX_Y, GLOBAL_MIN_X, GLOBAL_MIN_Y, MAX_COPPER_ORE_SPAWNS, MAX_DIRT_HEIGHT_G, MAX_ROCK_HEIGHT_G, RENDER_SIZE};
+use crate::constants::{CHUNKS_HORIZONTAL, CHUNKS_VERTICAL, CHUNK_SIZE, COPPER_SPAWN_RADIUS, GLOBAL_MAX_X, GLOBAL_MAX_Y, GLOBAL_MIN_X, GLOBAL_MIN_Y, MAX_COPPER_ORE_SPAWNS, MAX_DIRT_HEIGHT_G, MAX_ROCK_HEIGHT_G, RENDER_SIZE, SELL_BOX_HEIGHT, SELL_BOX_SPAWN_X, SELL_BOX_SPAWN_Y, SELL_BOX_WIDTH};
 use crate::drill::DrillTag;
 use crate::util::{chunk_index_x_to_world_grid_index_shift, chunk_index_y_to_world_grid_index_shift, distance, flatten_index_standard_grid, get_chunk_x_g, get_chunk_x_v, get_chunk_y_g, get_chunk_y_v, get_global_y_coordinate, get_local_x, get_local_y, global_to_chunk_index_and_local_index, grid_to_image};
 
@@ -58,6 +59,11 @@ pub fn setup_world(
         }
     }
     commands.spawn(GravityCoords { coords: HashSet::new() });
+    let mut pos = Vec3 { x: SELL_BOX_SPAWN_X as f32, y: SELL_BOX_SPAWN_Y as f32, z: 1. } ;
+    while does_gravity_apply_to_entity(pos, SELL_BOX_WIDTH as i32, SELL_BOX_HEIGHT as i32, &chunk_map) {
+        pos.y -= 1.;
+    }
+    add_sell_box_to_grid(&mut chunk_map, &pos);
     commands.spawn(ChunkMap { map: chunk_map });
     for x in -1 * RENDER_SIZE / 2..=RENDER_SIZE / 2 {
         for y in -1 * RENDER_SIZE / 2..=RENDER_SIZE / 2 {
@@ -81,8 +87,6 @@ pub fn setup_world(
                         .insert(RelativePosition { pos: (x, y) });
         }
     }
-    
-    // add_sell_box_to_grid(&mut color_map.data);
     commands.spawn(TimerComponent { timer: Timer::new(Duration::from_millis(7), TimerMode::Repeating) }).insert(TerrainImageTag);
     commands.spawn(TimerComponent { timer: Timer::new(Duration::from_millis(20), TimerMode::Repeating) }).insert(DrillTag);
     commands.spawn(SunTick { timer: Timer::new(Duration::from_millis(1000), TimerMode::Repeating) });
@@ -192,6 +196,7 @@ fn gravity_tick(gravity_coords: &mut HashSet<(i32, i32)>, chunk_map: &mut Vec<Ve
                         GRAVEL1 => *money_count += 0.01,
                         GRAVEL2 => *money_count += 0.01,
                         GRAVEL3 => *money_count += 0.01,
+                        SILVER => *money_count += 1.0,
                         _ => {}
                     }
                     chunk_map[above_chunk_index][above_local_index] = SKY;
@@ -203,18 +208,19 @@ fn gravity_tick(gravity_coords: &mut HashSet<(i32, i32)>, chunk_map: &mut Vec<Ve
     *gravity_coords = new_coords;
 }
 
-// fn add_sell_box_to_grid(grid: &mut Vec<u8>) {
-//     for y in SKY_HEIGHT - SELL_BOX_HEIGHT..SKY_HEIGHT{
-//         for x in 800..800+SELL_BOX_WIDTH{
-//             let index = flatten_index_standard_grid(&x, &y, CHUNK_SIZE);
-//             if x < 800 + SELL_BOX_WIDTH - 1 - 2 && y < SKY_HEIGHT - 1 - 2 && x > 800 + 2{
-//                 grid[index] = SELL_BOX;
-//             } else {
-//                 grid[index] = REFINED_COPPER;
-//             }
-//         }
-//     }
-// }
+fn add_sell_box_to_grid(chunk_map: &mut Vec<Vec<u8>>, pos: &Vec3) {
+    for y in pos.y as i32 - SELL_BOX_HEIGHT as i32/2..pos.y as i32 + SELL_BOX_HEIGHT as i32/2 {
+        for x in pos.x as i32 - SELL_BOX_WIDTH as i32/2..pos.x as i32 + SELL_BOX_WIDTH as i32/2 {
+            if x < pos.x as i32 + SELL_BOX_WIDTH as i32/2 - 1 - 2 && y > pos.y as i32 - SELL_BOX_HEIGHT as i32/2 + 2 && x > pos.x as i32 - SELL_BOX_WIDTH as i32/2 + 2 {
+                let (chunk_index, local_index) = global_to_chunk_index_and_local_index(x, y);
+                chunk_map[chunk_index][local_index] = SELL_BOX;
+            } else {
+                let (chunk_index, local_index) = global_to_chunk_index_and_local_index(x, y);
+                chunk_map[chunk_index][local_index] = REFINED_COPPER;
+            }
+        }
+    }
+}
 
 pub fn update_money_text(
     mut money_text_query: Query<&mut Text, With<MoneyTextTag>>,
@@ -239,74 +245,55 @@ impl Material2d for GridMaterial {
     }
 }
 
-pub fn spawn_copper_ore(
-    chunk_query: Query<&Handle<GridMaterial>, With<TerrainImageTag>>,
-    chunk_material_handles: Query<&Handle<GridMaterial>, With<TerrainImageTag>>, 
-    mut materials: ResMut<Assets<GridMaterial>>,
-    mut images: ResMut<Assets<Image>>,
-
-) {
+pub fn spawn_ore(mut chunk_map_query: Query<&mut ChunkMap>) {
     let mut rng = rand::thread_rng();
-    // let material_handle = chunk_querry.get_single().unwrap();
-    // let material = materials.get_mut(material_handle).unwrap();
-    // let grid = &mut images.get_mut(&material.color_map).unwrap().data;
-    for chunk_handle in chunk_material_handles.iter() {
-        let terrain_grid_material = materials.get_mut(chunk_handle).unwrap();
-        let terrain_grid_image = images.get_mut(&terrain_grid_material.color_map).unwrap();
-        let terrain_grid_data = &mut terrain_grid_image.data;
-        
-        // Modify the terrain_grid_data as needed
-        // Your logic here
+    let mut rng2 = rand::thread_rng();
+    let mut chunk_map = chunk_map_query.get_single_mut().unwrap();
+    let copper_random_multiplier = rng.gen_range(0.8..1.2);
+    let num_copper_seeds = CHUNKS_HORIZONTAL * CHUNKS_VERTICAL * CHUNK_SIZE * CHUNK_SIZE * 0.000007 * copper_random_multiplier;
+    for _ in 0..num_copper_seeds as i32 {
+        let mut x = rng.gen_range(GLOBAL_MIN_X..GLOBAL_MAX_X);
+        let mut y = rng.gen_range(GLOBAL_MIN_Y..GLOBAL_MAX_Y);
+        let (mut chunk_index, mut local_index) = global_to_chunk_index_and_local_index(x, y);
+        while !GROUND.contains(&chunk_map.map[chunk_index][local_index]) || rng.gen::<f32>() > (y.abs() as f32 / GLOBAL_MAX_Y as f32).min(0.11) {
+            x = rng.gen_range(GLOBAL_MIN_X..GLOBAL_MAX_X);
+            y = rng.gen_range(GLOBAL_MIN_Y..GLOBAL_MAX_Y);
+            (chunk_index, local_index) = global_to_chunk_index_and_local_index(x, y);
+        }
+        grow_ore_seed(&mut rng, x, y, COPPER, &mut chunk_map.map, rng2.gen_range(30..80), rng2.gen_range(30..80), 0.1);
     }
+    let silver_random_multiplier = rng.gen_range(0.8..1.2);
+    let num_silver_seeds = CHUNKS_HORIZONTAL * CHUNKS_VERTICAL * CHUNK_SIZE * CHUNK_SIZE * 0.000003 * silver_random_multiplier;
+    for _ in 0..num_silver_seeds as i32 {
+        let mut x = rng.gen_range(GLOBAL_MIN_X..GLOBAL_MAX_X);
+        let mut y = rng.gen_range(GLOBAL_MIN_Y..GLOBAL_MAX_Y);
+        let (mut chunk_index, mut local_index) = global_to_chunk_index_and_local_index(x, y);
+        while !GROUND.contains(&chunk_map.map[chunk_index][local_index]) || rng.gen::<f32>() > (y.abs() as f32 / GLOBAL_MAX_Y as f32).min(0.1) {
+            x = rng.gen_range(GLOBAL_MIN_X..GLOBAL_MAX_X);
+            y = rng.gen_range(GLOBAL_MIN_Y..GLOBAL_MAX_Y);
+            (chunk_index, local_index) = global_to_chunk_index_and_local_index(x, y);
+        }
+        grow_ore_seed(&mut rng, x, y, SILVER, &mut chunk_map.map, rng2.gen_range(10..40), rng2.gen_range(10..40), 0.2);
+    }
+}
 
-
-    
-    for _ in 0..(MAX_COPPER_ORE_SPAWNS as f32 * rng.gen::<f32>()) as u32  {
-        let seed_x = rng.gen_range(GLOBAL_MIN_X..GLOBAL_MAX_X);
-        let seed_y = rng.gen_range(GLOBAL_MIN_Y..GLOBAL_MAX_Y);
-        for x in seed_x - COPPER_SPAWN_RADIUS/2..seed_x + COPPER_SPAWN_RADIUS/2 {
-            for y in seed_y - COPPER_SPAWN_RADIUS/2..seed_y + COPPER_SPAWN_RADIUS/2 {
-                let distance = distance(seed_x, seed_y, x, y);
-                if distance < COPPER_SPAWN_RADIUS as f32 {
-                    
-                    // grid[index] = COPPER;
+fn grow_ore_seed(rng: &mut ThreadRng, seed_x: i32, seed_y: i32, seed_type: u8, chunk_map: &mut Vec<Vec<u8>>, radius_x: i32, radius_y: i32, density: f32) {
+    for x in seed_x - radius_x..seed_x + radius_x {
+        if x < GLOBAL_MIN_X || x >= GLOBAL_MAX_X {
+            continue;
+        }
+        for y in seed_y - radius_y..seed_y + radius_y {
+            if y < GLOBAL_MIN_Y || y >= GLOBAL_MAX_Y {
+                continue;
+            }
+            if (x - seed_x) as f32 * (x - seed_x) as f32 / (radius_x * radius_x) as f32 + (y - seed_y) as f32 * (y - seed_y) as f32 / (radius_y * radius_y) as f32 <= 1. {
+                if rng.gen::<f32>() < density {
+                    let (chunk_index, local_index) = global_to_chunk_index_and_local_index(x, y);
+                    if GROUND.contains(&chunk_map[chunk_index][local_index]) {
+                        chunk_map[chunk_index][local_index] = seed_type;
+                    }
                 }
             }
         }
     }
-
-
-        // let index = flatten_index_standard_grid(&x, &y, CHUNK_SIZE);
-        // grid[index] = COPPER;
-        // for xx in max(0, x - CALCOPIRITE_RADIUS)..min(CHUNK_SIZE, x + CALCOPIRITE_RADIUS){
-        //     for yy in max(0, y - CALCOPIRITE_RADIUS)..min(CHUNK_SIZE, y + CALCOPIRITE_RADIUS){
-        //         let distance = distance(xx as i32, yy as i32, x as i32, y as i32);
-        //         if distance < CALCOPIRITE_RADIUS as f32{
-        //             if distance != 0. && rng.gen_range(0..distance as usize * 2) == 0 {
-        //                 let index = flatten_index_standard_grid(&xx, &yy, CHUNK_SIZE);
-        //                 grid[index] = COPPER;
-        //             }
-        //         }
-        //     }
-        // }
-    // }
-    // if SKY_HEIGHT + GROUND_HEIGHT < SKY_HEIGHT + GROUND_HEIGHT + ROCK_HEIGHT {
-    //     for _ in 0..CHALCOPIRITE_SPAWN_COUNT {
-    //         let x = rng.gen_range(0..CHUNK_SIZE);
-    //         let y = rng.gen_range(SKY_HEIGHT + GROUND_HEIGHT..SKY_HEIGHT + GROUND_HEIGHT + ROCK_HEIGHT);
-    //         let index = flatten_index_standard_grid(&x, &y, CHUNK_SIZE);
-    //         grid[index] = COPPER;
-    //         for xx in max(0, x - CALCOPIRITE_RADIUS)..min(CHUNK_SIZE, x + CALCOPIRITE_RADIUS){
-    //             for yy in max(0, y - CALCOPIRITE_RADIUS)..min(CHUNK_SIZE, y + CALCOPIRITE_RADIUS){
-    //                 let distance = distance(xx as i32, yy as i32, x as i32, y as i32);
-    //                 if distance < CALCOPIRITE_RADIUS as f32{
-    //                     if distance != 0. && rng.gen_range(0..distance as usize * 2) == 0 {
-    //                         let index = flatten_index_standard_grid(&xx, &yy, CHUNK_SIZE);
-    //                         grid[index] = COPPER;
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
 }
