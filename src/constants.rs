@@ -6,7 +6,7 @@ pub const CURSOR_ORBITAL_RADIUS: f32 = 100.* 10.;
 //Setup
 pub const WINDOW_WIDTH: usize = 1200;
 pub const WINDOW_HEIGHT: usize = 1200;
-pub const CHUNK_SIZE: f32 = 1200 as f32;
+pub const CHUNK_SIZE: f32 = 600.;
 pub const CHUNKS_HORIZONTAL: f32 = 33.;
 pub const CHUNKS_VERTICAL: f32 = 33.;
 pub const LIGHTING_DEMO: bool = false;

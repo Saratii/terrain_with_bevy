@@ -80,6 +80,7 @@ pub fn setup_world(
                                 color_map: images.add(grid_to_image(&vec![0; (CHUNK_SIZE * CHUNK_SIZE) as usize], CHUNK_SIZE as u32, CHUNK_SIZE as u32, None)),
                                 size: Vec2::new(CHUNK_SIZE as f32, CHUNK_SIZE as f32),
                                 decoder: apply_gamma_correction(RAW_DECODER_DATA),
+                                color_map_of_above: images.add(grid_to_image(&vec![0; (CHUNK_SIZE * CHUNK_SIZE) as usize], CHUNK_SIZE as u32, CHUNK_SIZE as u32, None)),
                             }),
                             mesh: meshes
                             .add(Rectangle {
@@ -245,6 +246,8 @@ pub struct GridMaterial {
     pub size: Vec2,
     #[uniform(2)]
     pub decoder: [Vec4; 24],
+    #[texture(3)]
+    pub color_map_of_above: Handle<Image>,
 }
 
 impl Material2d for GridMaterial {

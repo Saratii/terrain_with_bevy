@@ -60,6 +60,27 @@ pub fn render(
             rendered_box_transform.translation.x = (chunk_x_g as f32 + 1.) * CHUNK_SIZE;
             rendered_box_transform.translation.y = (chunk_y_g as f32 - 1.) * CHUNK_SIZE;
         }
+        //send the chunk above each rendered chunk to continue the ray cast.
+        let above_grid = &mut images.get_mut(&materials.get_mut(material_handle).unwrap().color_map_of_above).unwrap().data;
+        if i == 0 { //top left
+            *above_grid = chunk_map[flatten_index_standard_grid(&(chunk_x_v - 1), &(chunk_y_v + 2), CHUNKS_HORIZONTAL as usize)].clone();
+        } else if i == 1 { //top center
+            *above_grid = chunk_map[flatten_index_standard_grid(&chunk_x_v, &(chunk_y_v + 2), CHUNKS_HORIZONTAL as usize)].clone();
+        } else if i == 2 { //top left
+            *above_grid = chunk_map[flatten_index_standard_grid(&(chunk_x_v + 1), &(chunk_y_v + 2), CHUNKS_HORIZONTAL as usize)].clone();
+        } else if i == 3 { //center left
+            *above_grid = chunk_map[flatten_index_standard_grid(&(chunk_x_v - 1), &(chunk_y_v + 1), CHUNKS_HORIZONTAL as usize)].clone();
+        } else if i == 4 { //center center
+            *above_grid = chunk_map[flatten_index_standard_grid(&chunk_x_v, &(chunk_y_v + 1), CHUNKS_HORIZONTAL as usize)].clone();
+        } else if i == 5 { //center right
+            *above_grid = chunk_map[flatten_index_standard_grid(&(chunk_x_v + 1), &(chunk_y_v + 1), CHUNKS_HORIZONTAL as usize)].clone();
+        } else if i == 6 { //bottom left
+            *above_grid = chunk_map[flatten_index_standard_grid(&(chunk_x_v - 1), &(chunk_y_v), CHUNKS_HORIZONTAL as usize)].clone();
+        } else if i == 7 { //bottom center
+            *above_grid = chunk_map[flatten_index_standard_grid(&chunk_x_v, &(chunk_y_v), CHUNKS_HORIZONTAL as usize)].clone();
+        } else if i == 8 { //bottom right
+            *above_grid = chunk_map[flatten_index_standard_grid(&(chunk_x_v + 1), &(chunk_y_v), CHUNKS_HORIZONTAL as usize)].clone();
+        }
         i += 1;
     }
 }

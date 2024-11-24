@@ -44,6 +44,8 @@ pub fn spawn_tools(
                     color_map: images.add(hoe_image),
                     size: Vec2::new(HOE_WIDTH as f32, HOE_HEIGHT as f32),
                     decoder: apply_gamma_correction(RAW_DECODER_DATA),
+                    color_map_of_above: images.add(grid_to_image(&vec![0 as u8; HOE_HEIGHT * HOE_WIDTH], HOE_WIDTH as u32, HOE_HEIGHT as u32, None)),
+
                 }),
                 mesh: meshes
                 .add(Rectangle {
@@ -60,6 +62,8 @@ pub fn spawn_tools(
                     color_map: images.add(shovel_image),
                     size: Vec2::new((CURSOR_RADIUS * 2) as f32, (CURSOR_RADIUS * 2) as f32),
                     decoder: apply_gamma_correction(RAW_DECODER_DATA),
+                    color_map_of_above: images.add(grid_to_image(&vec![0 as u8; CURSOR_RADIUS as usize * 2 * CURSOR_RADIUS as usize * 2], CURSOR_RADIUS as u32 * 2, CURSOR_RADIUS as u32 * 2, None)),
+
                 }),
                 mesh: meshes
                 .add(Rectangle {
@@ -75,6 +79,7 @@ pub fn spawn_tools(
                     color_map: images.add(pickaxe_image),
                     size: Vec2::new((CURSOR_RADIUS * 2) as f32, (CURSOR_RADIUS * 2) as f32),
                     decoder: apply_gamma_correction(RAW_DECODER_DATA),
+                    color_map_of_above: images.add(grid_to_image(&vec![0 as u8; CURSOR_RADIUS as usize * 2 * CURSOR_RADIUS as usize * 2], CURSOR_RADIUS as u32 * 2, CURSOR_RADIUS as u32 * 2, None)),
                 }),
                 mesh: meshes
                 .add(Rectangle {
