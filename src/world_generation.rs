@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use bevy::asset::{Asset, Assets, Handle};
 use bevy::color::palettes::css::GOLD;
-use bevy::math::Vec2;
+use bevy::math::{Vec2, Vec4};
 use bevy::prelude::{Component, Image, Mesh, Query, Rectangle, ResMut, TextBundle, With};
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy::sprite::{Material2d, MaterialMesh2dBundle};
@@ -17,9 +17,9 @@ use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::syst
 use noise::{NoiseFn, Perlin};
 use rand::rngs::ThreadRng;
 use rand::Rng;
-use crate::color_map::{dirt_variant_pmf, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, GRAVITY_AFFECTED, GROUND, LIGHT, REFINED_COPPER, ROCK, SELL_BOX, SILVER, SKY};
-use crate::components::{ChunkMap, Count, GravityCoords, MoneyTextTag, RelativePosition, SunTick, TerrainImageTag, TimerComponent};
-use crate::constants::{CHUNKS_HORIZONTAL, CHUNKS_VERTICAL, CHUNK_SIZE, COPPER_SPAWN_RADIUS, GLOBAL_MAX_X, GLOBAL_MAX_Y, GLOBAL_MIN_X, GLOBAL_MIN_Y, MAX_COPPER_ORE_SPAWNS, MAX_DIRT_HEIGHT_G, MAX_ROCK_HEIGHT_G, RENDER_SIZE, SELL_BOX_HEIGHT, SELL_BOX_SPAWN_X, SELL_BOX_SPAWN_Y, SELL_BOX_WIDTH};
+use crate::color_map::{apply_gamma_correction, dirt_variant_pmf, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, GRAVITY_AFFECTED, GROUND, LIGHT, RAW_DECODER_DATA, REFINED_COPPER, ROCK, SELL_BOX, SILVER, SKY};
+use crate::components::{ChunkMap, Count, GravityCoords, MoneyTextTag, SunTick, TerrainImageTag, TimerComponent};
+use crate::constants::{CHUNKS_HORIZONTAL, CHUNKS_VERTICAL, CHUNK_SIZE, COPPER_SPAWN_RADIUS, GLOBAL_MAX_X, GLOBAL_MAX_Y, GLOBAL_MIN_X, GLOBAL_MIN_Y, MAX_COPPER_ORE_SPAWNS, MAX_DIRT_HEIGHT_G, MAX_ROCK_HEIGHT_G, RENDER_SIZE, SELL_BOX_HEIGHT, SELL_BOX_SPAWN_X, SELL_BOX_SPAWN_Y, SELL_BOX_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH};
 use crate::drill::DrillTag;
 use crate::util::{chunk_index_x_to_world_grid_index_shift, chunk_index_y_to_world_grid_index_shift, distance, flatten_index_standard_grid, get_chunk_x_g, get_chunk_x_v, get_chunk_y_g, get_chunk_y_v, get_global_y_coordinate, get_local_x, get_local_y, global_to_chunk_index_and_local_index, grid_to_image};
 
@@ -65,13 +65,14 @@ pub fn setup_world(
     }
     add_sell_box_to_grid(&mut chunk_map, &pos);
     commands.spawn(ChunkMap { map: chunk_map });
-    for x in -1 * RENDER_SIZE / 2..=RENDER_SIZE / 2 {
-        for y in -1 * RENDER_SIZE / 2..=RENDER_SIZE / 2 {
+    for _ in 0..3 {
+        for _ in 0..3 {
             commands.spawn(TerrainImageTag)
                         .insert(MaterialMesh2dBundle {
                             material: materials.add(GridMaterial {
-                                color_map: images.add(grid_to_image(&vec![9; (CHUNK_SIZE * CHUNK_SIZE) as usize], CHUNK_SIZE as u32, CHUNK_SIZE as u32, None)),
+                                color_map: images.add(grid_to_image(&vec![0; (CHUNK_SIZE * CHUNK_SIZE) as usize], CHUNK_SIZE as u32, CHUNK_SIZE as u32, None)),
                                 size: Vec2::new(CHUNK_SIZE as f32, CHUNK_SIZE as f32),
+                                decoder: apply_gamma_correction(RAW_DECODER_DATA),
                             }),
                             mesh: meshes
                             .add(Rectangle {
@@ -79,12 +80,11 @@ pub fn setup_world(
                             })
                             .into(),
                             transform: Transform {
-                                translation: Vec3::new(x as f32 * CHUNK_SIZE, y as f32 * CHUNK_SIZE, -5.),
+                                translation: Vec3::new(Default::default(), Default::default(), -5.),
                                 ..Default::default()
                             },
                             ..Default::default()
-                        })
-                        .insert(RelativePosition { pos: (x, y) });
+                        });
         }
     }
     commands.spawn(TimerComponent { timer: Timer::new(Duration::from_millis(7), TimerMode::Repeating) }).insert(TerrainImageTag);
@@ -127,7 +127,6 @@ fn generate_chunk(chunk_x_g: i32, chunk_y_g: i32, dirt_perlin_values: &[f64], ro
     }
     grid
 }
-
 
 pub fn grid_tick(
     time: Res<Time>,
@@ -236,7 +235,9 @@ pub struct GridMaterial {
     #[texture(1)]
     pub color_map: Handle<Image>,
     #[uniform(0)]
-    pub size: Vec2
+    pub size: Vec2,
+    #[uniform(2)]
+    pub decoder: [Vec4; 24],
 }
 
 impl Material2d for GridMaterial {

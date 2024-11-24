@@ -138,8 +138,3 @@ pub struct USize {
 pub struct ChunkMap {
     pub map: Vec<Vec<u8>>,
 }
-
-#[derive(Component)]
-pub struct RelativePosition {
-    pub pos: (i32, i32)
-}

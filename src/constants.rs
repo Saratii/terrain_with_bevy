@@ -6,9 +6,15 @@ pub const CURSOR_ORBITAL_RADIUS: f32 = 100.* 1.;
 //Setup
 pub const WINDOW_WIDTH: usize = 1200;
 pub const WINDOW_HEIGHT: usize = 1200;
-pub const CHUNK_SIZE: f32 = 600.;
+pub const CHUNK_SIZE: f32 = 1200 as f32;
 pub const CHUNKS_HORIZONTAL: f32 = 33.;
 pub const CHUNKS_VERTICAL: f32 = 33.;
+
+//Player
+pub const PLAYER_WIDTH: usize = 20;
+pub const PLAYER_HEIGHT: usize = 60;
+pub const PLAYER_SPAWN_X: usize = 0;
+pub const PLAYER_SPAWN_Y: usize = 0;
 
 //other
 pub const MAX_PLAYER_SPEED: f32 = 80.;
@@ -21,10 +27,7 @@ pub const MAX_CLOUD_HEIGHT: usize = 80;
 pub const MAX_CLOUD_SPEED: f32 = 20.;
 pub const SUN_SIZE: usize = 100;
 pub const MOON_SIZE: usize = 50;
-pub const PLAYER_WIDTH: usize = 20;
-pub const PLAYER_HEIGHT: usize = 60;
-pub const PLAYER_SPAWN_X: usize = 0;
-pub const PLAYER_SPAWN_Y: usize = 600;
+
 pub const GRAVITY: f32 = 10.;
 
 pub const MAX_LAYERS: usize = 4;

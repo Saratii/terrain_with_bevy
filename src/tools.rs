@@ -2,7 +2,7 @@ use std::cmp::min;
 
 use bevy::{asset::Assets, math::Vec2, prelude::{Camera, Commands, Component, GlobalTransform, Image, Mesh, Query, Rectangle, ResMut, Transform, Visibility, With, Without}, sprite::MaterialMesh2dBundle, window::{PrimaryWindow, Window}};
 
-use crate::{color_map::{gravel_variant_pmf, CLEAR, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, LIGHT, RED, ROCK, SKY, STEEL, TRANSLUCENT_GREY, WHITE}, components::{Bool, ChunkMap, ContentList, GravityCoords, PlayerTag, Velocity}, constants::{CHUNKS_HORIZONTAL, CHUNK_SIZE, CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, GLOBAL_MAX_Y, HOE_HEIGHT, HOE_WIDTH, MAX_SHOVEL_CAPACITY}, util::{distance, flatten_index, flatten_index_standard_grid, get_chunk_x_g, get_chunk_x_v, get_chunk_y_g, get_chunk_y_v, get_local_x, get_local_y, global_to_chunk_index_and_local_index, grid_to_image}, world_generation::{CameraTag, GridMaterial}};
+use crate::{color_map::{apply_gamma_correction, gravel_variant_pmf, CLEAR, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, LIGHT, RAW_DECODER_DATA, RED, ROCK, SKY, STEEL, TRANSLUCENT_GREY, WHITE}, components::{Bool, ChunkMap, ContentList, GravityCoords, PlayerTag, Velocity}, constants::{CHUNKS_HORIZONTAL, CHUNK_SIZE, CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, GLOBAL_MAX_Y, HOE_HEIGHT, HOE_WIDTH, MAX_SHOVEL_CAPACITY}, util::{distance, flatten_index, flatten_index_standard_grid, get_chunk_x_g, get_chunk_x_v, get_chunk_y_g, get_chunk_y_v, get_local_x, get_local_y, global_to_chunk_index_and_local_index, grid_to_image}, world_generation::{CameraTag, GridMaterial}};
 
 #[derive(Component)]
 pub struct HoeTag;
@@ -43,6 +43,7 @@ pub fn spawn_tools(
                 material: materials.add(GridMaterial {
                     color_map: images.add(hoe_image),
                     size: Vec2::new(HOE_WIDTH as f32, HOE_HEIGHT as f32),
+                    decoder: apply_gamma_correction(RAW_DECODER_DATA),
                 }),
                 mesh: meshes
                 .add(Rectangle {
@@ -58,6 +59,7 @@ pub fn spawn_tools(
                 material: materials.add(GridMaterial {
                     color_map: images.add(shovel_image),
                     size: Vec2::new((CURSOR_RADIUS * 2) as f32, (CURSOR_RADIUS * 2) as f32),
+                    decoder: apply_gamma_correction(RAW_DECODER_DATA),
                 }),
                 mesh: meshes
                 .add(Rectangle {
@@ -72,6 +74,7 @@ pub fn spawn_tools(
                 material: materials.add(GridMaterial {
                     color_map: images.add(pickaxe_image),
                     size: Vec2::new((CURSOR_RADIUS * 2) as f32, (CURSOR_RADIUS * 2) as f32),
+                    decoder: apply_gamma_correction(RAW_DECODER_DATA),
                 }),
                 mesh: meshes
                 .add(Rectangle {
