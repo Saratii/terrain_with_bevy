@@ -19,7 +19,7 @@ use rand::rngs::ThreadRng;
 use rand::Rng;
 use crate::color_map::{apply_gamma_correction, dirt_variant_pmf, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, GRAVITY_AFFECTED, GROUND, LIGHT, RAW_DECODER_DATA, REFINED_COPPER, ROCK, SELL_BOX, SILVER, SKY};
 use crate::components::{ChunkMap, Count, GravityCoords, MoneyTextTag, SunTick, TerrainImageTag, TimerComponent};
-use crate::constants::{CHUNKS_HORIZONTAL, CHUNKS_VERTICAL, CHUNK_SIZE, COPPER_SPAWN_RADIUS, GLOBAL_MAX_X, GLOBAL_MAX_Y, GLOBAL_MIN_X, GLOBAL_MIN_Y, MAX_COPPER_ORE_SPAWNS, MAX_DIRT_HEIGHT_G, MAX_ROCK_HEIGHT_G, RENDER_SIZE, SELL_BOX_HEIGHT, SELL_BOX_SPAWN_X, SELL_BOX_SPAWN_Y, SELL_BOX_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::constants::{CHUNKS_HORIZONTAL, CHUNKS_VERTICAL, CHUNK_SIZE, COPPER_SPAWN_RADIUS, GLOBAL_MAX_X, GLOBAL_MAX_Y, GLOBAL_MIN_X, GLOBAL_MIN_Y, LIGHTING_DEMO, MAX_COPPER_ORE_SPAWNS, MAX_DIRT_HEIGHT_G, MAX_ROCK_HEIGHT_G, RENDER_SIZE, SELL_BOX_HEIGHT, SELL_BOX_SPAWN_X, SELL_BOX_SPAWN_Y, SELL_BOX_WIDTH, SPAWN_SELL_BOX, WINDOW_HEIGHT, WINDOW_WIDTH};
 use crate::drill::DrillTag;
 use crate::util::{chunk_index_x_to_world_grid_index_shift, chunk_index_y_to_world_grid_index_shift, distance, flatten_index_standard_grid, get_chunk_x_g, get_chunk_x_v, get_chunk_y_g, get_chunk_y_v, get_global_y_coordinate, get_local_x, get_local_y, global_to_chunk_index_and_local_index, grid_to_image};
 
@@ -55,15 +55,22 @@ pub fn setup_world(
         let world_chunk_y = chunk_index_y_to_world_grid_index_shift(y);
         for x in 0..CHUNKS_HORIZONTAL as usize {
             let world_chunk_x = chunk_index_x_to_world_grid_index_shift(x);
-            chunk_map.push(generate_chunk(world_chunk_x, world_chunk_y, &dirt_perlin_values, &rock_perlin_values));
+            if LIGHTING_DEMO {
+                chunk_map.push(generate_empty_chunk());
+            } else {
+                chunk_map.push(generate_chunk(world_chunk_x, world_chunk_y, &dirt_perlin_values, &rock_perlin_values));
+            }
         }
     }
-    commands.spawn(GravityCoords { coords: HashSet::new() });
-    let mut pos = Vec3 { x: SELL_BOX_SPAWN_X as f32, y: SELL_BOX_SPAWN_Y as f32, z: 1. } ;
-    while does_gravity_apply_to_entity(pos, SELL_BOX_WIDTH as i32, SELL_BOX_HEIGHT as i32, &chunk_map) {
-        pos.y -= 1.;
+    if SPAWN_SELL_BOX {
+        commands.spawn(GravityCoords { coords: HashSet::new() });
+        let mut pos = Vec3 { x: SELL_BOX_SPAWN_X as f32, y: SELL_BOX_SPAWN_Y as f32, z: 1. } ;
+        while does_gravity_apply_to_entity(pos, SELL_BOX_WIDTH as i32, SELL_BOX_HEIGHT as i32, &chunk_map) {
+            pos.y -= 1.;
+        }
+        add_sell_box_to_grid(&mut chunk_map, &pos);
     }
-    add_sell_box_to_grid(&mut chunk_map, &pos);
+    commands.spawn(GravityCoords { coords: HashSet::new() });
     commands.spawn(ChunkMap { map: chunk_map });
     for _ in 0..3 {
         for _ in 0..3 {
@@ -298,4 +305,8 @@ fn grow_ore_seed(rng: &mut ThreadRng, seed_x: i32, seed_y: i32, seed_type: u8, c
             }
         }
     }
+}
+
+fn generate_empty_chunk() -> Vec<u8> {
+    vec![0; (CHUNK_SIZE * CHUNK_SIZE) as usize]
 }

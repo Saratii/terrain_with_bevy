@@ -1,4 +1,4 @@
-use bevy::{asset::{Assets, Handle}, prelude::{Image, Query, ResMut, Transform, With, Without}};
+use bevy::{asset::{Assets, Handle}, math::Vec3, prelude::{Image, Query, ResMut, Transform, With, Without}};
 
 use crate::{components::{ChunkMap, PlayerTag, TerrainImageTag}, constants::{CHUNKS_HORIZONTAL, CHUNK_SIZE, WINDOW_WIDTH}, util::{flatten_index_standard_grid, get_chunk_x_g, get_chunk_x_v, get_chunk_y_g, get_chunk_y_v}, world_generation::{CameraTag, GridMaterial}};
 
@@ -12,8 +12,10 @@ pub fn render(
 ) {
     let mut i = 0;
     let chunk_map = &chunk_map_query.get_single().unwrap().map;
-    let player_pos = player_query.get_single().unwrap().translation;
-    let mut camera_transform = camera_query.get_single_mut().unwrap();
+    let player_pos = player_query
+        .get_single()
+        .map(|player| player.translation)
+        .unwrap_or(Vec3::ZERO);    let mut camera_transform = camera_query.get_single_mut().unwrap();
     camera_transform.translation = player_pos;
     let chunk_x_g = get_chunk_x_g(player_pos.x);
     let chunk_y_g = get_chunk_y_g(player_pos.y);

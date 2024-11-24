@@ -1,7 +1,7 @@
 //Cheats
-pub const MAX_SHOVEL_CAPACITY: usize = 575;
-pub const CURSOR_RADIUS: usize = 15 * 1;
-pub const CURSOR_ORBITAL_RADIUS: f32 = 100.* 1.;
+pub const MAX_SHOVEL_CAPACITY: usize = 5750000;
+pub const CURSOR_RADIUS: usize = 15 * 10;
+pub const CURSOR_ORBITAL_RADIUS: f32 = 100.* 10.;
 
 //Setup
 pub const WINDOW_WIDTH: usize = 1200;
@@ -9,12 +9,14 @@ pub const WINDOW_HEIGHT: usize = 1200;
 pub const CHUNK_SIZE: f32 = 1200 as f32;
 pub const CHUNKS_HORIZONTAL: f32 = 33.;
 pub const CHUNKS_VERTICAL: f32 = 33.;
+pub const LIGHTING_DEMO: bool = false;
 
 //Player
 pub const PLAYER_WIDTH: usize = 20;
 pub const PLAYER_HEIGHT: usize = 60;
 pub const PLAYER_SPAWN_X: usize = 0;
 pub const PLAYER_SPAWN_Y: usize = 0;
+pub const SPAWN_PLAYER: bool = false;
 
 //other
 pub const MAX_PLAYER_SPEED: f32 = 80.;
@@ -68,3 +70,4 @@ pub const MAX_DIRT_HEIGHT_G: f64 = 0.;
 pub const MAX_ROCK_HEIGHT_G: f64 = -100.; 
 pub const SELL_BOX_SPAWN_X: i32 = 400;
 pub const SELL_BOX_SPAWN_Y: i32 = 400;
+pub const SPAWN_SELL_BOX: bool = false;

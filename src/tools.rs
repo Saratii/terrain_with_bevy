@@ -161,39 +161,42 @@ pub fn update_tool(
         }
     }
     let (camera, camera_transform) = q_camera.single();
-    if let Some(position_c) = q_windows.single().cursor_position()
-            .and_then(|cursor| camera.viewport_to_world(camera_transform, cursor))
-            .map(|ray| ray.origin.truncate()) {
-        let angle = (position_c.y - player.0.translation.y).atan2(position_c.x - player.0.translation.x);
-        let distance_from_player = distance(player.0.translation.x as i32, player.0.translation.y as i32, position_c.x as i32, position_c.y as i32);
-        let min_distance = min(CURSOR_ORBITAL_RADIUS as usize, distance_from_player as usize) as f32;
-        let mut potential_x = player.0.translation.x + min_distance * angle.cos();
-        let mut potential_y = player.0.translation.y + min_distance * angle.sin();
-        let mut dy = potential_y - player.0.translation.y;
-        let mut dx = potential_x - player.0.translation.x;
-        if dy.abs() < dx.abs() {
-            dy /= dx;
-            dx = 1.;
-        } else {
-            dx /= dy;
-            dy = 1.;
-        }
-        dx = -dx.abs() * (potential_x - player.0.translation.x).signum();
-        dy = -dy.abs() * (potential_y - player.0.translation.y).signum();
-        let (mut chunk_index, mut local_index) = global_to_chunk_index_and_local_index(potential_x as i32, potential_y as i32);
-        while chunk_map.map[chunk_index][local_index] != SKY && chunk_map.map[chunk_index][local_index] != LIGHT {
-            potential_x += dx as f32;
-            potential_y += dy as f32;
-            (chunk_index, local_index) = global_to_chunk_index_and_local_index(potential_x as i32, potential_y as i32);
-        }
-        if !hoe_is_locked.bool {
-            tool_position.translation.y = potential_y;
-            tool_position.translation.x = potential_x;
-        } else {
-            if tool_position.translation.x < potential_x {
-                for y in (tool_position.translation.y as i32 - HOE_HEIGHT as i32/2..tool_position.translation.y as i32 + HOE_HEIGHT as i32/2).rev() {
-                    let _index = flatten_index(tool_position.translation.x as i32 + HOE_WIDTH as i32/2 + 1, y);
-                } 
+    if let Ok(window) = q_windows.get_single() {
+        if let Some(cursor) = window.cursor_position() {
+            if let Some(ray) = camera.viewport_to_world(camera_transform, cursor) {
+                let position_c = ray.origin.truncate();
+                let angle = (position_c.y - player.0.translation.y).atan2(position_c.x - player.0.translation.x);
+                let distance_from_player = distance(player.0.translation.x as i32, player.0.translation.y as i32, position_c.x as i32, position_c.y as i32);
+                let min_distance = min(CURSOR_ORBITAL_RADIUS as usize, distance_from_player as usize) as f32;
+                let mut potential_x = player.0.translation.x + min_distance * angle.cos();
+                let mut potential_y = player.0.translation.y + min_distance * angle.sin();
+                let mut dy = potential_y - player.0.translation.y;
+                let mut dx = potential_x - player.0.translation.x;
+                if dy.abs() < dx.abs() {
+                    dy /= dx;
+                    dx = 1.;
+                } else {
+                    dx /= dy;
+                    dy = 1.;
+                }
+                dx = -dx.abs() * (potential_x - player.0.translation.x).signum();
+                dy = -dy.abs() * (potential_y - player.0.translation.y).signum();
+                let (mut chunk_index, mut local_index) = global_to_chunk_index_and_local_index(potential_x as i32, potential_y as i32);
+                while chunk_map.map[chunk_index][local_index] != SKY && chunk_map.map[chunk_index][local_index] != LIGHT {
+                    potential_x += dx as f32;
+                    potential_y += dy as f32;
+                    (chunk_index, local_index) = global_to_chunk_index_and_local_index(potential_x as i32, potential_y as i32);
+                }
+                if !hoe_is_locked.bool {
+                    tool_position.translation.y = potential_y;
+                    tool_position.translation.x = potential_x;
+                } else {
+                    if tool_position.translation.x < potential_x {
+                        for y in (tool_position.translation.y as i32 - HOE_HEIGHT as i32/2..tool_position.translation.y as i32 + HOE_HEIGHT as i32/2).rev() {
+                            let _index = flatten_index(tool_position.translation.x as i32 + HOE_WIDTH as i32/2 + 1, y);
+                        } 
+                    }
+                }
             }
         }
     }
