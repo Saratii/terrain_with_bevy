@@ -49,13 +49,8 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
     let tile_map_value = textureLoad(tile_map, pixel_coords, 0).r * 255.0;
     let angle = get_angle(vec2<f32>(f32(pixel_coords.x), f32(pixel_coords.y)), vec2<f32>(SUN_X, SUN_Y));
     var light = ray_cast(angle, vec2<f32>(f32(pixel_coords.x), f32(pixel_coords.y)), tile_map);
-    
     var color = decoder.colors[i32(tile_map_value)];
-
-    
-    let is_edge = pixel_coords.x == 0 || pixel_coords.x == i32(size.x) - 1 ||
-                pixel_coords.y == 0 || pixel_coords.y == i32(size.y) - 1;
-
+    let is_edge = pixel_coords.x == 0 || pixel_coords.x == i32(size.x) - 1 || pixel_coords.y == 0 || pixel_coords.y == i32(size.y) - 1;
     if is_edge {
         color = vec4<f32>(144/255., 238/255., 144/255., 1.0); // light green for edges
     }
