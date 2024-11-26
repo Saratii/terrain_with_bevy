@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use bevy::{prelude::Component, time::Timer};
 use rand::{distributions::Standard, prelude::Distribution, Rng};
 
@@ -136,5 +136,5 @@ pub struct USize {
 
 #[derive(Component)]
 pub struct ChunkMap {
-    pub map: Vec<Vec<u8>>,
+    pub map: HashMap<(i32, i32), Vec<u8>>,
 }

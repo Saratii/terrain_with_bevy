@@ -44,7 +44,8 @@ fn ray_cast(start: vec2<f32>, chunk: texture_2d<f32>) -> f32 {
 fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
     let pixel_coords = vec2<i32>(i32(mesh.uv.x * size.x), i32(mesh.uv.y * size.y));
     let tile_map_value = textureLoad(tile_map, pixel_coords, 0).r * 255.0;
-    let light = ray_cast(vec2<f32>(f32(pixel_coords.x), f32(pixel_coords.y)), tile_map);
+    // let light = ray_cast(vec2<f32>(f32(pixel_coords.x), f32(pixel_coords.y)), tile_map);
+    let light = 1.;
     var color = decoder.colors[i32(tile_map_value)];
     let is_edge = pixel_coords.x == 0 || pixel_coords.x == i32(size.x) - 1 || pixel_coords.y == 0 || pixel_coords.y == i32(size.y) - 1;
     if is_edge {

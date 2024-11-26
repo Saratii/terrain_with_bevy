@@ -1,6 +1,6 @@
 use bevy::{asset::{AssetServer, Assets, Handle}, math::Vec3, prelude::{default, Commands, Component, Image, Query, Res, ResMut, Transform, With}, sprite::SpriteBundle, time::Time};
 
-use crate::{color_map::{gravel_variant_pmf, COPPER, DRILL_BLACK, DRILL_GREY, GRAVITY_AFFECTED, ROCK, SKY}, components::{ContentList, GravityCoords, TerrainImageTag, TimerComponent, USize}, constants::{CHUNKS_HORIZONTAL, CHUNK_SIZE}, util::{flatten_index, flatten_index_standard_grid, get_chunk_x_g, get_chunk_x_v, get_local_x, get_local_y}, world_generation::GridMaterial};
+use crate::{color_map::{gravel_variant_pmf, COPPER, DRILL_BLACK, DRILL_GREY, GRAVITY_AFFECTED, ROCK, SKY}, components::{ContentList, GravityCoords, TerrainImageTag, TimerComponent, USize}, constants::CHUNK_SIZE, util::{flatten_index, flatten_index_standard_grid, get_chunk_x_g, get_local_x, get_local_y}, world_generation::GridMaterial};
 
 pub const DRILL_SCALE: f32 = 2.;
 pub const DRILL_WIDTH: f32 = 21. * DRILL_SCALE;
@@ -14,33 +14,33 @@ const DRILL_OUTPUT_OFFSET_X: i32 = -21;
 pub struct DrillTag;
 
 pub fn spawn_drill(mut commands: Commands, asset_server: Res<AssetServer>, mut position_g: Vec3, chunk_map: &Vec<Vec<u8>>) {
-    'outer: loop {
-        for x_g in position_g.x as i32 - DRILL_WIDTH as i32 / 2 .. position_g.x as i32 + DRILL_WIDTH as i32 / 2 {
-            let chunk_x_g = get_chunk_x_g(x_g as f32);
-            let chunk_y_g = get_chunk_x_g(position_g.y - DRILL_HEIGHT / 2.);
-            let chunk_x_v = get_chunk_x_v(chunk_x_g);
-            let chunk_y_v = get_chunk_x_v(chunk_y_g);
-            let chunk_index = flatten_index_standard_grid(&chunk_x_v, &chunk_y_v, CHUNKS_HORIZONTAL as usize);
-            let local_x = get_local_x(x_g);
-            let local_y = get_local_y((position_g.y - DRILL_HEIGHT / 2.) as i32);
-            let local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
-            if chunk_map[chunk_index][local_index] != SKY {
-                break 'outer;
-            }
-        }
-        position_g.y -= 1.;
-    }
-    commands.spawn(SpriteBundle { 
-        texture: asset_server.load("sprites/drill_sprite.png"), 
-        transform: Transform {
-            translation: position_g, 
-            scale: Vec3::new(DRILL_SCALE, DRILL_SCALE, 1.),
-            ..Default::default()
-        },
-        ..default() 
-    }).insert(DrillTag)
-    .insert(USize { usize: 0 })
-    .insert(ContentList { contents: Vec::new() }); 
+    // 'outer: loop {
+    //     for x_g in position_g.x as i32 - DRILL_WIDTH as i32 / 2 .. position_g.x as i32 + DRILL_WIDTH as i32 / 2 {
+    //         let chunk_x_g = get_chunk_x_g(x_g as f32);
+    //         let chunk_y_g = get_chunk_x_g(position_g.y - DRILL_HEIGHT / 2.);
+    //         let chunk_x_v = get_chunk_x_v(chunk_x_g);
+    //         let chunk_y_v = get_chunk_x_v(chunk_y_g);
+    //         let chunk_index = flatten_index_standard_grid(&chunk_x_v, &chunk_y_v, CHUNKS_HORIZONTAL as usize);
+    //         let local_x = get_local_x(x_g);
+    //         let local_y = get_local_y((position_g.y - DRILL_HEIGHT / 2.) as i32);
+    //         let local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
+    //         if chunk_map[chunk_index][local_index] != SKY {
+    //             break 'outer;
+    //         }
+    //     }
+    //     position_g.y -= 1.;
+    // }
+    // commands.spawn(SpriteBundle { 
+    //     texture: asset_server.load("sprites/drill_sprite.png"), 
+    //     transform: Transform {
+    //         translation: position_g, 
+    //         scale: Vec3::new(DRILL_SCALE, DRILL_SCALE, 1.),
+    //         ..Default::default()
+    //     },
+    //     ..default() 
+    // }).insert(DrillTag)
+    // .insert(USize { usize: 0 })
+    // .insert(ContentList { contents: Vec::new() }); 
 }   
 
 pub fn drill_tick(

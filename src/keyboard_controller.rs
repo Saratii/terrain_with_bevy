@@ -12,13 +12,13 @@ pub fn process_key_event(
     mut pickaxe_visability_query: Query<&mut Visibility, (With<PickaxeTag>, Without<ShovelTag>, Without<HoeTag>)>,
     mut hoe_visability_query: Query<&mut Visibility, (With<HoeTag>, Without<PickaxeTag>, Without<ShovelTag>)>,
     mut hoe_is_locked_query: Query<&mut Bool, With<HoeTag>>,
-    chunk_map_query: Query<&ChunkMap>,
+    mut chunk_map_query: Query<&mut ChunkMap>,
 ) {
     let shovel_contents = shovel_contents_query.get_single().unwrap();
-    let chunk_map = chunk_map_query.get_single().unwrap();
+    let chunk_map = &mut chunk_map_query.get_single_mut().unwrap();
     let mut hoe_is_locked = hoe_is_locked_query.get_single_mut().unwrap();
     let mut player = player_query.get_single_mut().unwrap();
-    let does_gravity_apply = does_gravity_apply_to_entity(player.0.translation, PLAYER_WIDTH as i32, PLAYER_HEIGHT as i32, &chunk_map.map);
+    let does_gravity_apply = does_gravity_apply_to_entity(player.0.translation, PLAYER_WIDTH as i32, PLAYER_HEIGHT as i32, &mut chunk_map.map);
     if does_gravity_apply {
         player.1.vy -= 300. * time.delta_seconds();
     } else {

@@ -45,9 +45,9 @@ pub fn check_mouse_click(
                 if let Some(position_g) = q_windows.single().cursor_position()
                     .and_then(|cursor| camera.viewport_to_world(camera_transform, cursor))
                     .map(|ray| ray.origin) {
-                    if valid_machine_spawn(&chunk_map.map, position_g, DRILL_WIDTH as usize, DRILL_HEIGHT as usize) {
-                        spawn_drill(commands, asset_server, position_g, &chunk_map.map);
-                    }
+                    // if valid_machine_spawn(&chunk_map.map, position_g, DRILL_WIDTH as usize, DRILL_HEIGHT as usize) {
+                    //     spawn_drill(commands, asset_server, position_g, &chunk_map.map);
+                    // }
                 }
             }
         }

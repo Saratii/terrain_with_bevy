@@ -26,6 +26,7 @@ pub const SILVER: u8 = 21;
 
 pub const GRAVITY_AFFECTED: [u8; 6] = [DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3];
 pub const GROUND: [u8; 9] = [DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, COPPER, SILVER, ROCK];
+pub const SHOVEL_ABLE: [u8; 8] = [DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, COPPER, SILVER];
 
 pub fn dirt_variant_pmf() -> u8 {
     let rand_value = fastrand::f32();

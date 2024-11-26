@@ -1,21 +1,19 @@
 //Cheats
-pub const MAX_SHOVEL_CAPACITY: usize = 5750000;
-pub const CURSOR_RADIUS: usize = 15 * 10;
-pub const CURSOR_ORBITAL_RADIUS: f32 = 100.* 10.;
+pub const MAX_SHOVEL_CAPACITY: usize = 200;
+pub const CURSOR_RADIUS: usize = 15 * 1;
+pub const CURSOR_ORBITAL_RADIUS: f32 = 100.* 1.;
 
 //Setup
 pub const WINDOW_WIDTH: usize = 1200;
 pub const WINDOW_HEIGHT: usize = 1200;
 pub const CHUNK_SIZE: f32 = 600.;
-pub const CHUNKS_HORIZONTAL: f32 = 33.;
-pub const CHUNKS_VERTICAL: f32 = 33.;
 pub const LIGHTING_DEMO: bool = false;
 
 //Player
 pub const PLAYER_WIDTH: usize = 20;
 pub const PLAYER_HEIGHT: usize = 60;
 pub const PLAYER_SPAWN_X: usize = 0;
-pub const PLAYER_SPAWN_Y: usize = 0;
+pub const PLAYER_SPAWN_Y: usize = 500;
 pub const SPAWN_PLAYER: bool = false;
 
 //other
@@ -61,10 +59,6 @@ pub const LIGHTS_PER_SUN: usize = 1;
 pub const SHOW_RAYS: bool = true;
 pub const NUM_BOXES_IN_TOOL_BAR: usize = 6;
 pub const TOOL_BAR_BOX_SIZE: usize = 30; 
-pub const GLOBAL_MAX_X: i32 = (CHUNK_SIZE / 2.) as i32 + (CHUNKS_HORIZONTAL / 2.) as i32 * CHUNK_SIZE as i32;
-pub const GLOBAL_MIN_X: i32 = -1 * GLOBAL_MAX_X;
-pub const GLOBAL_MAX_Y: i32 = (CHUNK_SIZE / 2.) as i32 + (CHUNKS_VERTICAL / 2.) as i32 * CHUNK_SIZE as i32;
-pub const GLOBAL_MIN_Y: i32 = -1 * GLOBAL_MAX_Y;
 pub const RENDER_SIZE: i32 = 3;
 pub const MAX_DIRT_HEIGHT_G: f64 = 0.;
 pub const MAX_ROCK_HEIGHT_G: f64 = -100.; 

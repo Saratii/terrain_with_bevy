@@ -4,7 +4,7 @@ use std::fs::File;
 use bevy::{math::Vec3, prelude::Image, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}};
 
 use crate::color_map::SKY;
-use crate::constants::{CHUNKS_HORIZONTAL, CHUNKS_VERTICAL, CHUNK_SIZE};
+use crate::constants::CHUNK_SIZE;
 
 pub fn flatten_index(x: i32, y: i32) -> usize {
     let index = ((CHUNK_SIZE as i32 / 2) - y) * CHUNK_SIZE as i32 + (x + CHUNK_SIZE as i32 / 2);
@@ -41,6 +41,12 @@ pub fn tl_to_c(x: f32, y: f32, width: f32, height: f32) -> Vec3 {
 }
 
 pub fn flatten_index_standard_grid(x: &usize, y: &usize, grid_width: usize) -> usize {
+    #[cfg(debug_assertions)]
+    {
+        if y >= &grid_width {
+            panic!("Whoopsie: y {} is out of range of 0 .. {} \nCalled with x={}, y={}", y, grid_width, x, y);
+        }
+    }
     y * grid_width + x
 }
 
@@ -61,48 +67,67 @@ pub fn write_u8s_to_file(width: usize, data: Vec<u8>, file_path: &str) -> io::Re
 }
 
 pub fn valid_machine_spawn(chunk_map: &Vec<Vec<u8>>, position_g: Vec3, width: usize, height: usize) -> bool {
-    for y in position_g.y as i32 - height as i32/2..position_g.y as i32 + height as i32/2 {
-        for x in position_g.x as i32 - width as i32/2..position_g.x as i32 + width as i32/2 {
-            let chunk_x_g = get_chunk_x_g(x as f32);
-            let chunk_y_g = get_chunk_x_g(y as f32);
-            let chunk_x_v = get_chunk_x_v(chunk_x_g);
-            let chunk_y_v = get_chunk_x_v(chunk_y_g);
-            let chunk_index = flatten_index_standard_grid(&chunk_x_v, &chunk_y_v, CHUNKS_HORIZONTAL as usize);
-            let local_x = get_local_x(x);
-            let local_y = get_local_y(y);
-            let local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
-            if chunk_map[chunk_index][local_index] != SKY {
-                return false;
-            }
-        }
-    }
+    // for y in position_g.y as i32 - height as i32/2..position_g.y as i32 + height as i32/2 {
+    //     for x in position_g.x as i32 - width as i32/2..position_g.x as i32 + width as i32/2 {
+    //         let chunk_x_g = get_chunk_x_g(x as f32);
+    //         let chunk_y_g = get_chunk_x_g(y as f32);
+    //         let chunk_x_v = get_chunk_x_v(chunk_x_g);
+    //         let chunk_y_v = get_chunk_y_v(chunk_y_g);
+    //         let chunk_index = flatten_index_standard_grid(&chunk_x_v, &chunk_y_v, CHUNKS_HORIZONTAL as usize);
+    //         let local_x = get_local_x(x);
+    //         let local_y = get_local_y(y);
+    //         let local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
+    //         if chunk_map[chunk_index][local_index] != SKY {
+    //             return false;
+    //         }
+    //     }
+    // }
     true
 }
 
-pub fn world_grid_index_to_chunk_vec_index_shift(x: i32, y: i32) -> (usize, usize) {
-    ((x + CHUNKS_HORIZONTAL as i32 / 2) as usize, (y + CHUNKS_VERTICAL as i32 / 2) as usize)
-}
+// pub fn world_grid_index_to_chunk_vec_index_shift(x: i32, y: i32) -> (usize, usize) {
+//     ((x + CHUNKS_HORIZONTAL as i32 / 2) as usize, (y + CHUNKS_VERTICAL as i32 / 2) as usize)
+// }
 
-pub fn get_chunk_x_v(x_g: i32) -> usize {
-    (x_g + CHUNKS_HORIZONTAL as i32 / 2) as usize
-}
+// pub fn get_chunk_x_v(chunk_x_g: i32) -> usize {
+//     #[cfg(debug_assertions)]
+//     {
+//         if chunk_x_g < -CHUNKS_HORIZONTAL as i32 / 2 {
+//             panic!("Whoopsie: chunk_x_g {} is out of range of {} .. {} ", chunk_x_g, -CHUNKS_HORIZONTAL as i32 / 2, CHUNKS_HORIZONTAL as i32 / 2);
+//         } else
+//         if   (chunk_x_g + CHUNKS_HORIZONTAL as i32 / 2) as usize > CHUNKS_HORIZONTAL as usize - 1 {
+//             panic!("Whoopsie 1: x_v {} is out of range of 0 .. {} ", (chunk_x_g + CHUNKS_HORIZONTAL as i32 / 2) as usize, CHUNKS_HORIZONTAL as usize);
+//         }
+//     }
+//     (chunk_x_g + CHUNKS_HORIZONTAL as i32 / 2) as usize
+// }
 
-pub fn get_chunk_y_v(y_g: i32) -> usize {
-    (y_g + CHUNKS_VERTICAL as i32 / 2) as usize
-}
+// pub fn get_chunk_y_v(chunk_y_g: i32) -> usize {
+//     #[cfg(debug_assertions)]
+//     {
+//         if chunk_y_g < -CHUNKS_VERTICAL as i32 / 2 {
+//             panic!("Whoopsie: chunk_y_g {} is out of range of {} .. {} ", chunk_y_g, -CHUNKS_VERTICAL as i32 / 2, CHUNKS_VERTICAL as i32 / 2);
+//         } else
+//         if   (chunk_y_g + CHUNKS_VERTICAL as i32 / 2) as usize > CHUNKS_VERTICAL as usize - 1 {
+//             panic!("Whoopsie 1: y_v {} is out of range of 0 .. {} ", (chunk_y_g + CHUNKS_VERTICAL as i32 / 2) as usize, CHUNKS_VERTICAL as usize);
+//         }
+//     }
+//     (chunk_y_g + CHUNKS_VERTICAL as i32 / 2) as usize
 
-//shifts a chunk index to the center of the world grid
-pub fn chunk_index_x_y_to_world_grid_index_shift(x: usize, y: usize) -> (i32, i32) {
-    (x as i32 - CHUNKS_HORIZONTAL as i32 / 2, y as i32 - CHUNKS_VERTICAL as i32 / 2)
-}
+// }
 
-pub fn chunk_index_x_to_world_grid_index_shift(x: usize) -> i32 {
-    x as i32 - CHUNKS_HORIZONTAL as i32 / 2
-}
+// //shifts a chunk index to the center of the world grid
+// pub fn chunk_index_x_y_to_world_grid_index_shift(x: usize, y: usize) -> (i32, i32) {
+//     (x as i32 - CHUNKS_HORIZONTAL as i32 / 2, y as i32 - CHUNKS_VERTICAL as i32 / 2)
+// }
 
-pub fn chunk_index_y_to_world_grid_index_shift(y: usize) -> i32 {
-    y as i32 - CHUNKS_VERTICAL as i32 / 2
-}
+// pub fn chunk_index_x_to_world_grid_index_shift(x: usize) -> i32 {
+//     x as i32 - CHUNKS_HORIZONTAL as i32 / 2
+// }
+
+// pub fn chunk_index_y_to_world_grid_index_shift(y: usize) -> i32 {
+//     y as i32 - CHUNKS_VERTICAL as i32 / 2
+// }
 
 //global_chunk_index and top left Y to world coordinate:
 pub fn get_global_y_coordinate(chunk_y_g: i32, y: usize) -> i32 {
@@ -123,90 +148,85 @@ pub fn get_local_x(global_x: i32) -> usize {
     x as usize
 }
 
-pub fn get_local_y(global_y: i32) -> usize {
-    let y = CHUNK_SIZE as i32 / 2 - (global_y % CHUNK_SIZE as i32);
-    if y < 0 {
-        return (CHUNK_SIZE as i32 + y) as usize;
-    }
-    if y >= CHUNK_SIZE as i32 {
-        return (y - CHUNK_SIZE as i32) as usize;
-    }
-    y as usize
+pub fn get_local_y(global_x: i32) -> usize {
+    (299 - global_x).rem_euclid(600) as usize
 }
 
-pub fn get_chunk_x_g(x_g: f32) -> i32 {
-    ((x_g + CHUNK_SIZE/2.) / CHUNK_SIZE).floor() as i32
+pub fn get_chunk_x_g(x_g: i32) -> i32 {
+    (x_g + CHUNK_SIZE as i32 / 2).div_euclid(CHUNK_SIZE as i32)
 }
 
-pub fn get_chunk_y_g(y_g: f32) -> i32 {
-    ((y_g + CHUNK_SIZE/2.) / CHUNK_SIZE).floor() as i32
+pub fn get_chunk_y_g(y_g: i32) -> i32 {
+    (y_g + CHUNK_SIZE as i32 / 2).div_euclid(CHUNK_SIZE as i32)
 }
 
-pub fn global_to_chunk_index_and_local_index(x_g: i32, y_g: i32) -> (usize, usize) {
-    let chunk_x_g = get_chunk_x_g(x_g as f32);
-    let local_x = get_local_x(x_g);
-    let chunk_y_g = get_chunk_y_g(y_g as f32);
-    let local_y = get_local_y(y_g);
-    let chunk_x_v = get_chunk_x_v(chunk_x_g);
-    let chunk_y_v = get_chunk_y_v(chunk_y_g);
-    let chunk_index = flatten_index_standard_grid(&chunk_x_v, &chunk_y_v, CHUNKS_HORIZONTAL as usize);
-    let local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
-    #[cfg(debug_assertions)]
-    {
-        if local_index >= CHUNK_SIZE as usize * CHUNK_SIZE as usize || chunk_index > CHUNKS_HORIZONTAL as usize * CHUNKS_VERTICAL as usize {
-            panic!(
-                "Whoopsie: conversion failed with input: {} {} -> {}\n\
-                Chunk x_g: {}, Chunk y_g: {}\n\
-                Chunk x_v: {}, Chunk y_v: {}\n\
-                Local x: {}, Local y: {}",
-                x_g, y_g, local_index, chunk_x_g, chunk_y_g, chunk_x_v, chunk_y_v, local_x, local_y
-            );
-        }
-    }
-    (chunk_index, local_index)
+pub fn local_to_global_x(chunk_x_g: i32, local_x: usize) -> i32 {
+    chunk_x_g * CHUNK_SIZE as i32 + local_x as i32 - CHUNK_SIZE as i32 / 2
+}
+
+pub fn local_to_global_y(chunk_y_g: i32, local_y: usize) -> i32 {
+    chunk_y_g * CHUNK_SIZE as i32 + CHUNK_SIZE as i32 / 2 - local_y as i32
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{constants::CHUNK_SIZE, util::get_local_x};
+    use crate::{constants::CHUNK_SIZE, util::{get_chunk_x_g, get_chunk_y_g, get_local_x, get_local_y, local_to_global_x}};
 
     #[test]
-    fn test_get_local_x_chunk_0_0() {
+    fn test_get_local_y() {
+        assert_eq!(get_local_y(-300), 599);
+        assert_eq!(get_local_y(-301), 0);
+        assert_eq!(get_local_y(0), 299);
+        assert_eq!(get_local_y(300), 599);
+        assert_eq!(get_local_y(299), 0);
+    }
+
+    #[test]
+    fn test_get_local_x_chunk() {
+        assert_eq!(get_chunk_x_g(0), 0);
+        assert_eq!(get_chunk_x_g(300), 1);
+        assert_eq!(get_chunk_x_g(-300), 0);
+        assert_eq!(get_chunk_x_g(-301), -1);
+    }
+
+    #[test]
+    fn test_get_local_y_chunk() {
+        assert_eq!(get_chunk_y_g(0), 0);
+        assert_eq!(get_chunk_y_g(300), 1);
+        assert_eq!(get_chunk_y_g(299), 0);
+        assert_eq!(get_chunk_y_g(-300), 0);
+        assert_eq!(get_chunk_y_g(-301), -1);
+    }
+
+    #[test]
+    fn test_get_local_x() {
+        assert_eq!(get_local_x(-301), 599);
+        assert_eq!(get_local_x(-400), 500);
+        assert_eq!(get_local_x(0), CHUNK_SIZE as usize / 2);
         assert_eq!(get_local_x(-300), 0);
+        assert_eq!(get_local_x(300 + 1 * CHUNK_SIZE as i32 + 200), 200);
+        assert_eq!(get_local_x(301), 1);
+        assert_eq!(get_local_x(400), 100);
         assert_eq!(get_local_x(0), 300);
         assert_eq!(get_local_x(100), 400);
         assert_eq!(get_local_x(-100), 200);
-    }
-
-    #[test]
-    fn test_get_local_x_chunk_1_0() {
-        assert_eq!(get_local_x(301), 1);
-        assert_eq!(get_local_x(400), 100);
-    }
-
-    #[test]
-    fn test_get_local_x_chunk_2_0() {
-        assert_eq!(get_local_x(300 + 1 * CHUNK_SIZE as i32 + 200), 200);
-    }
-
-    #[test]
-    fn test_get_local_x_chunk_n1_0() {
-        assert_eq!(get_local_x(-301), 599);
-        assert_eq!(get_local_x(-400), 500);
-    }
-
-    #[test]
-    fn test_get_local_x_chunk_n2_1() {
         assert_eq!(get_local_x(300 + -1 * CHUNK_SIZE as i32 + 200), 200);
-    }
-
-    #[test]
-    fn test_get_local_x_chunk_edge() {
         assert_eq!(get_local_x(300), 0);
     }
 
+    // #[test]
+    // fn test_get_chunk_y_v() {
+    //     assert_eq!(super::get_chunk_y_v(CHUNKS_VERTICAL as i32/2), 0);
+    //     assert_eq!(super::get_chunk_y_v(CHUNKS_VERTICAL as i32/-2), CHUNKS_VERTICAL as usize - 1);
+    // }
+
     #[test]
-    fn test_get_local_y_chunk_edge() {
-        assert_eq!(get_local_x(300), 0);
+    fn test_local_to_global_x() {
+        assert_eq!(local_to_global_x(0, (CHUNK_SIZE as i32/2) as usize), 0);
+    }
+
+    #[test]
+    fn test_local_to_global_y() {
+        assert_eq!(super::local_to_global_y(0, (CHUNK_SIZE as i32/2) as usize), 0);
     }
 }
