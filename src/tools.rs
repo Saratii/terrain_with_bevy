@@ -1,6 +1,7 @@
 use std::{cmp::min, collections::HashMap};
 
 use bevy::{asset::Assets, math::Vec2, prelude::{Camera, Commands, Component, GlobalTransform, Image, Mesh, Query, Rectangle, ResMut, Transform, Visibility, With, Without}, sprite::MaterialMesh2dBundle, window::{PrimaryWindow, Window}};
+use noise::Perlin;
 
 use crate::{color_map::{apply_gamma_correction, gravel_variant_pmf, CLEAR, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, GROUND, LIGHT, RAW_DECODER_DATA, RED, ROCK, SHOVEL_ABLE, SKY, STEEL, TRANSLUCENT_GREY, WHITE}, components::{Bool, ChunkMap, ContentList, GravityCoords, PlayerTag, Velocity}, constants::{CHUNK_SIZE, CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, HOE_HEIGHT, HOE_WIDTH, MAX_SHOVEL_CAPACITY}, util::{distance, flatten_index, flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_local_x, get_local_y, grid_to_image}, world_generation::{generate_chunk, seed_chunk_with_ore, CameraTag, GridMaterial}};
 
@@ -251,7 +252,7 @@ pub fn right_click_shovel(shovel_grid: &mut Vec<u8>, chunk_map: &mut HashMap<(i3
     update_shovel_content_visual(shovel_grid, cursor_contents);
 }
 
-pub fn left_click_shovel(shovel_position: &Transform, shovel_contents: &mut Vec<u8>, chunk_map: &mut HashMap<(i32, i32), Vec<u8>>, shovel_grid: &mut Vec<u8>, gravity_coords: &mut GravityCoords) {
+pub fn left_click_shovel(shovel_position: &Transform, shovel_contents: &mut Vec<u8>, chunk_map: &mut HashMap<(i32, i32), Vec<u8>>, shovel_grid: &mut Vec<u8>, gravity_coords: &mut GravityCoords, perlin: &Perlin) {
     let left = shovel_position.translation.x as i32 - CURSOR_RADIUS as i32;
     let right = shovel_position.translation.x as i32 + CURSOR_RADIUS as i32;
     let top = shovel_position.translation.y as i32 + CURSOR_RADIUS as i32; 
@@ -267,7 +268,7 @@ pub fn left_click_shovel(shovel_position: &Transform, shovel_contents: &mut Vec<
                 if SHOVEL_ABLE.contains(&comparing_pixel) {
                     shovel_contents.push(comparing_pixel);
                     chunk_map.get_mut(&(chunk_x_g, chunk_y_g)).unwrap()[local_index] = SKY;
-                    if let Some(y) = search_upward_for_non_sky_pixel(chunk_map, x, y) {
+                    if let Some(y) = search_upward_for_non_sky_pixel(chunk_map, x, y, perlin) {
                         gravity_coords.coords.insert((x, y));
                     }
                     if shovel_contents.len() == MAX_SHOVEL_CAPACITY {
@@ -303,7 +304,7 @@ pub fn left_click_pickaxe(pickaxe_position: &Transform, chunk_map: &mut HashMap<
     }
 }
 
-fn search_upward_for_non_sky_pixel(chunk_map: &mut HashMap<(i32, i32), Vec<u8>>, x_g: i32, y_g: i32) -> Option<i32> {
+fn search_upward_for_non_sky_pixel(chunk_map: &mut HashMap<(i32, i32), Vec<u8>>, x_g: i32, y_g: i32, perlin: &Perlin) -> Option<i32> {
     let mut y_level = 1;
     while y_g + y_level < y_g + CURSOR_ORBITAL_RADIUS as i32 * 2 {
         let local_x = get_local_x(x_g);
@@ -315,7 +316,7 @@ fn search_upward_for_non_sky_pixel(chunk_map: &mut HashMap<(i32, i32), Vec<u8>>,
                 return Some(y_g + y_level)
             }
         } else {
-            chunk_map.insert((chunk_x_g, chunk_y_g), generate_chunk(chunk_x_g, chunk_y_g));
+            chunk_map.insert((chunk_x_g, chunk_y_g), generate_chunk(chunk_x_g, chunk_y_g, perlin));
             seed_chunk_with_ore((chunk_x_g, chunk_y_g), chunk_map);
             if chunk_map.get(&(chunk_x_g, chunk_y_g)).unwrap()[local_index] != SKY {
                 return Some(y_g + y_level)

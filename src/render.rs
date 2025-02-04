@@ -1,6 +1,6 @@
 use bevy::{asset::{Assets, Handle}, math::Vec3, prelude::{Image, Query, ResMut, Transform, With, Without}};
 
-use crate::{components::{ChunkMap, PlayerTag, TerrainImageTag}, constants::{CHUNK_SIZE, WINDOW_WIDTH}, util::{flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g}, world_generation::{generate_chunk, seed_chunk_with_ore, CameraTag, GridMaterial}};
+use crate::{components::{ChunkMap, PerlinHandle, PlayerTag, TerrainImageTag}, constants::{CHUNK_SIZE, WINDOW_WIDTH}, util::{flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g}, world_generation::{generate_chunk, seed_chunk_with_ore, CameraTag, GridMaterial}};
 
 pub fn render(
     mut materials: ResMut<Assets<GridMaterial>>,
@@ -9,6 +9,7 @@ pub fn render(
     player_query: Query<&Transform, (With<PlayerTag>, Without<TerrainImageTag>, Without<CameraTag>)>,
     mut chunk_map_query: Query<&mut ChunkMap>,
     mut camera_query: Query<&mut Transform, (With<CameraTag>, Without<PlayerTag>, Without<TerrainImageTag>)>,
+    perlin: Query<&PerlinHandle>,
 ) {
     let mut i = 0;
     let mut chunk_map = &mut chunk_map_query.get_single_mut().unwrap().map;
@@ -25,7 +26,8 @@ pub fn render(
             if let Some(chunk) = chunk_map.get(&(chunk_x_g - 1, chunk_y_g + 1)) {
                 *grid = chunk.clone();
             } else {
-                chunk_map.insert((chunk_x_g - 1, chunk_y_g + 1), generate_chunk(chunk_x_g - 1, chunk_y_g + 1));
+                let perlin = perlin.get_single().unwrap().handle;
+                chunk_map.insert((chunk_x_g - 1, chunk_y_g + 1), generate_chunk(chunk_x_g - 1, chunk_y_g + 1, &perlin));
                 seed_chunk_with_ore((chunk_x_g - 1, chunk_y_g + 1), &mut chunk_map);
             }
             rendered_box_transform.translation.x = (chunk_x_g as f32 - 1.) * CHUNK_SIZE;
@@ -34,7 +36,8 @@ pub fn render(
             if let Some(chunk) = chunk_map.get(&(chunk_x_g, chunk_y_g + 1)) {
                 *grid = chunk.clone();
             } else {
-                chunk_map.insert((chunk_x_g, chunk_y_g + 1), generate_chunk(chunk_x_g , chunk_y_g + 1));
+                let perlin = perlin.get_single().unwrap().handle;
+                chunk_map.insert((chunk_x_g, chunk_y_g + 1), generate_chunk(chunk_x_g , chunk_y_g + 1, &perlin));
                 seed_chunk_with_ore((chunk_x_g, chunk_y_g + 1), &mut chunk_map);
             }
             rendered_box_transform.translation.x = chunk_x_g as f32 * CHUNK_SIZE;
@@ -43,7 +46,8 @@ pub fn render(
             if let Some(chunk) = chunk_map.get(&(chunk_x_g + 1, chunk_y_g + 1)) {
                 *grid = chunk.clone();
             } else {
-                chunk_map.insert((chunk_x_g + 1, chunk_y_g + 1), generate_chunk(chunk_x_g + 1, chunk_y_g + 1));
+                let perlin = perlin.get_single().unwrap().handle;
+                chunk_map.insert((chunk_x_g + 1, chunk_y_g + 1), generate_chunk(chunk_x_g + 1, chunk_y_g + 1, &perlin));
                 seed_chunk_with_ore((chunk_x_g + 1, chunk_y_g + 1), &mut chunk_map);
             }
             rendered_box_transform.translation.x = (chunk_x_g as f32 + 1.) * CHUNK_SIZE;
@@ -52,7 +56,8 @@ pub fn render(
             if let Some(chunk) = chunk_map.get(&(chunk_x_g - 1, chunk_y_g)) {
                 *grid = chunk.clone();
             } else {
-                chunk_map.insert((chunk_x_g - 1, chunk_y_g), generate_chunk(chunk_x_g - 1 , chunk_y_g));
+                let perlin = perlin.get_single().unwrap().handle;
+                chunk_map.insert((chunk_x_g - 1, chunk_y_g), generate_chunk(chunk_x_g - 1 , chunk_y_g, &perlin));
                 seed_chunk_with_ore((chunk_x_g - 1, chunk_y_g), &mut chunk_map);
             }
             rendered_box_transform.translation.x = (chunk_x_g as f32 - 1.) * CHUNK_SIZE;
@@ -61,7 +66,8 @@ pub fn render(
             if let Some(chunk) = chunk_map.get(&(chunk_x_g, chunk_y_g)) {
                 *grid = chunk.clone();
             } else {
-                chunk_map.insert((chunk_x_g, chunk_y_g), generate_chunk(chunk_x_g , chunk_y_g));
+                let perlin = perlin.get_single().unwrap().handle;
+                chunk_map.insert((chunk_x_g, chunk_y_g), generate_chunk(chunk_x_g , chunk_y_g, &perlin));
                 seed_chunk_with_ore((chunk_x_g, chunk_y_g), &mut chunk_map);
             }
             rendered_box_transform.translation.x = chunk_x_g as f32 * CHUNK_SIZE;
@@ -70,7 +76,8 @@ pub fn render(
             if let Some(chunk) = chunk_map.get(&(chunk_x_g + 1, chunk_y_g)) {
                 *grid = chunk.clone();
             } else {
-                chunk_map.insert((chunk_x_g + 1, chunk_y_g), generate_chunk(chunk_x_g + 1 , chunk_y_g));
+                let perlin = perlin.get_single().unwrap().handle;
+                chunk_map.insert((chunk_x_g + 1, chunk_y_g), generate_chunk(chunk_x_g + 1 , chunk_y_g, &perlin));
                 seed_chunk_with_ore((chunk_x_g + 1, chunk_y_g), &mut chunk_map);
             }
             rendered_box_transform.translation.x = (chunk_x_g as f32 + 1.) * CHUNK_SIZE;
@@ -79,7 +86,8 @@ pub fn render(
             if let Some(chunk) = chunk_map.get(&(chunk_x_g - 1, chunk_y_g - 1)) {
                 *grid = chunk.clone();
             } else {
-                chunk_map.insert((chunk_x_g - 1, chunk_y_g - 1), generate_chunk(chunk_x_g - 1, chunk_y_g - 1));
+                let perlin = perlin.get_single().unwrap().handle;
+                chunk_map.insert((chunk_x_g - 1, chunk_y_g - 1), generate_chunk(chunk_x_g - 1, chunk_y_g - 1, &perlin));
                 seed_chunk_with_ore((chunk_x_g - 1, chunk_y_g - 1), &mut chunk_map);
             }
             rendered_box_transform.translation.x = (chunk_x_g as f32 - 1.) * CHUNK_SIZE;
@@ -88,7 +96,8 @@ pub fn render(
             if let Some(chunk) = chunk_map.get(&(chunk_x_g, chunk_y_g - 1)) {
                 *grid = chunk.clone();
             } else {
-                chunk_map.insert((chunk_x_g, chunk_y_g - 1), generate_chunk(chunk_x_g, chunk_y_g - 1));
+                let perlin = perlin.get_single().unwrap().handle;
+                chunk_map.insert((chunk_x_g, chunk_y_g - 1), generate_chunk(chunk_x_g, chunk_y_g - 1, &perlin));
                 seed_chunk_with_ore((chunk_x_g, chunk_y_g - 1), &mut chunk_map);
             }
             rendered_box_transform.translation.x = chunk_x_g as f32 * CHUNK_SIZE;
@@ -97,7 +106,8 @@ pub fn render(
             if let Some(chunk) = chunk_map.get(&(chunk_x_g + 1, chunk_y_g - 1)) {
                 *grid = chunk.clone();
             } else {
-                chunk_map.insert((chunk_x_g + 1, chunk_y_g - 1), generate_chunk(chunk_x_g + 1, chunk_y_g - 1));
+                let perlin = perlin.get_single().unwrap().handle;
+                chunk_map.insert((chunk_x_g + 1, chunk_y_g - 1), generate_chunk(chunk_x_g + 1, chunk_y_g - 1, &perlin));
                 seed_chunk_with_ore((chunk_x_g + 1, chunk_y_g - 1), &mut chunk_map);
             }
             rendered_box_transform.translation.x = (chunk_x_g as f32 + 1.) * CHUNK_SIZE;
@@ -109,7 +119,8 @@ pub fn render(
             if let Some(chunk) = chunk_map.get(&(chunk_x_g - 1, chunk_y_g + 2)) {
                 *above_grid = chunk.clone();
             } else {
-                chunk_map.insert((chunk_x_g - 1, chunk_y_g + 2), generate_chunk(chunk_x_g - 1, chunk_y_g + 2));
+                let perlin = perlin.get_single().unwrap().handle;
+                chunk_map.insert((chunk_x_g - 1, chunk_y_g + 2), generate_chunk(chunk_x_g - 1, chunk_y_g + 2, &perlin));
                 seed_chunk_with_ore((chunk_x_g - 1, chunk_y_g + 2), &mut chunk_map);
             }
             *above_grid = chunk_map.get(&(chunk_x_g - 1, chunk_y_g + 2)).unwrap().clone();
@@ -117,28 +128,32 @@ pub fn render(
             if let Some(chunk) = chunk_map.get(&(chunk_x_g, chunk_y_g + 2)) {
                 *above_grid = chunk.clone();
             } else {
-                chunk_map.insert((chunk_x_g, chunk_y_g + 2), generate_chunk(chunk_x_g , chunk_y_g + 2));
+                let perlin = perlin.get_single().unwrap().handle;
+                chunk_map.insert((chunk_x_g, chunk_y_g + 2), generate_chunk(chunk_x_g , chunk_y_g + 2, &perlin));
                 seed_chunk_with_ore((chunk_x_g, chunk_y_g + 2), &mut chunk_map);
             }
         } else if i == 2 { //top left
             if let Some(chunk) = chunk_map.get(&(chunk_x_g + 1, chunk_y_g + 2)) {
                 *above_grid = chunk.clone();
             } else {
-                chunk_map.insert((chunk_x_g + 1, chunk_y_g + 2), generate_chunk(chunk_x_g + 1 , chunk_y_g + 2));
+                let perlin = perlin.get_single().unwrap().handle;
+                chunk_map.insert((chunk_x_g + 1, chunk_y_g + 2), generate_chunk(chunk_x_g + 1 , chunk_y_g + 2, &perlin));
                 seed_chunk_with_ore((chunk_x_g + 1, chunk_y_g + 2), &mut chunk_map);
             }
         } else if i == 3 { //center left
             if let Some(chunk) = chunk_map.get(&(chunk_x_g - 1, chunk_y_g + 1)) {
                 *above_grid = chunk.clone();
             } else {
-                chunk_map.insert((chunk_x_g - 1, chunk_y_g + 1), generate_chunk(chunk_x_g - 1, chunk_y_g + 1));
+                let perlin = perlin.get_single().unwrap().handle;
+                chunk_map.insert((chunk_x_g - 1, chunk_y_g + 1), generate_chunk(chunk_x_g - 1, chunk_y_g + 1, &perlin));
                 seed_chunk_with_ore((chunk_x_g - 1, chunk_y_g + 1), &mut chunk_map);
             }
         } else if i == 4 { //center center
             if let Some(chunk) = chunk_map.get(&(chunk_x_g, chunk_y_g + 1)) {
                 *above_grid = chunk.clone();
             } else {
-                chunk_map.insert((chunk_x_g, chunk_y_g + 1), generate_chunk(chunk_x_g, chunk_y_g + 1));
+                let perlin = perlin.get_single().unwrap().handle;
+                chunk_map.insert((chunk_x_g, chunk_y_g + 1), generate_chunk(chunk_x_g, chunk_y_g + 1, &perlin));
                 seed_chunk_with_ore((chunk_x_g, chunk_y_g + 1), &mut chunk_map);
             }
             *above_grid = chunk_map.get(&(chunk_x_g, chunk_y_g + 1)).unwrap().clone();
@@ -146,28 +161,32 @@ pub fn render(
             if let Some(chunk) = chunk_map.get(&(chunk_x_g + 1, chunk_y_g + 1)) {
                 *above_grid = chunk.clone();
             } else {
-                chunk_map.insert((chunk_x_g + 1, chunk_y_g + 1), generate_chunk(chunk_x_g + 1, chunk_y_g + 1));
+                let perlin = perlin.get_single().unwrap().handle;
+                chunk_map.insert((chunk_x_g + 1, chunk_y_g + 1), generate_chunk(chunk_x_g + 1, chunk_y_g + 1, &perlin));
                 seed_chunk_with_ore((chunk_x_g + 1, chunk_y_g + 1), &mut chunk_map);
             }
         } else if i == 6 { //bottom left
             if let Some(chunk) = chunk_map.get(&(chunk_x_g - 1, chunk_y_g)) {
                 *above_grid = chunk.clone();
             } else {
-                chunk_map.insert((chunk_x_g - 1, chunk_y_g), generate_chunk(chunk_x_g - 1, chunk_y_g));
+                let perlin = perlin.get_single().unwrap().handle;
+                chunk_map.insert((chunk_x_g - 1, chunk_y_g), generate_chunk(chunk_x_g - 1, chunk_y_g, &perlin));
                 seed_chunk_with_ore((chunk_x_g - 1, chunk_y_g), &mut chunk_map);
             }
         } else if i == 7 { //bottom center
             if let Some(chunk) = chunk_map.get(&(chunk_x_g, chunk_y_g)) {
                 *above_grid = chunk.clone();
             } else {
-                chunk_map.insert((chunk_x_g, chunk_y_g), generate_chunk(chunk_x_g, chunk_y_g));
+                let perlin = perlin.get_single().unwrap().handle;
+                chunk_map.insert((chunk_x_g, chunk_y_g), generate_chunk(chunk_x_g, chunk_y_g, &perlin));
                 seed_chunk_with_ore((chunk_x_g, chunk_y_g), &mut chunk_map);
             }
         } else if i == 8 { //bottom right
             if let Some(chunk) = chunk_map.get(&(chunk_x_g + 1, chunk_y_g)) {
                 *above_grid = chunk.clone();
             } else {
-                chunk_map.insert((chunk_x_g + 1, chunk_y_g), generate_chunk(chunk_x_g + 1, chunk_y_g));
+                let perlin = perlin.get_single().unwrap().handle;
+                chunk_map.insert((chunk_x_g + 1, chunk_y_g), generate_chunk(chunk_x_g + 1, chunk_y_g, &perlin));
                 seed_chunk_with_ore((chunk_x_g + 1, chunk_y_g), &mut chunk_map);
             }
         }

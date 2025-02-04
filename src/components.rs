@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use bevy::{prelude::Component, time::Timer};
+use noise::Perlin;
 use rand::{distributions::Standard, prelude::Distribution, Rng};
 
 #[derive(Component, Debug)]
@@ -137,4 +138,9 @@ pub struct USize {
 #[derive(Component)]
 pub struct ChunkMap {
     pub map: HashMap<(i32, i32), Vec<u8>>,
+}
+
+#[derive(Component)]
+pub struct PerlinHandle {
+    pub handle: Perlin,
 }

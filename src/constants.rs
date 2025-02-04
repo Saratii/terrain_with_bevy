@@ -28,6 +28,13 @@ pub const MAX_CLOUD_SPEED: f32 = 20.;
 pub const SUN_SIZE: usize = 100;
 pub const MOON_SIZE: usize = 50;
 
+//terrain gen
+pub const DIRT_NOISE_SMOOTHNESS: f64 = 0.003;
+pub const DIRT_VARIATION: f64 = 15.;
+pub const ROCK_NOISE_SMOOTHNESS: f64 = 0.004;
+pub const ROCK_VARIATION: f64 = 80.;
+
+
 pub const GRAVITY: f32 = 10.;
 
 pub const MAX_LAYERS: usize = 4;

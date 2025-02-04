@@ -1,6 +1,7 @@
 use bevy::{asset::{AssetServer, Assets, Handle}, input::ButtonInput, prelude::{Camera, Commands, GlobalTransform, Image, MouseButton, Query, Res, ResMut, Transform, With, Without}, window::{PrimaryWindow, Window}};
+use noise::Perlin;
 
-use crate::{components::{Bool, ChunkMap, ContentList, GravityCoords, TerrainImageTag}, constants::MAX_SHOVEL_CAPACITY, drill::{spawn_drill, DRILL_HEIGHT, DRILL_WIDTH}, tools::{left_click_hoe, left_click_pickaxe, left_click_shovel, right_click_hoe, right_click_shovel, CurrentTool, HoeTag, PickaxeTag, ShovelTag, Tool}, util::valid_machine_spawn, world_generation::{CameraTag, GridMaterial}};
+use crate::{components::{Bool, ChunkMap, ContentList, GravityCoords, PerlinHandle, TerrainImageTag}, constants::MAX_SHOVEL_CAPACITY, drill::{spawn_drill, DRILL_HEIGHT, DRILL_WIDTH}, tools::{left_click_hoe, left_click_pickaxe, left_click_shovel, right_click_hoe, right_click_shovel, CurrentTool, HoeTag, PickaxeTag, ShovelTag, Tool}, util::valid_machine_spawn, world_generation::{CameraTag, GridMaterial}};
 
 pub fn check_mouse_click(
     buttons: Res<ButtonInput<MouseButton>>,
@@ -15,10 +16,10 @@ pub fn check_mouse_click(
     mut images: ResMut<Assets<Image>>,
     shovel_material_handle: Query<&Handle<GridMaterial>, (With<ShovelTag>, Without<TerrainImageTag>)>,
     commands: Commands, 
-    asset_server: Res<AssetServer>,
     q_windows: Query<&Window, With<PrimaryWindow>>,
     q_camera: Query<(&Camera, &GlobalTransform), With<CameraTag>>,
     mut chunk_map_query: Query<&mut ChunkMap>,
+    perlin_query: Query<&PerlinHandle>,
 ) {
     let mut cursor_contents = cursor_contents_query.get_single_mut().unwrap();
     let current_tool = current_tool_query.get_single().unwrap();
@@ -30,7 +31,8 @@ pub fn check_mouse_click(
                 let shovel_material_handle = shovel_material_handle.get_single().unwrap();
                 let shovel_id = materials.get_mut(shovel_material_handle).unwrap().color_map.clone();
                 let mut shovel_image = images.remove(&shovel_id).unwrap();
-                left_click_shovel(&shovel_position_query.get_single_mut().unwrap(), &mut cursor_contents.contents, &mut chunk_map.map, &mut shovel_image.data, &mut gravity_coords);    
+                let perlin = perlin_query.get_single().unwrap().handle;
+                left_click_shovel(&shovel_position_query.get_single_mut().unwrap(), &mut cursor_contents.contents, &mut chunk_map.map, &mut shovel_image.data, &mut gravity_coords, &perlin);    
                 images.insert(&shovel_id, shovel_image);        
             },
             Tool::Pickaxe => {
