@@ -17,11 +17,11 @@ use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::syst
 use noise::{NoiseFn, Perlin};
 use rand::rngs::ThreadRng;
 use rand::Rng;
-use crate::color_map::{apply_gamma_correction, dirt_variant_pmf, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, GRAVITY_AFFECTED, GROUND, LIGHT, RAW_DECODER_DATA, REFINED_COPPER, ROCK, SELL_BOX, SILVER, SKY};
+use crate::color_map::{apply_gamma_correction, dirt_variant_pmf, grass_variant_pmf, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, GRAVITY_AFFECTED, LIGHT, RAW_DECODER_DATA, REFINED_COPPER, ROCK, SELL_BOX, SILVER, SKY};
 use crate::components::{ChunkMap, Count, GravityCoords, MoneyTextTag, PerlinHandle, SunTick, TerrainImageTag, TimerComponent};
-use crate::constants::{CHUNK_SIZE, COPPER_SPAWN_RADIUS, DIRT_NOISE_SMOOTHNESS, DIRT_VARIATION, LIGHTING_DEMO, MAX_COPPER_ORE_SPAWNS, MAX_DIRT_HEIGHT_G, MAX_ROCK_HEIGHT_G, RENDER_SIZE, ROCK_NOISE_SMOOTHNESS, ROCK_VARIATION, SELL_BOX_HEIGHT, SELL_BOX_SPAWN_X, SELL_BOX_SPAWN_Y, SELL_BOX_WIDTH, SPAWN_SELL_BOX, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::constants::{CHUNK_SIZE, DIRT_NOISE_SMOOTHNESS, DIRT_VARIATION, ROCK_NOISE_SMOOTHNESS, ROCK_VARIATION, SELL_BOX_HEIGHT, SELL_BOX_SPAWN_X, SELL_BOX_SPAWN_Y, SELL_BOX_WIDTH, SPAWN_SELL_BOX};
 use crate::drill::DrillTag;
-use crate::util::{distance, flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_global_x_coordinate, get_global_y_coordinate, get_local_x, get_local_y, grid_to_image, local_to_global_x};
+use crate::util::{flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_global_x_coordinate, get_global_y_coordinate, get_local_x, get_local_y, grid_to_image, local_to_global_x};
 
 #[derive(Component)]
 pub struct CameraTag;
@@ -105,11 +105,15 @@ pub fn generate_chunk(chunk_x_g: i32, chunk_y_g: i32, perlin: &Perlin) -> Vec<u8
             let index = y * CHUNK_SIZE as usize + x;
             let dirt_perlin =  perlin.get([global_x as f64 * DIRT_NOISE_SMOOTHNESS, 0.0]) * DIRT_VARIATION;
             let rock_perlin = perlin.get([global_x as f64 * ROCK_NOISE_SMOOTHNESS, 0.0]) * ROCK_VARIATION;
-            if global_y > dirt_perlin as i32 {
+            let grass_perlin_top = perlin.get([global_x as f64 * DIRT_NOISE_SMOOTHNESS, 0.0]) * 10.;
+            let grass_perlin_bottom = perlin.get([global_x as f64 * 0.1, 0.0]) * 10.;
+            if global_y > grass_perlin_top as i32 + 10 {
                 grid[index] = SKY;
-                continue;
-            }
-            if global_y > -100 + rock_perlin as i32 {
+            } else if global_y > grass_perlin_bottom as i32 - 5 {
+                grid[index] = grass_variant_pmf();
+            } else if global_y > dirt_perlin as i32 {
+                grid[index] = dirt_variant_pmf();
+            } else if global_y > -100 + rock_perlin as i32 {
                 grid[index] = dirt_variant_pmf();
             } else {
                 grid[index] = ROCK;
@@ -142,7 +146,7 @@ pub fn does_gravity_apply_to_entity(entity_pos_g: Vec3, entity_width: i32, entit
         let local_y = get_local_y(entity_pos_g.y as i32 - entity_height/2);
         let local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
         let (chunk_x_g, chunk_y_g) = (get_chunk_x_g(x), get_chunk_y_g(entity_pos_g.y as i32 - entity_height as i32 / 2));
-        if let Some(chunk) = chunk_map.get(&(chunk_x_g, chunk_y_g)) {
+        if let Some(_) = chunk_map.get(&(chunk_x_g, chunk_y_g)) {
             match &chunk_map.get(&(chunk_x_g, chunk_y_g)).unwrap()[local_index]{
                 &SKY => continue,
                 &SELL_BOX => continue,

@@ -1,5 +1,4 @@
-use bevy::{asset::{AssetServer, Assets, Handle}, input::ButtonInput, prelude::{Camera, Commands, GlobalTransform, Image, MouseButton, Query, Res, ResMut, Transform, With, Without}, window::{PrimaryWindow, Window}};
-use noise::Perlin;
+use bevy::{asset::{Assets, Handle}, input::ButtonInput, prelude::{Camera, Commands, GlobalTransform, Image, MouseButton, Query, Res, ResMut, Transform, With, Without}, window::{PrimaryWindow, Window}};
 
 use crate::{components::{Bool, ChunkMap, ContentList, GravityCoords, PerlinHandle, TerrainImageTag}, constants::MAX_SHOVEL_CAPACITY, drill::{spawn_drill, DRILL_HEIGHT, DRILL_WIDTH}, tools::{left_click_hoe, left_click_pickaxe, left_click_shovel, right_click_hoe, right_click_shovel, CurrentTool, HoeTag, PickaxeTag, ShovelTag, Tool}, util::valid_machine_spawn, world_generation::{CameraTag, GridMaterial}};
 

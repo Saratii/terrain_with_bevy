@@ -1,9 +1,9 @@
-use std::{cmp::min, collections::HashMap};
+use std::collections::HashMap;
 
 use bevy::{asset::Assets, math::Vec2, prelude::{Camera, Commands, Component, GlobalTransform, Image, Mesh, Query, Rectangle, ResMut, Transform, Visibility, With, Without}, sprite::MaterialMesh2dBundle, window::{PrimaryWindow, Window}};
 use noise::Perlin;
 
-use crate::{color_map::{apply_gamma_correction, gravel_variant_pmf, CLEAR, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, GROUND, LIGHT, RAW_DECODER_DATA, RED, ROCK, SHOVEL_ABLE, SKY, STEEL, TRANSLUCENT_GREY, WHITE}, components::{Bool, ChunkMap, ContentList, GravityCoords, PlayerTag, Velocity}, constants::{CHUNK_SIZE, CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, HOE_HEIGHT, HOE_WIDTH, MAX_SHOVEL_CAPACITY}, util::{distance, flatten_index, flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_local_x, get_local_y, grid_to_image}, world_generation::{generate_chunk, seed_chunk_with_ore, CameraTag, GridMaterial}};
+use crate::{color_map::{apply_gamma_correction, gravel_variant_pmf, CLEAR, LIGHT, RAW_DECODER_DATA, RED, ROCK, SHOVEL_ABLE, SKY, STEEL, TRANSLUCENT_GREY, WHITE}, components::{Bool, ChunkMap, ContentList, GravityCoords, PlayerTag, Velocity}, constants::{CHUNK_SIZE, CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, HOE_HEIGHT, HOE_WIDTH, MAX_SHOVEL_CAPACITY}, util::{distance, flatten_index, flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_local_x, get_local_y, grid_to_image}, world_generation::{generate_chunk, seed_chunk_with_ore, CameraTag, GridMaterial}};
 
 #[derive(Component)]
 pub struct HoeTag;
@@ -150,7 +150,7 @@ pub fn update_tool(
     let player = player_query.get_single_mut().unwrap();
     let current_tool = current_tool_query.get_single().unwrap();
     let mut tool_position;
-    let mut chunk_map = chunk_map_query.get_single_mut().unwrap();
+    let chunk_map = chunk_map_query.get_single_mut().unwrap();
     let hoe_is_locked = is_hoe_locked_query.get_single().unwrap();
     match current_tool.tool {
         Tool::Shovel => {
@@ -213,7 +213,7 @@ pub fn update_tool(
 
 pub fn update_shovel_content_visual(shovel_image_grid: &mut Vec<u8>, shovel_contents: &Vec<u8>) {
     for pixel in shovel_image_grid.iter_mut() {
-        if *pixel == DIRT1 || *pixel == DIRT2 || *pixel == DIRT3 || *pixel == GRAVEL1 || *pixel == GRAVEL2 || *pixel == GRAVEL3 || *pixel == COPPER {
+        if SHOVEL_ABLE.contains(pixel) {
             *pixel = TRANSLUCENT_GREY;
         }
     }
@@ -232,12 +232,12 @@ pub fn update_shovel_content_visual(shovel_image_grid: &mut Vec<u8>, shovel_cont
 pub fn right_click_shovel(shovel_grid: &mut Vec<u8>, chunk_map: &mut HashMap<(i32, i32), Vec<u8>>, cursor_position: &Transform, cursor_contents: &mut Vec<u8>, gravity_coords: &mut GravityCoords) {
     for y in 0..CURSOR_RADIUS * 2 {
         for x in 0..CURSOR_RADIUS * 2 {
-            if cursor_contents.len() == 0{
+            if cursor_contents.len() == 0 {
                 update_shovel_content_visual(shovel_grid, cursor_contents);
                 return
             }
             let shovel_grid_index = flatten_index_standard_grid(&x, &y, CURSOR_RADIUS * 2);
-            if shovel_grid[shovel_grid_index] == DIRT1 || shovel_grid[shovel_grid_index] == DIRT2 || shovel_grid[shovel_grid_index] == DIRT3 || shovel_grid[shovel_grid_index] == COPPER || shovel_grid[shovel_grid_index] == GRAVEL1 ||shovel_grid[shovel_grid_index] == GRAVEL2 || shovel_grid[shovel_grid_index] == GRAVEL3 {
+            if SHOVEL_ABLE.contains(&shovel_grid[shovel_grid_index]) {
                 let (local_x, local_y) = (get_local_x(cursor_position.translation.x as i32 - CURSOR_RADIUS as i32 + x as i32), get_local_y(cursor_position.translation.y as i32 - CURSOR_RADIUS as i32 + (CURSOR_RADIUS * 2 - y - 1) as i32));
                 let local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
                 let (chunk_x_g, chunk_y_g) = (get_chunk_x_g(cursor_position.translation.x as i32 - CURSOR_RADIUS as i32 + x as i32), get_chunk_y_g(cursor_position.translation.y as i32 - CURSOR_RADIUS as i32 + (CURSOR_RADIUS * 2 - y - 1) as i32));

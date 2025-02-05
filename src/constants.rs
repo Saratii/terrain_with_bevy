@@ -1,5 +1,5 @@
 //Cheats
-pub const MAX_SHOVEL_CAPACITY: usize = 200;
+pub const MAX_SHOVEL_CAPACITY: usize = 20000000;
 pub const CURSOR_RADIUS: usize = 15 * 1;
 pub const CURSOR_ORBITAL_RADIUS: f32 = 100.* 1.;
 
