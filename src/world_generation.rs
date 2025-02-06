@@ -1,27 +1,29 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::time::Duration;
 
 use bevy::asset::{Asset, Assets, Handle};
 use bevy::color::palettes::css::GOLD;
+use bevy::ecs::event::EventWriter;
 use bevy::math::{Vec2, Vec4};
 use bevy::prelude::{Component, Image, Mesh, Query, Rectangle, ResMut, TextBundle, With};
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy::sprite::{Material2d, MaterialMesh2dBundle};
-use bevy::text::{Text, TextSection, TextStyle};
+use bevy::text::{TextSection, TextStyle};
 use bevy::time::{Time, Timer, TimerMode};
 use bevy_reflect::TypePath;
 use iyes_perf_ui::entries::PerfUiBundle;
 use bevy::utils::default;
 
 use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, transform::components::Transform};
-use noise::{NoiseFn, Perlin};
+use noise::Perlin;
 use rand::rngs::ThreadRng;
 use rand::Rng;
-use crate::color_map::{apply_gamma_correction, dirt_variant_pmf, grass_variant_pmf, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, GRAVITY_AFFECTED, LIGHT, RAW_DECODER_DATA, REFINED_COPPER, ROCK, SELL_BOX, SILVER, SKY};
+use crate::chunk_generator::NewChunkEvent;
+use crate::color_map::{apply_gamma_correction, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, GRAVITY_AFFECTED, LIGHT, RAW_DECODER_DATA, REFINED_COPPER, ROCK, SELL_BOX, SILVER, SKY};
 use crate::components::{ChunkMap, Count, GravityCoords, MoneyTextTag, PerlinHandle, SunTick, TerrainImageTag, TimerComponent};
-use crate::constants::{CHUNK_SIZE, DIRT_NOISE_SMOOTHNESS, DIRT_VARIATION, ROCK_NOISE_SMOOTHNESS, ROCK_VARIATION, SELL_BOX_HEIGHT, SELL_BOX_SPAWN_X, SELL_BOX_SPAWN_Y, SELL_BOX_WIDTH, SPAWN_SELL_BOX};
-use crate::drill::DrillTag;
-use crate::util::{flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_global_x_coordinate, get_global_y_coordinate, get_local_x, get_local_y, grid_to_image, local_to_global_x};
+use crate::constants::{CHUNK_SIZE, SELL_BOX_HEIGHT, SELL_BOX_SPAWN_X, SELL_BOX_SPAWN_Y, SELL_BOX_WIDTH, SPAWN_SELL_BOX, WINDOW_WIDTH};
+// use crate::drill::DrillTag;
+use crate::util::{flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_global_y_coordinate, get_local_x, get_local_y, grid_to_image, local_to_global_x};
 
 #[derive(Component)]
 pub struct CameraTag;
@@ -37,16 +39,18 @@ pub fn setup_world(
     mut images: ResMut<Assets<Image>>,
     mut meshes: ResMut<Assets<Mesh>>,
     assets: Res<AssetServer>,
+    mut chunk_event_writer: EventWriter<NewChunkEvent>
 ) {
     let mut rng = rand::thread_rng();
     let perlin = Perlin::new(rng.gen());
     let mut chunk_map = HashMap::new();
     commands.spawn(PerlinHandle { handle: perlin.clone() });
-    
+    let height_map_texture = images.add(grid_to_image(&vec![0; (WINDOW_WIDTH) as usize], WINDOW_WIDTH as u32, 1, None));
+    let full_height_map: VecDeque<usize> = VecDeque::new();
     if SPAWN_SELL_BOX {
         commands.spawn(GravityCoords { coords: HashSet::new() });
         let mut pos = Vec3 { x: SELL_BOX_SPAWN_X as f32, y: SELL_BOX_SPAWN_Y as f32, z: 1. } ;
-        while does_gravity_apply_to_entity(pos, SELL_BOX_WIDTH as i32, SELL_BOX_HEIGHT as i32, &mut chunk_map, &perlin) {
+        while does_gravity_apply_to_entity(pos, SELL_BOX_WIDTH as i32, SELL_BOX_HEIGHT as i32, &mut chunk_map, &mut chunk_event_writer) {
             pos.y -= 1.;
         }
         add_sell_box_to_grid(&mut chunk_map, &pos);
@@ -77,7 +81,7 @@ pub fn setup_world(
         }
     }
     commands.spawn(TimerComponent { timer: Timer::new(Duration::from_millis(7), TimerMode::Repeating) }).insert(TerrainImageTag);
-    commands.spawn(TimerComponent { timer: Timer::new(Duration::from_millis(20), TimerMode::Repeating) }).insert(DrillTag);
+    // commands.spawn(TimerComponent { timer: Timer::new(Duration::from_millis(20), TimerMode::Repeating) }).insert(DrillTag);
     commands.spawn(SunTick { timer: Timer::new(Duration::from_millis(1000), TimerMode::Repeating) });
     commands.spawn(Count { count: 0. });
     commands.spawn((
@@ -93,34 +97,6 @@ pub fn setup_world(
             ),
         ]),
     )).insert(MoneyTextTag);
-}
-
-pub fn generate_chunk(chunk_x_g: i32, chunk_y_g: i32, perlin: &Perlin) -> Vec<u8> {
-    println!("Generating chunk at {}, {}", chunk_x_g, chunk_y_g);
-    let mut grid = vec![0; (CHUNK_SIZE * CHUNK_SIZE) as usize];
-    for x in 0..CHUNK_SIZE as usize {
-        for y in 0..CHUNK_SIZE as usize {
-            let global_x = get_global_x_coordinate(chunk_x_g, x);
-            let global_y = get_global_y_coordinate(chunk_y_g, y);
-            let index = y * CHUNK_SIZE as usize + x;
-            let dirt_perlin =  perlin.get([global_x as f64 * DIRT_NOISE_SMOOTHNESS, 0.0]) * DIRT_VARIATION;
-            let rock_perlin = perlin.get([global_x as f64 * ROCK_NOISE_SMOOTHNESS, 0.0]) * ROCK_VARIATION;
-            let grass_perlin_top = perlin.get([global_x as f64 * DIRT_NOISE_SMOOTHNESS, 0.0]) * 10.;
-            let grass_perlin_bottom = perlin.get([global_x as f64 * 0.1, 0.0]) * 10.;
-            if global_y > grass_perlin_top as i32 + 10 {
-                grid[index] = SKY;
-            } else if global_y > grass_perlin_bottom as i32 - 5 {
-                grid[index] = grass_variant_pmf();
-            } else if global_y > dirt_perlin as i32 {
-                grid[index] = dirt_variant_pmf();
-            } else if global_y > -100 + rock_perlin as i32 {
-                grid[index] = dirt_variant_pmf();
-            } else {
-                grid[index] = ROCK;
-            }
-        }
-    }
-    grid
 }
 
 pub fn grid_tick(
@@ -140,7 +116,8 @@ pub fn grid_tick(
     }
 }
 
-pub fn does_gravity_apply_to_entity(entity_pos_g: Vec3, entity_width: i32, entity_height: i32, chunk_map: &mut HashMap<(i32, i32), Vec<u8>>, perlin: &Perlin) -> bool {
+pub fn does_gravity_apply_to_entity(entity_pos_g: Vec3, entity_width: i32, entity_height: i32, chunk_map: &mut HashMap<(i32, i32), Vec<u8>>, chunk_event_writer: &mut EventWriter<NewChunkEvent>) -> bool {
+    let mut sent_chunks = Vec::new();
     for x in (entity_pos_g.x - entity_width as f32/2.) as i32..(entity_pos_g.x + entity_width as f32/2.) as i32 {
         let local_x = get_local_x(x);
         let local_y = get_local_y(entity_pos_g.y as i32 - entity_height/2);
@@ -156,18 +133,20 @@ pub fn does_gravity_apply_to_entity(entity_pos_g: Vec3, entity_width: i32, entit
                 }
             }
         } else {
-            chunk_map.insert((chunk_x_g, chunk_y_g), generate_chunk(chunk_x_g, chunk_y_g, &perlin));
-            seed_chunk_with_ore((chunk_x_g, chunk_y_g), chunk_map);
-            match &chunk_map.get(&(chunk_x_g, chunk_y_g)).unwrap()[local_index]{
-                &SKY => continue,
-                &SELL_BOX => continue,
-                &LIGHT => continue,
-                _ => {
-                    return false
-                }
+            if !sent_chunks.contains(&(chunk_x_g, chunk_y_g)) {
+                chunk_event_writer.send(NewChunkEvent { chunk_x_g, chunk_y_g } );
+                sent_chunks.push((chunk_x_g, chunk_y_g));
             }
+            // seed_chunk_with_ore((chunk_x_g, chunk_y_g), chunk_map);
+            // match &chunk_map.get(&(chunk_x_g, chunk_y_g)).unwrap()[local_index]{
+            //     &SKY => continue,
+            //     &SELL_BOX => continue,
+            //     &LIGHT => continue,
+            //     _ => {
+            //         return false
+            //     }
+            // }
         }
-        
     }
     true
 }
@@ -260,14 +239,14 @@ fn add_sell_box_to_grid(chunk_map: &mut HashMap<(i32, i32), Vec<u8>>, pos: &Vec3
     }
 }
 
-pub fn update_money_text(
-    mut money_text_query: Query<&mut Text, With<MoneyTextTag>>,
-    mut money_count_query: Query<&Count>,
-) {
-    let money_count = money_count_query.get_single_mut().unwrap();
-    let mut money_text = money_text_query.get_single_mut().unwrap();
-    money_text.sections[0].value = format!("${:.2}", money_count.count);
-}
+// pub fn update_money_text(
+//     mut money_text_query: Query<&mut Text, With<MoneyTextTag>>,
+//     mut money_count_query: Query<&Count>,
+// ) {
+//     let money_count = money_count_query.get_single_mut().unwrap();
+//     let mut money_text = money_text_query.get_single_mut().unwrap();
+//     money_text.sections[0].value = format!("${:.2}", money_count.count);
+// }
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 pub struct GridMaterial {
@@ -360,6 +339,6 @@ fn grow_ore_seed(rng: &mut ThreadRng, seed_x_g: i32, seed_y_g: i32, seed_type: u
     // }
 }
 
-fn generate_empty_chunk() -> Vec<u8> {
-    vec![0; (CHUNK_SIZE * CHUNK_SIZE) as usize]
-}
+// fn generate_empty_chunk() -> Vec<u8> {
+//     vec![0; (CHUNK_SIZE * CHUNK_SIZE) as usize]
+// }

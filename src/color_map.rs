@@ -1,5 +1,5 @@
 use bevy::math::Vec4;
-use rand::Rng;
+use rand::{distr::slice::Choose, prelude::Distribution, rngs::SmallRng, SeedableRng};
 
 pub const SKY: u8 = 0;
 pub const DIRT1: u8 = 1;
@@ -30,36 +30,25 @@ pub const GRAVITY_AFFECTED: [u8; 8] = [DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GR
 pub const GROUND: [u8; 11] = [DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, COPPER, SILVER, ROCK, GRASS1, GRASS2];
 pub const SHOVEL_ABLE: [u8; 10] = [DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, COPPER, SILVER, GRASS1, GRASS2];
 
-pub fn dirt_variant_pmf() -> u8 {
-    let rand_value = fastrand::f32();
-    if rand_value < 0.5 {
-        DIRT1
-    } else if rand_value < 0.8333333 {
-        DIRT2
-    } else {
-        DIRT3
-    }
+pub fn gravel_variant_pmf() -> impl Iterator<Item = u8> {
+    Choose::new(&[GRAVEL1, GRAVEL1, GRAVEL1, GRAVEL1, GRAVEL2, GRAVEL3])
+        .unwrap()
+        .sample_iter(SmallRng::from_os_rng())
+        .map(|x| *x)
 }
 
-pub fn gravel_variant_pmf() -> u8 {
-    let mut rng = rand::thread_rng();
-    match rng.gen_range(0..6) {
-        0 => GRAVEL1,
-        4 => GRAVEL2,
-        5 => GRAVEL3,
-        1 => GRAVEL1,
-        2 => GRAVEL1,
-        _ => GRAVEL1,
-    }
+pub fn dirt_variant_pmf() -> impl Iterator<Item = u8> {
+    Choose::new(&[DIRT1, DIRT1, DIRT1, DIRT2, DIRT2, DIRT3])
+        .unwrap()
+        .sample_iter(SmallRng::from_os_rng())
+        .map(|x| *x)
 }
 
-pub fn grass_variant_pmf() -> u8 {
-    let rand_value = fastrand::f32();
-    if rand_value < 0.5 {
-        GRASS1
-    } else {
-        GRASS2
-    }
+pub fn grass_variant_pmf() -> impl Iterator<Item = u8> {
+    Choose::new(&[GRASS1, GRASS2])
+        .unwrap()
+        .sample_iter(SmallRng::from_os_rng())
+        .map(|x| *x)
 }
 
 pub const RAW_DECODER_DATA: [(f32, f32, f32, f32); 24] = [

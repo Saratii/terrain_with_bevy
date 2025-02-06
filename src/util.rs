@@ -3,7 +3,6 @@ use std::fs::File;
 
 use bevy::{math::Vec3, prelude::Image, render::{render_asset::RenderAssetUsages, render_resource::{Extent3d, TextureDimension, TextureFormat}}};
 
-use crate::color_map::SKY;
 use crate::constants::CHUNK_SIZE;
 
 pub fn flatten_index(x: i32, y: i32) -> usize {
@@ -66,7 +65,7 @@ pub fn write_u8s_to_file(width: usize, data: Vec<u8>, file_path: &str) -> io::Re
     Ok(())
 }
 
-pub fn valid_machine_spawn(chunk_map: &Vec<Vec<u8>>, position_g: Vec3, width: usize, height: usize) -> bool {
+pub fn valid_machine_spawn(_chunk_map: &Vec<Vec<u8>>, _position_g: Vec3, _width: usize, _height: usize) -> bool {
     // for y in position_g.y as i32 - height as i32/2..position_g.y as i32 + height as i32/2 {
     //     for x in position_g.x as i32 - width as i32/2..position_g.x as i32 + width as i32/2 {
     //         let chunk_x_g = get_chunk_x_g(x as f32);

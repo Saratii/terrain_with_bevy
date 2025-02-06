@@ -12,8 +12,7 @@ pub mod color_map;
 pub mod ui;
 pub mod drill;
 pub mod render;
-
-use std::time::Duration;
+pub mod chunk_generator;
 
 use bevy::app::*;
 use bevy::diagnostic::EntityCountDiagnosticsPlugin;
@@ -23,6 +22,7 @@ use bevy::ecs::schedule::ScheduleBuildSettings;
 use bevy::prelude::*;
 use bevy::sprite::Material2dPlugin;
 use bevy::window::PresentMode;
+use chunk_generator::generate_chunk_listener;
 use constants::LIGHTING_DEMO;
 use constants::WINDOW_HEIGHT;
 use iyes_perf_ui::PerfUiPlugin;
@@ -64,17 +64,19 @@ fn main() {
         })
         .insert_resource(ClearColor(Color::srgb(0.0, 0.0, 0.0)));
     if LIGHTING_DEMO {
-      app.add_systems(Startup, (setup_camera, setup_world, setup_timer).chain());
+      // app.add_systems(Startup, (setup_camera, setup_world, setup_timer).chain());
       app.add_systems(Update, (spawn_random_squares, render));
     } else {
+      app.add_event::<chunk_generator::NewChunkEvent>();
       app.add_systems(Startup, (setup_camera, setup_world, spawn_player, apply_deferred, spawn_tools).chain());
-      app.add_systems(Update, (process_key_event, update_tool, check_mouse_click, grid_tick, render));
+      // app.add_systems(Update, (process_key_event, update_tool, check_mouse_click, grid_tick, render, generate_chunk_listener));
+      app.add_systems(Update, (process_key_event, update_tool, check_mouse_click, grid_tick, render, generate_chunk_listener));
     }
     app.run();
 }
 
-#[derive(Resource)]
-struct SpawnTimer(Timer);
+// #[derive(Resource)]
+// struct SpawnTimer(Timer);
 
 fn spawn_random_squares(
 //     mut chunk_map_query: Query<&mut ChunkMap>,
@@ -106,6 +108,6 @@ fn spawn_random_squares(
 }
 
 
-fn setup_timer(mut commands: Commands) {
-  commands.insert_resource(SpawnTimer(Timer::new(Duration::from_millis(1000), TimerMode::Repeating)));
-}
+// fn setup_timer(mut commands: Commands) {
+//   commands.insert_resource(SpawnTimer(Timer::new(Duration::from_millis(1000), TimerMode::Repeating)));
+// }

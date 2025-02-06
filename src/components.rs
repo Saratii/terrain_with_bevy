@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use bevy::{prelude::Component, time::Timer};
 use noise::Perlin;
-use rand::{distributions::Standard, prelude::Distribution, Rng};
 
 #[derive(Component, Debug)]
 pub struct Velocity {
@@ -84,32 +83,6 @@ pub enum GravelVariant {
     Gravel1,
     Gravel2,
     Gravel3,
-}
-
-impl Distribution<DirtVariant> for Standard {
-    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> DirtVariant {
-        match rng.gen_range(0..6) {
-            0 => DirtVariant::Dirt1,
-            4 => DirtVariant::Dirt1,
-            5 => DirtVariant::Dirt1,
-            1 => DirtVariant::Dirt2,
-            2 => DirtVariant::Dirt2,
-            _ => DirtVariant::Dirt3,
-        }
-    }
-}
-
-impl Distribution<GravelVariant> for Standard {
-    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> GravelVariant {
-        match rng.gen_range(0..6) {
-            0 => GravelVariant::Gravel1,
-            4 => GravelVariant::Gravel2,
-            5 => GravelVariant::Gravel3,
-            1 => GravelVariant::Gravel1,
-            2 => GravelVariant::Gravel1,
-            _ => GravelVariant::Gravel1,
-        }
-    }
 }
 
 #[derive(Component)]

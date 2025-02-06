@@ -1,6 +1,6 @@
-use bevy::{input::ButtonInput, prelude::{KeyCode, Query, Res, Transform, Visibility, With, Without}, time::Time};
+use bevy::{ecs::event::EventWriter, input::ButtonInput, prelude::{KeyCode, Query, Res, Transform, Visibility, With, Without}, time::Time};
 
-use crate::{components::{Bool, ChunkMap, ContentList, PerlinHandle, PlayerTag, Velocity}, constants::{FRICTION, MAX_PLAYER_SPEED, PLAYER_ACCELERATION, PLAYER_HEIGHT, PLAYER_WIDTH}, player::apply_velocity, tools::{CurrentTool, HoeTag, PickaxeTag, ShovelTag, Tool}, world_generation::does_gravity_apply_to_entity};
+use crate::{chunk_generator::NewChunkEvent, components::{Bool, ChunkMap, ContentList, PlayerTag, Velocity}, constants::{FRICTION, MAX_PLAYER_SPEED, PLAYER_ACCELERATION, PLAYER_HEIGHT, PLAYER_WIDTH}, player::apply_velocity, tools::{CurrentTool, HoeTag, PickaxeTag, ShovelTag, Tool}, world_generation::does_gravity_apply_to_entity};
 
 pub fn process_key_event(
     keys: Res<ButtonInput<KeyCode>>,
@@ -13,14 +13,13 @@ pub fn process_key_event(
     mut hoe_visability_query: Query<&mut Visibility, (With<HoeTag>, Without<PickaxeTag>, Without<ShovelTag>)>,
     mut hoe_is_locked_query: Query<&mut Bool, With<HoeTag>>,
     mut chunk_map_query: Query<&mut ChunkMap>,
-    perlin: Query<&PerlinHandle>,
+    mut chunk_event_writer: EventWriter<NewChunkEvent>,
 ) {
     let shovel_contents = shovel_contents_query.get_single().unwrap();
     let chunk_map = &mut chunk_map_query.get_single_mut().unwrap();
     let mut hoe_is_locked = hoe_is_locked_query.get_single_mut().unwrap();
     let mut player = player_query.get_single_mut().unwrap();
-    let perlin = perlin.get_single().unwrap().handle;
-    let does_gravity_apply = does_gravity_apply_to_entity(player.0.translation, PLAYER_WIDTH as i32, PLAYER_HEIGHT as i32, &mut chunk_map.map, &perlin);
+    let does_gravity_apply = does_gravity_apply_to_entity(player.0.translation, PLAYER_WIDTH as i32, PLAYER_HEIGHT as i32, &mut chunk_map.map, &mut chunk_event_writer);
     if does_gravity_apply {
         player.1.vy -= 300. * time.delta_seconds();
     } else {
