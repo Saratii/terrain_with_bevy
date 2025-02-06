@@ -18,7 +18,6 @@ pub fn spawn_player(
                     color_map: images.add(generate_player_image()),
                     size: Vec2::new(PLAYER_WIDTH as f32, PLAYER_HEIGHT as f32),
                     decoder: apply_gamma_correction(RAW_DECODER_DATA),
-                    color_map_of_above: images.add(grid_to_image(&vec![0 as u8; PLAYER_HEIGHT * PLAYER_WIDTH], PLAYER_WIDTH as u32, PLAYER_HEIGHT as u32, None)),
                 }),
                 mesh: meshes
                 .add(Rectangle {

@@ -1,8 +1,8 @@
-// use std::f32::consts::PI;
+use std::f32::consts::PI;
 
-// use bevy::{asset::{AssetServer, Assets, Handle}, math::Vec3, prelude::{default, Commands, Component, Image, Query, Res, ResMut, Transform, Visibility, With, Without}, sprite::SpriteBundle, time::Time};
+use bevy::{asset::{AssetServer, Assets, Handle}, math::Vec3, prelude::{default, Commands, Component, Image, Query, Res, ResMut, Transform, Visibility, With, Without}, sprite::SpriteBundle, time::Time};
 
-// use crate::{components::{Grid, ImageBuffer, SunTag, TerrainGridTag, F32}, constants::{FLASHLIGHT_RADIUS, MAX_SUN_DECAY_DISTANCE, RAY_COUNT, SHOW_RAYS, SHOW_SUN, SKY_HEIGHT, SUN_HEIGHT, SUN_ORBIT_RADIUS, SUN_SPAWN_X, SUN_SPAWN_Y, SUN_SPEED, SUN_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{c_to_tl, distance, flatten_index_standard_grid, grid_to_image, tl_to_c}};
+use crate::{components::{Grid, SunTag, F32}, constants::{RAY_COUNT, SHOW_RAYS, SUN_HEIGHT, SUN_ORBIT_RADIUS, SUN_SPEED, SUN_WIDTH}, util::c_to_tl};
 
 // // #[derive(Debug)]
 // // pub struct Triangle {
@@ -171,35 +171,35 @@
 // //     }
 // // }
 
-// // pub fn move_sun(
-// //     mut sun_query: Query<&mut Transform, With<SunTag>>,
-// //     mut sun_theta_query: Query<&mut F32, With<SunTag>>,
-// //     time: Res<Time>,
-// // ) {
-// //     let mut sun_transform = sun_query.single_mut();
-// //     let mut sun_theta = sun_theta_query.single_mut();
-// //     sun_theta.f32 += SUN_SPEED * time.delta_seconds();
-// //     sun_transform.translation.x = SUN_ORBIT_RADIUS * sun_theta.f32.cos();
-// //     sun_transform.translation.y = SUN_ORBIT_RADIUS * sun_theta.f32.sin();
-// // }
+// pub fn move_sun(
+//     mut sun_query: Query<&mut Transform, With<SunTag>>,
+//     mut sun_theta_query: Query<&mut F32, With<SunTag>>,
+//     time: Res<Time>,
+// ) {
+//     let mut sun_transform = sun_query.single_mut();
+//     let mut sun_theta = sun_theta_query.single_mut();
+//     sun_theta.f32 += SUN_SPEED * time.delta_seconds();
+//     sun_transform.translation.x = SUN_ORBIT_RADIUS * sun_theta.f32.cos();
+//     sun_transform.translation.y = SUN_ORBIT_RADIUS * sun_theta.f32.sin();
+// }
 
-// // pub fn lighting_update(
-// //     mut grid_query: Query<&mut Grid<Pixel>, (With<TerrainGridTag>, Without<RayGridTag>)>,
-// //     mut ray_grid_query: Query<&mut Grid<Pixel>, (With<RayGridTag>, Without<TerrainGridTag>)>,
-// //     sun_position_query: Query<&Transform, With<SunTag>>,
-// // ) {
-// //     let mut grid = grid_query.get_single_mut().unwrap();
-// //     reset_gamma(&mut grid);
-// //     let sun_position_c = sun_position_query.single();
-// //     let sun_position_tl = c_to_tl(&sun_position_c.translation, SUN_WIDTH, SUN_HEIGHT);
-// //     if SHOW_RAYS {
-// //         let mut ray_grid = ray_grid_query.get_single_mut().unwrap();
-// //         reset_ray_grid(&mut ray_grid.data);
-// //         cast_rays(&mut grid, RAY_COUNT, (sun_position_tl.0, sun_position_tl.1), &mut Some(&mut ray_grid.data));
-// //     } else {
-// //         cast_rays(&mut grid, RAY_COUNT, (sun_position_tl.0, sun_position_tl.1), &mut None);
-// //     }
-// // }
+// pub fn lighting_update(
+//     mut grid_query: Query<&mut Grid<Pixel>, (With<TerrainGridTag>, Without<RayGridTag>)>,
+//     mut ray_grid_query: Query<&mut Grid<Pixel>, (With<RayGridTag>, Without<TerrainGridTag>)>,
+//     sun_position_query: Query<&Transform, With<SunTag>>,
+// ) {
+//     let mut grid = grid_query.get_single_mut().unwrap();
+//     reset_gamma(&mut grid);
+//     let sun_position_c = sun_position_query.single();
+//     let sun_position_tl = c_to_tl(&sun_position_c.translation, SUN_WIDTH, SUN_HEIGHT);
+//     if SHOW_RAYS {
+//         let mut ray_grid = ray_grid_query.get_single_mut().unwrap();
+//         reset_ray_grid(&mut ray_grid.data);
+//         cast_rays(&mut grid, RAY_COUNT, (sun_position_tl.0, sun_position_tl.1), &mut Some(&mut ray_grid.data));
+//     } else {
+//         cast_rays(&mut grid, RAY_COUNT, (sun_position_tl.0, sun_position_tl.1), &mut None);
+//     }
+// }
 
 // // pub fn render_rays(
 // //     mut ray_grid_query: Query<&mut Grid<Pixel>, With<RayGridTag>>,
@@ -216,3 +216,18 @@
 // //         }
 // //     }
 // // }
+
+// use bevy::{asset::Handle, ecs::{query::With, system::Query}, render::camera::Camera, transform::components::{GlobalTransform, Transform}, window::{PrimaryWindow, Window}};
+
+// use crate::{components::{HeightMap, HeightMapTextureTag}, world_generation::{CameraTag, GridMaterial}};
+
+// pub fn lighting_update(
+//     height_map_query: Query<&HeightMap>,
+//     height_map_texture: Query<(&Handle<GridMaterial>, &mut Transform), With<HeightMapTextureTag>>,
+//     q_windows: Query<&Window, With<PrimaryWindow>>,
+//     camera_query: Query<&GlobalTransform, With<CameraTag>>,
+// ) {
+//     let camera_transform = camera_query.single().translation();
+//     println!("{:?}", camera_transform);
+    
+// }

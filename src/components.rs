@@ -117,3 +117,11 @@ pub struct ChunkMap {
 pub struct PerlinHandle {
     pub handle: Perlin,
 }
+
+#[derive(Component)]
+pub struct HeightMap {
+    pub map: HashMap<i32, i32>,
+}
+
+#[derive(Component)]
+pub struct HeightMapTextureTag;

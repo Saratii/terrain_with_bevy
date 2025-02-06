@@ -35,6 +35,7 @@ use world_generation::setup_camera;
 use world_generation::setup_world;
 use world_generation::grid_tick;
 use world_generation::GridMaterial;
+use world_generation::HeightMapTexture;
 use crate::constants::WINDOW_WIDTH;
 use crate::render::render;
 
@@ -54,6 +55,7 @@ fn main() {
           EntityCountDiagnosticsPlugin,
           SystemInformationDiagnosticsPlugin,
           Material2dPlugin::<GridMaterial>::default(),
+          // Material2dPlugin::<HeightMapTexture>::default(),
           PerfUiPlugin,
         ))
         .edit_schedule(Startup, |schedule| {
@@ -69,7 +71,6 @@ fn main() {
     } else {
       app.add_event::<chunk_generator::NewChunkEvent>();
       app.add_systems(Startup, (setup_camera, setup_world, spawn_player, apply_deferred, spawn_tools).chain());
-      // app.add_systems(Update, (process_key_event, update_tool, check_mouse_click, grid_tick, render, generate_chunk_listener));
       app.add_systems(Update, (process_key_event, update_tool, check_mouse_click, grid_tick, render, generate_chunk_listener));
     }
     app.run();

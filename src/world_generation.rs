@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
 use bevy::asset::{Asset, Assets, Handle};
@@ -20,7 +20,7 @@ use rand::rngs::ThreadRng;
 use rand::Rng;
 use crate::chunk_generator::NewChunkEvent;
 use crate::color_map::{apply_gamma_correction, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, GRAVITY_AFFECTED, LIGHT, RAW_DECODER_DATA, REFINED_COPPER, ROCK, SELL_BOX, SILVER, SKY};
-use crate::components::{ChunkMap, Count, GravityCoords, MoneyTextTag, PerlinHandle, SunTick, TerrainImageTag, TimerComponent};
+use crate::components::{ChunkMap, Count, GravityCoords, HeightMap, HeightMapTextureTag, MoneyTextTag, PerlinHandle, SunTick, TerrainImageTag, TimerComponent};
 use crate::constants::{CHUNK_SIZE, SELL_BOX_HEIGHT, SELL_BOX_SPAWN_X, SELL_BOX_SPAWN_Y, SELL_BOX_WIDTH, SPAWN_SELL_BOX, WINDOW_WIDTH};
 // use crate::drill::DrillTag;
 use crate::util::{flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_global_y_coordinate, get_local_x, get_local_y, grid_to_image, local_to_global_x};
@@ -36,17 +36,33 @@ pub fn setup_camera(mut commands: Commands) {
 pub fn setup_world(
     mut commands: Commands,
     mut materials: ResMut<Assets<GridMaterial>>,
+    // mut height_map_materials: ResMut<Assets<HeightMapTexture>>,
     mut images: ResMut<Assets<Image>>,
     mut meshes: ResMut<Assets<Mesh>>,
     assets: Res<AssetServer>,
     mut chunk_event_writer: EventWriter<NewChunkEvent>
 ) {
-    let mut rng = rand::thread_rng();
-    let perlin = Perlin::new(rng.gen());
+    let mut rng = rand::rng();
+    let perlin = Perlin::new(rng.random());
     let mut chunk_map = HashMap::new();
     commands.spawn(PerlinHandle { handle: perlin.clone() });
-    let height_map_texture = images.add(grid_to_image(&vec![0; (WINDOW_WIDTH) as usize], WINDOW_WIDTH as u32, 1, None));
-    let full_height_map: VecDeque<usize> = VecDeque::new();
+    let height_map = HashMap::new();
+    // commands.spawn(HeightMapTextureTag).insert(MaterialMesh2dBundle {
+    //     material: height_map_materials.add(HeightMapTexture {
+    //         color_map: images.add(grid_to_image(&vec![0; (WINDOW_WIDTH) as usize], WINDOW_WIDTH as u32, 1, None)),
+    //     }),
+    //     mesh: meshes
+    //     .add(Rectangle {
+    //         half_size: Vec2::new(WINDOW_WIDTH as f32/2., 0.5),
+    //     })
+    //     .into(),
+    //     transform: Transform {
+    //         translation: Vec3::new(WINDOW_WIDTH as f32/2., 0.5, -5.),
+    //         ..Default::default()
+    //     },
+    //     ..Default::default()
+    // });
+    commands.spawn(HeightMap { map: height_map });
     if SPAWN_SELL_BOX {
         commands.spawn(GravityCoords { coords: HashSet::new() });
         let mut pos = Vec3 { x: SELL_BOX_SPAWN_X as f32, y: SELL_BOX_SPAWN_Y as f32, z: 1. } ;
@@ -65,7 +81,6 @@ pub fn setup_world(
                                 color_map: images.add(grid_to_image(&vec![0; (CHUNK_SIZE * CHUNK_SIZE) as usize], CHUNK_SIZE as u32, CHUNK_SIZE as u32, None)),
                                 size: Vec2::new(CHUNK_SIZE as f32, CHUNK_SIZE as f32),
                                 decoder: apply_gamma_correction(RAW_DECODER_DATA),
-                                color_map_of_above: images.add(grid_to_image(&vec![0; (CHUNK_SIZE * CHUNK_SIZE) as usize], CHUNK_SIZE as u32, CHUNK_SIZE as u32, None)),
                             }),
                             mesh: meshes
                             .add(Rectangle {
@@ -256,20 +271,29 @@ pub struct GridMaterial {
     pub size: Vec2,
     #[uniform(2)]
     pub decoder: [Vec4; 24],
-    #[texture(3)]
-    pub color_map_of_above: Handle<Image>,
 }
 
 impl Material2d for GridMaterial {
     fn fragment_shader() -> ShaderRef {
         "shaders/render_shader.wgsl".into()
-        // "shaders/experimental_shader.wgsl".into()
     }
 }
 
+#[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
+pub struct HeightMapTexture {
+    #[texture(3)]
+    pub color_map: Handle<Image>,
+}
+
+// impl Material2d for HeightMapTexture {
+//     fn fragment_shader() -> ShaderRef {
+//         "shaders/render_shader.wgsl".into()
+//     }
+// }
+
 pub fn seed_chunk_with_ore(chunk_pos: (i32, i32), chunk_map: &mut HashMap<(i32, i32), Vec<u8>>) {
-    let mut rng = rand::thread_rng();
-    let mut rng2 = rand::thread_rng();
+    let mut rng = rand::rng();
+    let mut rng2 = rand::rng();
     // let mut chunk_map = chunk_map_query.get_single_mut().unwrap();
     // let copper_random_multiplier = rng.gen_range(0.8..1.2);
     // let num_copper_seeds = CHUNKS_HORIZONTAL * CHUNKS_VERTICAL * CHUNK_SIZE * CHUNK_SIZE * 0.000007 * copper_random_multiplier;

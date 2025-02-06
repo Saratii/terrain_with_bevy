@@ -7,7 +7,7 @@ struct Decoder {
 @group(2) @binding(0) var<uniform> size: vec2<f32>; // width, height
 @group(2) @binding(1) var tile_map: texture_2d<f32>;
 @group(2) @binding(2) var<uniform> decoder: Decoder;
-// @group(2) @binding(3) var local_height_map: texture_2d<f32>;
+@group(2) @binding(3) var local_height_map: texture_2d<f32>;
 // @group(2) @binding(2) var<uniform> point: vec2<f32>; // 2D coordinate
 
 const SUN_ANGLE: f32 = -1.7;
@@ -16,19 +16,19 @@ const CHUNK_SIZE: f32 = 600.0;
 
 //expects angle in radians of non sun point
 fn ray_cast(start: vec2<f32>, chunk: texture_2d<f32>) -> f32 {
-    var current_x = start.x;
-    var current_y = start.y;
+    var start_x = start.x;
+    var start_y = start.y;
     let dx = SUN_VECTOR.x;
     let dy = SUN_VECTOR.y;
     var cast_strength = 1.3;
-    while cast_strength > 0.0 && current_y > -CHUNK_SIZE + 1 {
-        current_x += dx;
-        current_y += dy;
+    while cast_strength > 0.0 && start_y > -CHUNK_SIZE + 1 {
+        start_x += dx;
+        start_y += dy;
         var pixel = 0.0;
-        if i32(current_y) >= 0 {
-            pixel = textureLoad(chunk, vec2<i32>(i32(current_x), i32(current_y)), 0).r * 255.0;
+        if i32(start_y) >= 0 {
+            pixel = textureLoad(chunk, vec2<i32>(i32(start_x), i32(start_y)), 0).r * 255.0;
         } else {
-            return cast_strength;
+            pixel = textureLoad(abovemap, vec2<i32>(i32(start_x), i32(start_y) + i32(CHUNK_SIZE)), 0).r * 255.0;
         }
         if pixel == 0.0 || pixel == 10.0 || pixel == 11.0 {
             cast_strength -= 0.00;
@@ -36,9 +36,8 @@ fn ray_cast(start: vec2<f32>, chunk: texture_2d<f32>) -> f32 {
             cast_strength -= 0.02;
         }
     }
-    // let light = clamp(cast_strength, 0.0, 1.);
-    // return mix(0.05, light, light);
-    return cast_strength;
+    let light = clamp(cast_strength, 0.0, 1.);
+    return mix(0.05, light, light);
 }
 
 @fragment
