@@ -20,13 +20,12 @@ use rand::rngs::ThreadRng;
 use rand::Rng;
 use crate::chunk_generator::NewChunkEvent;
 use crate::color_map::{apply_gamma_correction, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, GRAVITY_AFFECTED, LIGHT, RAW_DECODER_DATA, REFINED_COPPER, ROCK, SELL_BOX, SILVER, SKY};
-use crate::components::{ChunkMap, Count, GravityCoords, HeightMap, HeightMapTextureTag, MoneyTextTag, PerlinHandle, SunTick, TerrainImageTag, TimerComponent};
-use crate::constants::{CHUNK_SIZE, SELL_BOX_HEIGHT, SELL_BOX_SPAWN_X, SELL_BOX_SPAWN_Y, SELL_BOX_WIDTH, SPAWN_SELL_BOX, WINDOW_WIDTH};
+use crate::com::GameOfLifeImages;
+use crate::components::{CameraTag, ChunkMap, Count, GravityCoords, HeightMapTextureTag, MoneyTextTag, PerlinHandle, ShadowMap, SunTick, TerrainImageTag, TimerComponent};
+use crate::constants::{CHUNK_SIZE, SELL_BOX_HEIGHT, SELL_BOX_SPAWN_X, SELL_BOX_SPAWN_Y, SELL_BOX_WIDTH, SPAWN_SELL_BOX};
+use crate::sun::{ChunkImageHandle, GridMaterial, Othereers};
 // use crate::drill::DrillTag;
 use crate::util::{flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_global_y_coordinate, get_local_x, get_local_y, grid_to_image, local_to_global_x};
-
-#[derive(Component)]
-pub struct CameraTag;
 
 pub fn setup_camera(mut commands: Commands) {
     commands.spawn(PerfUiBundle::default());
@@ -36,33 +35,22 @@ pub fn setup_camera(mut commands: Commands) {
 pub fn setup_world(
     mut commands: Commands,
     mut materials: ResMut<Assets<GridMaterial>>,
-    // mut height_map_materials: ResMut<Assets<HeightMapTexture>>,
-    mut images: ResMut<Assets<Image>>,
     mut meshes: ResMut<Assets<Mesh>>,
     assets: Res<AssetServer>,
-    mut chunk_event_writer: EventWriter<NewChunkEvent>
+    mut chunk_event_writer: EventWriter<NewChunkEvent>,
+    center_image_handle: Res<ChunkImageHandle>,
+    other_fuckers: Res<Othereers>,
+    game_fucker: Res<GameOfLifeImages>,
 ) {
     let mut rng = rand::rng();
     let perlin = Perlin::new(rng.random());
     let mut chunk_map = HashMap::new();
     commands.spawn(PerlinHandle { handle: perlin.clone() });
-    let height_map = HashMap::new();
-    // commands.spawn(HeightMapTextureTag).insert(MaterialMesh2dBundle {
-    //     material: height_map_materials.add(HeightMapTexture {
-    //         color_map: images.add(grid_to_image(&vec![0; (WINDOW_WIDTH) as usize], WINDOW_WIDTH as u32, 1, None)),
-    //     }),
-    //     mesh: meshes
-    //     .add(Rectangle {
-    //         half_size: Vec2::new(WINDOW_WIDTH as f32/2., 0.5),
-    //     })
-    //     .into(),
-    //     transform: Transform {
-    //         translation: Vec3::new(WINDOW_WIDTH as f32/2., 0.5, -5.),
-    //         ..Default::default()
-    //     },
-    //     ..Default::default()
-    // });
-    commands.spawn(HeightMap { map: height_map });
+    let mut shadow_map = HashMap::new();
+    for x in 0..1024 {
+        shadow_map.insert(x, f32::MAX);
+    }
+    commands.spawn(ShadowMap { map: shadow_map });
     if SPAWN_SELL_BOX {
         commands.spawn(GravityCoords { coords: HashSet::new() });
         let mut pos = Vec3 { x: SELL_BOX_SPAWN_X as f32, y: SELL_BOX_SPAWN_Y as f32, z: 1. } ;
@@ -73,27 +61,26 @@ pub fn setup_world(
     }
     commands.spawn(GravityCoords { coords: HashSet::new() });
     commands.spawn(ChunkMap { map: chunk_map });
-    for _ in 0..3 {
-        for _ in 0..3 {
-            commands.spawn(TerrainImageTag)
-                        .insert(MaterialMesh2dBundle {
-                            material: materials.add(GridMaterial {
-                                color_map: images.add(grid_to_image(&vec![0; (CHUNK_SIZE * CHUNK_SIZE) as usize], CHUNK_SIZE as u32, CHUNK_SIZE as u32, None)),
-                                size: Vec2::new(CHUNK_SIZE as f32, CHUNK_SIZE as f32),
-                                decoder: apply_gamma_correction(RAW_DECODER_DATA),
-                            }),
-                            mesh: meshes
-                            .add(Rectangle {
-                                half_size: Vec2::new(CHUNK_SIZE/2., CHUNK_SIZE/2.),
-                            })
-                            .into(),
-                            transform: Transform {
-                                translation: Vec3::new(Default::default(), Default::default(), -5.),
-                                ..Default::default()
-                            },
-                            ..Default::default()
-                        });
+    for i in 0..9 {
+        let image_handle;
+        if i == 4 {
+            image_handle = center_image_handle.handle.clone();
+        } else {
+            image_handle = other_fuckers.handles.get(&(i as u32)).unwrap().clone();
         }
+        commands.spawn(TerrainImageTag)
+                    .insert(MaterialMesh2dBundle {
+                        material: materials.add(GridMaterial {
+                            color_map: image_handle,
+                            size: Vec2::new(CHUNK_SIZE as f32, CHUNK_SIZE as f32),
+                            decoder: apply_gamma_correction(RAW_DECODER_DATA),
+                            shadow_map: Some(game_fucker.texture_a.clone()),
+                        }),
+                        mesh: meshes.add(Rectangle { half_size: Vec2::new(CHUNK_SIZE/2., CHUNK_SIZE/2.) }).into(),
+                        transform: Transform { translation: Vec3::new(Default::default(), Default::default(), -5.), ..Default::default() },
+                        ..Default::default()
+                    });
+        
     }
     commands.spawn(TimerComponent { timer: Timer::new(Duration::from_millis(7), TimerMode::Repeating) }).insert(TerrainImageTag);
     // commands.spawn(TimerComponent { timer: Timer::new(Duration::from_millis(20), TimerMode::Repeating) }).insert(DrillTag);
@@ -263,27 +250,6 @@ fn add_sell_box_to_grid(chunk_map: &mut HashMap<(i32, i32), Vec<u8>>, pos: &Vec3
 //     money_text.sections[0].value = format!("${:.2}", money_count.count);
 // }
 
-#[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
-pub struct GridMaterial {
-    #[texture(1)]
-    pub color_map: Handle<Image>,
-    #[uniform(0)]
-    pub size: Vec2,
-    #[uniform(2)]
-    pub decoder: [Vec4; 24],
-}
-
-impl Material2d for GridMaterial {
-    fn fragment_shader() -> ShaderRef {
-        "shaders/render_shader.wgsl".into()
-    }
-}
-
-#[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
-pub struct HeightMapTexture {
-    #[texture(3)]
-    pub color_map: Handle<Image>,
-}
 
 // impl Material2d for HeightMapTexture {
 //     fn fragment_shader() -> ShaderRef {

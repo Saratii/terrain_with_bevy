@@ -1,6 +1,6 @@
 use bevy::{asset::{Assets, Handle}, ecs::event::EventWriter, input::ButtonInput, prelude::{Camera, GlobalTransform, Image, MouseButton, Query, Res, ResMut, Transform, With, Without}, window::{PrimaryWindow, Window}};
 
-use crate::{chunk_generator::NewChunkEvent, components::{Bool, ChunkMap, ContentList, GravityCoords, TerrainImageTag}, constants::MAX_SHOVEL_CAPACITY, tools::{left_click_hoe, left_click_pickaxe, left_click_shovel, right_click_hoe, right_click_shovel, CurrentTool, HoeTag, PickaxeTag, ShovelTag, Tool}, world_generation::{CameraTag, GridMaterial}};
+use crate::{chunk_generator::NewChunkEvent, components::{Bool, CameraTag, ChunkMap, ContentList, GravityCoords, TerrainImageTag}, constants::MAX_SHOVEL_CAPACITY, sun::GridMaterial, tools::{left_click_hoe, left_click_pickaxe, left_click_shovel, right_click_hoe, right_click_shovel, CurrentTool, HoeTag, PickaxeTag, ShovelTag, Tool}};
 
 pub fn check_mouse_click(
     buttons: Res<ButtonInput<MouseButton>>,

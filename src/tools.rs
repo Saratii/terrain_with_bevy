@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use bevy::{asset::Assets, ecs::event::EventWriter, math::Vec2, prelude::{Camera, Commands, Component, GlobalTransform, Image, Mesh, Query, Rectangle, ResMut, Transform, Visibility, With, Without}, sprite::MaterialMesh2dBundle, window::{PrimaryWindow, Window}};
+use bevy::{asset::Assets, ecs::{event::EventWriter, system::Res}, math::Vec2, prelude::{Camera, Commands, Component, GlobalTransform, Image, Mesh, Query, Rectangle, ResMut, Transform, Visibility, With, Without}, sprite::MaterialMesh2dBundle, window::{PrimaryWindow, Window}};
 
-use crate::{chunk_generator::NewChunkEvent, color_map::{apply_gamma_correction, gravel_variant_pmf, CLEAR, LIGHT, RAW_DECODER_DATA, RED, ROCK, SHOVEL_ABLE, SKY, STEEL, TRANSLUCENT_GREY, WHITE}, components::{Bool, ChunkMap, ContentList, GravityCoords, PlayerTag, Velocity}, constants::{CHUNK_SIZE, CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, HOE_HEIGHT, HOE_WIDTH, MAX_SHOVEL_CAPACITY}, util::{distance, flatten_index, flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_local_x, get_local_y, grid_to_image}, world_generation::CameraTag, GridMaterial};
+use crate::{chunk_generator::NewChunkEvent, color_map::{apply_gamma_correction, gravel_variant_pmf, CLEAR, LIGHT, RAW_DECODER_DATA, RED, ROCK, SHOVEL_ABLE, SKY, STEEL, TRANSLUCENT_GREY, WHITE}, components::{Bool, CameraTag, ChunkMap, ContentList, GravityCoords, PlayerTag, Velocity}, constants::{CHUNK_SIZE, CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, HOE_HEIGHT, HOE_WIDTH, MAX_SHOVEL_CAPACITY}, sun::{GridMaterial}, util::{distance, flatten_index, flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_local_x, get_local_y, grid_to_image}};
 
 #[derive(Component)]
 pub struct HoeTag;
@@ -44,6 +44,7 @@ pub fn spawn_tools(
                     color_map: images.add(hoe_image),
                     size: Vec2::new(HOE_WIDTH as f32, HOE_HEIGHT as f32),
                     decoder: apply_gamma_correction(RAW_DECODER_DATA),
+                    shadow_map: None,
                 }),
                 mesh: meshes
                 .add(Rectangle {
@@ -60,7 +61,7 @@ pub fn spawn_tools(
                     color_map: images.add(shovel_image),
                     size: Vec2::new((CURSOR_RADIUS * 2) as f32, (CURSOR_RADIUS * 2) as f32),
                     decoder: apply_gamma_correction(RAW_DECODER_DATA),
-
+                    shadow_map: None,
                 }),
                 mesh: meshes
                 .add(Rectangle {
@@ -76,6 +77,7 @@ pub fn spawn_tools(
                     color_map: images.add(pickaxe_image),
                     size: Vec2::new((CURSOR_RADIUS * 2) as f32, (CURSOR_RADIUS * 2) as f32),
                     decoder: apply_gamma_correction(RAW_DECODER_DATA),
+                    shadow_map: None,
                 }),
                 mesh: meshes
                 .add(Rectangle {
@@ -175,21 +177,24 @@ pub fn update_tool(
                 let mut local_y = get_local_y(potential_y as i32);
                 let mut local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
                 let (mut chunk_x_g, mut chunk_y_g) = (get_chunk_x_g(potential_x as i32), get_chunk_y_g(potential_y as i32));
-                while chunk_map.map.get(&(chunk_x_g, chunk_y_g)).unwrap()[local_index] == SKY || chunk_map.map.get(&(chunk_x_g, chunk_y_g)).unwrap()[local_index] == LIGHT {
-                    potential_x += dx as f32;
-                    potential_y += dy as f32;
-                    let distance_from_player_to_potential = distance(player.0.translation.x as i32, player.0.translation.y as i32, potential_x as i32, potential_y as i32);
-                    if distance_from_player_to_potential > CURSOR_ORBITAL_RADIUS {
-                        break
-                    }
-                    if distance(potential_x as i32, potential_y as i32, position_c.x as i32, position_c.y as i32) < 2. {
-                        break
-                    }
-                    local_x = get_local_x(potential_x as i32);
-                    local_y = get_local_y(potential_y as i32);
-                    local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
-                    (chunk_x_g, chunk_y_g) = (get_chunk_x_g(potential_x as i32), get_chunk_y_g(potential_y as i32));
-                    
+                match chunk_map.map.get(&(chunk_x_g, chunk_y_g)) {
+                    Some(chunk) => {
+                        while chunk[local_index] == SKY || chunk[local_index] == LIGHT {
+                            potential_x += dx as f32;
+                            potential_y += dy as f32;
+                            let distance_from_player_to_potential = distance(player.0.translation.x as i32, player.0.translation.y as i32, potential_x as i32, potential_y as i32);
+                            if distance_from_player_to_potential > CURSOR_ORBITAL_RADIUS {
+                                break
+                            }
+                            if distance(potential_x as i32, potential_y as i32, position_c.x as i32, position_c.y as i32) < 2. {
+                                break
+                            }
+                            local_x = get_local_x(potential_x as i32);
+                            local_y = get_local_y(potential_y as i32);
+                            local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize); 
+                        }
+                    },
+                    None => {}
                 }
                 if !hoe_is_locked.bool {
                     tool_position.translation.y = potential_y;

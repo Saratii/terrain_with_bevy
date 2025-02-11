@@ -1,6 +1,6 @@
 use bevy::{asset::{Assets, Handle}, ecs::event::EventWriter, math::Vec3, prelude::{Image, Query, ResMut, Transform, With, Without}};
 
-use crate::{chunk_generator::NewChunkEvent, components::{ChunkMap, PlayerTag, TerrainImageTag}, constants::CHUNK_SIZE, util::{get_chunk_x_g, get_chunk_y_g}, world_generation::{seed_chunk_with_ore, CameraTag, GridMaterial}};
+use crate::{chunk_generator::NewChunkEvent, components::{CameraTag, ChunkMap, PlayerTag, TerrainImageTag}, constants::CHUNK_SIZE, sun::GridMaterial, util::{get_chunk_x_g, get_chunk_y_g}, world_generation::seed_chunk_with_ore};
 
 pub fn render(
     mut materials: ResMut<Assets<GridMaterial>>,

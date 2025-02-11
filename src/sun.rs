@@ -1,8 +1,10 @@
-use std::f32::consts::PI;
 
-use bevy::{asset::{AssetServer, Assets, Handle}, math::Vec3, prelude::{default, Commands, Component, Image, Query, Res, ResMut, Transform, Visibility, With, Without}, sprite::SpriteBundle, time::Time};
+use std::collections::HashMap;
 
-use crate::{components::{Grid, SunTag, F32}, constants::{RAY_COUNT, SHOW_RAYS, SUN_HEIGHT, SUN_ORBIT_RADIUS, SUN_SPEED, SUN_WIDTH}, util::c_to_tl};
+use bevy::{asset::{Asset, Assets, Handle}, ecs::{component::Component, system::Resource}, math::{Mat3, Vec2, Vec3, Vec4}, prelude::{Commands, Image, Query, ResMut}, render::{render_resource::{AsBindGroup, ShaderRef, TextureAspect, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureViewDescriptor}, renderer::RenderDevice, texture::ImageSampler, view::RenderLayers}, sprite::{Material2d, MaterialMesh2dBundle, SpriteBundle}, time::Time, transform::{commands, components::Transform}, utils::default};
+use bevy_reflect::TypePath;
+
+use crate::{color_map::{LIGHT, RED, SKY}, components::{ChunkMap, ShadowMap}, constants::{CHUNK_SIZE, WINDOW_HEIGHT, WINDOW_WIDTH}, util::{flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_local_x, get_local_y, grid_to_image}};
 
 // // #[derive(Debug)]
 // // pub struct Triangle {
@@ -221,13 +223,126 @@ use crate::{components::{Grid, SunTag, F32}, constants::{RAY_COUNT, SHOW_RAYS, S
 
 // use crate::{components::{HeightMap, HeightMapTextureTag}, world_generation::{CameraTag, GridMaterial}};
 
-// pub fn lighting_update(
-//     height_map_query: Query<&HeightMap>,
-//     height_map_texture: Query<(&Handle<GridMaterial>, &mut Transform), With<HeightMapTextureTag>>,
-//     q_windows: Query<&Window, With<PrimaryWindow>>,
-//     camera_query: Query<&GlobalTransform, With<CameraTag>>,
-// ) {
-//     let camera_transform = camera_query.single().translation();
-//     println!("{:?}", camera_transform);
-    
-// }
+const LEFT: f32 = -1. * WINDOW_WIDTH as f32 / 2.;
+const RIGHT: f32 = WINDOW_WIDTH as f32 / 2.;
+const TOP: f32 = WINDOW_HEIGHT as f32 / 2.;
+const BOTTOM: f32 = -1. * WINDOW_HEIGHT as f32 / 2.;
+
+const LIGHT_PROJECTION: Mat3 = Mat3::from_cols_array(&[
+    2.0 / (RIGHT - LEFT), 0.0, 0.0,
+    0.0, -2.0 / (TOP - BOTTOM), 0.0, // Invert the y-axis
+    -(RIGHT + LEFT) / (RIGHT - LEFT), (TOP + BOTTOM) / (TOP - BOTTOM), 1.0,
+]);
+
+const SHADOW_RESOLUTION: usize = 1024;
+
+pub fn lighting_update(
+    mut chunk_map_query: Query<&mut ChunkMap>,
+    mut shadow_map_query: Query<&mut ShadowMap>,
+) {
+    let chunk_map =  &mut chunk_map_query.get_single_mut().unwrap().map;
+    let shadow_map = &mut shadow_map_query.get_single_mut().unwrap().map;
+    shadow_map.clear();
+    for global_x in WINDOW_WIDTH as i32/-2..WINDOW_WIDTH as i32/2 {
+        for global_y in WINDOW_HEIGHT as i32/-2..WINDOW_HEIGHT as i32/2  {
+            let chunk_x = get_chunk_x_g(global_x);
+            let chunk_y = get_chunk_y_g(global_y);
+            match chunk_map.get_mut(&(chunk_x, chunk_y)) {
+                Some(chunk) => {
+                    let local_x = get_local_x(global_x);
+                    let local_y = get_local_y(global_y);
+                    let local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
+                    if chunk[local_index] == SKY  {
+                        continue; //i dont give a fuck what happens here
+                    }
+                    let light_position = LIGHT_PROJECTION * Vec3::new(global_x as f32, global_y as f32, 1.0);
+                    let shadow_x = ((light_position.x + 1.0) * 0.5 * SHADOW_RESOLUTION as f32) as usize;
+                    shadow_map.entry(shadow_x)
+                        .and_modify(|shadow_y| {
+                            *shadow_y = shadow_y.min(light_position.y);
+                        })
+                        .or_insert(light_position.y);
+                    },
+                None => {
+                }
+            }
+        }
+    }
+    for x_g in WINDOW_WIDTH as i32/-2..WINDOW_WIDTH as i32/2 {
+        for y_g in WINDOW_HEIGHT as i32/-2..WINDOW_HEIGHT as i32/2  {
+            let chunk_x = get_chunk_x_g(x_g);
+            let chunk_y = get_chunk_y_g(y_g);
+            if let Some(chunk) = chunk_map.get_mut(&(chunk_x, chunk_y)) {
+                let local_x = get_local_x(x_g);
+                let local_y: usize = get_local_y(y_g);
+                let local_index = flatten_index_standard_grid(
+                    &local_x, &local_y, CHUNK_SIZE as usize,
+                );
+                if chunk[local_index] == SKY || chunk[local_index] == LIGHT {
+                    continue;
+                }
+                let light_position = LIGHT_PROJECTION * Vec3::new(x_g as f32, y_g as f32, 1.0);
+                let shadow_x = (((light_position.x + 1.0) * 0.5) * SHADOW_RESOLUTION as f32).clamp(0.0, SHADOW_RESOLUTION as f32 - 1.0) as usize;
+                if let Some(shadow_y) = shadow_map.get(&shadow_x) {
+                    if light_position.y <= *shadow_y {
+                        chunk[local_index] = LIGHT;
+                    }
+                } else {
+                    chunk[local_index] = RED;
+                }
+            }
+        }
+    }
+}
+
+#[derive(Asset, TypePath, AsBindGroup, Debug, Clone, Component)]
+pub struct GridMaterial {
+    #[uniform(0)]
+    pub size: Vec2,
+    #[texture(1)]
+    pub color_map: Handle<Image>,
+    #[uniform(2)]
+    pub decoder: [Vec4; 24],
+    #[texture(4)]
+    pub shadow_map: Option<Handle<Image>>,
+}
+
+impl Material2d for GridMaterial {
+    fn fragment_shader() -> ShaderRef {
+        "shaders/render_shader.wgsl".into()
+    }
+}
+
+#[derive(Resource)]
+pub struct ChunkImageHandle {
+    pub handle: Handle<Image>,
+}
+
+#[derive(Resource)]
+pub struct Othereers {
+    pub handles: HashMap<u32, Handle<Image>>,
+}
+
+
+pub fn initialize_shadows(
+    mut commands: Commands,
+    mut images: ResMut<Assets<Image>>,
+) {
+    initialize_9_chunks(&mut images, &mut commands);
+}
+
+fn initialize_9_chunks(images: &mut Assets<Image>, commands: &mut Commands) -> Handle<Image>{
+    let mut center_handle = Handle::default();
+    let mut map = HashMap::new();
+    for i in 0..9 {
+        let image_handle = images.add(grid_to_image(&vec![0; (CHUNK_SIZE * CHUNK_SIZE) as usize], CHUNK_SIZE as u32, CHUNK_SIZE as u32, None));
+        if i == 4 {
+            center_handle = image_handle.clone();
+            commands.insert_resource(ChunkImageHandle { handle: image_handle });
+        } else {
+            map.insert(i, image_handle);
+        }
+    }
+    commands.insert_resource(Othereers { handles: map });
+    center_handle
+}

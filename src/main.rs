@@ -13,6 +13,7 @@ pub mod ui;
 pub mod drill;
 pub mod render;
 pub mod chunk_generator;
+pub mod com;
 
 use bevy::app::*;
 use bevy::diagnostic::EntityCountDiagnosticsPlugin;
@@ -23,19 +24,23 @@ use bevy::prelude::*;
 use bevy::sprite::Material2dPlugin;
 use bevy::window::PresentMode;
 use chunk_generator::generate_chunk_listener;
+use com::setup_g;
+use com::GameOfLifeComputePlugin;
 use constants::LIGHTING_DEMO;
 use constants::WINDOW_HEIGHT;
 use iyes_perf_ui::PerfUiPlugin;
 use keyboard_controller::process_key_event;
 use mouse_controller::check_mouse_click;
 use player::spawn_player;
+use sun::initialize_shadows;
+use sun::lighting_update;
+use sun::GridMaterial;
+// use sun::ShadowMapMaterial;
 use tools::spawn_tools;
 use tools::update_tool;
 use world_generation::setup_camera;
 use world_generation::setup_world;
 use world_generation::grid_tick;
-use world_generation::GridMaterial;
-use world_generation::HeightMapTexture;
 use crate::constants::WINDOW_WIDTH;
 use crate::render::render;
 
@@ -55,6 +60,8 @@ fn main() {
           EntityCountDiagnosticsPlugin,
           SystemInformationDiagnosticsPlugin,
           Material2dPlugin::<GridMaterial>::default(),
+          GameOfLifeComputePlugin,
+          // Material2dPlugin::<ShadowMapMaterial>::default(),
           // Material2dPlugin::<HeightMapTexture>::default(),
           PerfUiPlugin,
         ))
@@ -70,8 +77,8 @@ fn main() {
       app.add_systems(Update, (spawn_random_squares, render));
     } else {
       app.add_event::<chunk_generator::NewChunkEvent>();
-      app.add_systems(Startup, (setup_camera, setup_world, spawn_player, apply_deferred, spawn_tools).chain());
-      app.add_systems(Update, (process_key_event, update_tool, check_mouse_click, grid_tick, render, generate_chunk_listener));
+      app.add_systems(Startup, (setup_camera, initialize_shadows,  setup_g, apply_deferred, setup_world, spawn_player, apply_deferred, spawn_tools).chain());
+      app.add_systems(Update, (process_key_event, update_tool, check_mouse_click, grid_tick, render, generate_chunk_listener, lighting_update));
     }
     app.run();
 }

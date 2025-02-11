@@ -14,12 +14,7 @@ pub fn grid_to_image(grid: &Vec<u8>, width: u32, height: u32, _perlin_mask: Opti
     if grid.len() != (width * height) as usize {
         panic!("Grid and image dimensions do not match");
     }
-    Image::new(
-        Extent3d {
-            width,
-            height,
-            depth_or_array_layers: 1,
-        },
+    Image::new(Extent3d { width, height, depth_or_array_layers: 1 },
         TextureDimension::D2,
         grid.clone(),
         TextureFormat::R8Unorm,
@@ -129,12 +124,12 @@ pub fn valid_machine_spawn(_chunk_map: &Vec<Vec<u8>>, _position_g: Vec3, _width:
 // }
 
 //global_chunk_index and top left Y to world coordinate:
-pub fn get_global_y_coordinate(chunk_y_g: i32, y: usize) -> i32 {
-    chunk_y_g * CHUNK_SIZE as i32 + CHUNK_SIZE as i32 / 2 as i32 - y as i32
+pub fn get_global_y_coordinate(chunk_y_g: i32, local_y: usize) -> i32 {
+    chunk_y_g * CHUNK_SIZE as i32 + CHUNK_SIZE as i32 / 2 as i32 - local_y as i32
 }
 
-pub fn get_global_x_coordinate(chunk_x_g: i32, x: usize) -> i32 {
-    chunk_x_g * CHUNK_SIZE as i32 - CHUNK_SIZE as i32 / 2 as i32 + x as i32
+pub fn get_global_x_coordinate(chunk_x_g: i32, local_x: usize) -> i32 {
+    chunk_x_g * CHUNK_SIZE as i32 - CHUNK_SIZE as i32 / 2 as i32 + local_x as i32
 }
 
 pub fn get_local_x(global_x: i32) -> usize {
