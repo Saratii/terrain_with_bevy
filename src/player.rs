@@ -19,6 +19,7 @@ pub fn spawn_player(
                     size: Vec2::new(PLAYER_WIDTH as f32, PLAYER_HEIGHT as f32),
                     decoder: apply_gamma_correction(RAW_DECODER_DATA),
                     shadow_map: None,
+                    chunk_position: Vec2::new(0., 0.),
                 }),
                 mesh: meshes
                 .add(Rectangle {

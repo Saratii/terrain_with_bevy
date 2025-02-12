@@ -45,6 +45,7 @@ pub fn spawn_tools(
                     size: Vec2::new(HOE_WIDTH as f32, HOE_HEIGHT as f32),
                     decoder: apply_gamma_correction(RAW_DECODER_DATA),
                     shadow_map: None,
+                    chunk_position: Vec2::new(0., 0.),
                 }),
                 mesh: meshes
                 .add(Rectangle {
@@ -62,6 +63,7 @@ pub fn spawn_tools(
                     size: Vec2::new((CURSOR_RADIUS * 2) as f32, (CURSOR_RADIUS * 2) as f32),
                     decoder: apply_gamma_correction(RAW_DECODER_DATA),
                     shadow_map: None,
+                    chunk_position: Vec2::new(0., 0.),
                 }),
                 mesh: meshes
                 .add(Rectangle {
@@ -78,6 +80,7 @@ pub fn spawn_tools(
                     size: Vec2::new((CURSOR_RADIUS * 2) as f32, (CURSOR_RADIUS * 2) as f32),
                     decoder: apply_gamma_correction(RAW_DECODER_DATA),
                     shadow_map: None,
+                    chunk_position: Vec2::new(0., 0.),
                 }),
                 mesh: meshes
                 .add(Rectangle {

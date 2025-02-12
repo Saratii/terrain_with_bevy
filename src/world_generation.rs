@@ -68,6 +68,7 @@ pub fn setup_world(
                             size: Vec2::new(CHUNK_SIZE as f32, CHUNK_SIZE as f32),
                             decoder: apply_gamma_correction(RAW_DECODER_DATA),
                             shadow_map: Some(shadows_fucker.texture_b.clone()),
+                            chunk_position: Vec2::new(0., 0.),
                         }),
                         mesh: meshes.add(Rectangle { half_size: Vec2::new(CHUNK_SIZE/2., CHUNK_SIZE/2.) }).into(),
                         transform: Transform { translation: Vec3::new(Default::default(), Default::default(), -5.), ..Default::default() },

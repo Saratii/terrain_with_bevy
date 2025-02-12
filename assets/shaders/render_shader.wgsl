@@ -8,11 +8,12 @@ struct Decoder {
 @group(2) @binding(1) var tile_map: texture_2d<f32>;
 @group(2) @binding(2) var<uniform> decoder: Decoder;
 @group(2) @binding(4) var shadow_map: texture_2d<f32>;
+@group(2) @binding(5) var<uniform> chunk_position: vec2<f32>;
 
 const CHUNK_SIZE: f32 = 600.0;
 const SHADOW_RESOLUTION: f32 = 2048.;
-const LEFT: f32 = -1. * 1200. / 2.;
-const RIGHT: f32 = 1200. / 2.;
+const LEFT: f32 = -900.0;
+const RIGHT: f32 = 900.0;
 const TOP: f32 = 1200. / 2.;
 const BOTTOM: f32 = -1. * 1200. / 2.;
 
@@ -36,7 +37,7 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
     // if (i32(tile_map_value) == 21 || i32(tile_map_value) == 4) && light < 0.2 {
     //     color = decoder.colors[5];
     // }
-    let is_lit = shade(f32(local_coord.x), f32(local_coord.y));
+    let is_lit = shade(f32(local_coord.x), f32(local_coord.y), chunk_position.x, chunk_position.y);
     return vec4<f32>(
         color.r * is_lit,
         color.g * is_lit,
@@ -45,9 +46,9 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
     );
 }
 
-fn shade(local_x: f32, local_y: f32) -> f32 {
-    let global_x = get_global_x_coordinate(0., local_x);
-    let global_y = get_global_y_coordinate(0., local_y);
+fn shade(local_x: f32, local_y: f32, global_chunk_x: f32, global_chunk_y: f32) -> f32 {
+    let global_x = get_global_x_coordinate(global_chunk_x, local_x);
+    let global_y = get_global_y_coordinate(global_chunk_y, local_y);
     let light_position = LIGHT_PROJECTION * vec3<f32>(global_x, global_y, 1.0);
     let shadow_x = clamp(((light_position.x + 1.0) * 0.5) * SHADOW_RESOLUTION, 0.0, SHADOW_RESOLUTION - 1.0);
     let shadow_y = textureLoad(shadow_map, vec2<i32>(i32(shadow_x), 0), 0).x;

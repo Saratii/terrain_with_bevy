@@ -16,6 +16,8 @@ pub struct GridMaterial {
     pub decoder: [Vec4; 24],
     #[texture(4)]
     pub shadow_map: Option<Handle<Image>>,
+    #[uniform(5)]
+    pub chunk_position: Vec2,
 }
 
 impl Material2d for GridMaterial {

@@ -11,10 +11,10 @@ use bevy::{
     },
 };
 use std::borrow::Cow;
-use crate::{constants::{CHUNK_SIZE, SHADOW_RESOLUTION}, sun::ChunkImageHandle};
+use crate::{constants::{CHUNK_SIZE, SHADOW_RESOLUTION}, sun::{ChunkImageHandle, Othereers}, util::grid_to_image};
 
 const SHADER_ASSET_PATH: &str = "shaders/shadow_compute.wgsl";
-const INPUT_SIZE: (u32, u32) = (CHUNK_SIZE as u32, CHUNK_SIZE as u32);
+const INPUT_SIZE: (u32, u32) = (CHUNK_SIZE as u32 * 3, CHUNK_SIZE as u32);
 const OUTPUT_SIZE: (u32, u32) = (SHADOW_RESOLUTION as u32, 1);
 const WORKGROUP_SIZE: u32 = 1;
 
@@ -22,11 +22,20 @@ pub fn build_compute_shader(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
     center_chunk_handle: Res<ChunkImageHandle>,
+    mut others: ResMut<Othereers>,
 ) {
     let input_texture = images.get_mut(&center_chunk_handle.handle).unwrap();
     input_texture.texture_descriptor.usage = TextureUsages::COPY_DST
         | TextureUsages::STORAGE_BINDING
         | TextureUsages::TEXTURE_BINDING;
+    let mut left_input_image = grid_to_image(&vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize], CHUNK_SIZE as u32, CHUNK_SIZE as u32, None);
+    left_input_image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
+    let left_input_handle = images.add(left_input_image);
+    others.handles.insert(3, left_input_handle.clone());
+    let mut right_input_image = grid_to_image(&vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize], CHUNK_SIZE as u32, CHUNK_SIZE as u32, None);
+    right_input_image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
+    let right_input_handle = images.add(right_input_image);
+    others.handles.insert(5, right_input_handle.clone());
     let mut output_texture = Image::new_fill(
         Extent3d {
             width: OUTPUT_SIZE.0,
@@ -38,16 +47,23 @@ pub fn build_compute_shader(
         TextureFormat::R32Float,
         RenderAssetUsages::RENDER_WORLD,
     );
-    output_texture.texture_descriptor.usage = TextureUsages::COPY_DST
-        | TextureUsages::STORAGE_BINDING
-        | TextureUsages::TEXTURE_BINDING;
+    output_texture.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
     let output_texture_handle = images.add(output_texture);
     commands.insert_resource(ShadowsImages {
         texture_a: center_chunk_handle.handle.clone(),
         texture_b: output_texture_handle,
+        texture_left: left_input_handle,
+        texture_right: right_input_handle,
     });
 }
 
+#[derive(Resource, Clone, ExtractResource)]
+pub struct ShadowsImages {
+    pub texture_a: Handle<Image>,
+    pub texture_b: Handle<Image>,
+    pub texture_left: Handle<Image>,
+    pub texture_right: Handle<Image>,
+}
 pub struct ShadowsComputePlugin;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
@@ -72,37 +88,11 @@ impl Plugin for ShadowsComputePlugin {
     }
 }
 
-#[derive(Resource, Clone, ExtractResource)]
-pub struct ShadowsImages {
-    pub texture_a: Handle<Image>,
-    pub texture_b: Handle<Image>,
-}
-
 #[derive(Resource)]
-pub struct ShadowsImageBindGroups([BindGroup; 2]);
-
-fn prepare_bind_group(
-    mut commands: Commands,
-    pipeline: Res<ShadowsPipeline>,
-    gpu_images: Res<RenderAssets<GpuImage>>,
-    shadows_images: Res<ShadowsImages>,
-    render_device: Res<RenderDevice>,
-) {
-    let view_a = gpu_images.get(&shadows_images.texture_a).unwrap();
-    let view_b = gpu_images.get(&shadows_images.texture_b).unwrap();
-    let bind_group_0 = render_device.create_bind_group(
-        None,
-        &pipeline.texture_bind_group_layout,
-        &BindGroupEntries::sequential((&view_a.texture_view, &view_b.texture_view)),
-    );
-    commands.insert_resource(ShadowsImageBindGroups([bind_group_0.clone(), bind_group_0]));
-}
-
-#[derive(Resource)]
-struct ShadowsPipeline {
-    texture_bind_group_layout: BindGroupLayout,
-    init_pipeline: CachedComputePipelineId,
-    update_pipeline: CachedComputePipelineId,
+pub struct ShadowsPipeline {
+    pub texture_bind_group_layout: BindGroupLayout,
+    pub init_pipeline: CachedComputePipelineId,
+    pub update_pipeline: CachedComputePipelineId,
 }
 
 impl FromWorld for ShadowsPipeline {
@@ -110,13 +100,48 @@ impl FromWorld for ShadowsPipeline {
         let render_device = world.resource::<RenderDevice>();
         let texture_bind_group_layout = render_device.create_bind_group_layout(
             "ShadowsImages",
-            &BindGroupLayoutEntries::sequential(
-                ShaderStages::COMPUTE,
-                (
-                    texture_storage_2d(TextureFormat::R8Unorm, StorageTextureAccess::ReadOnly),
-                    texture_storage_2d(TextureFormat::R32Float, StorageTextureAccess::ReadWrite),
-                ),
-            ),
+            &[
+                BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::StorageTexture {
+                        access: StorageTextureAccess::ReadOnly,
+                        format: TextureFormat::R8Unorm,
+                        view_dimension: TextureViewDimension::D2,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::StorageTexture {
+                        access: StorageTextureAccess::ReadWrite,
+                        format: TextureFormat::R32Float,
+                        view_dimension: TextureViewDimension::D2,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::StorageTexture {
+                        access: StorageTextureAccess::ReadOnly,
+                        format: TextureFormat::R8Unorm,
+                        view_dimension: TextureViewDimension::D2,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 4,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::StorageTexture {
+                        access: StorageTextureAccess::ReadOnly,
+                        format: TextureFormat::R8Unorm,
+                        view_dimension: TextureViewDimension::D2,
+                    },
+                    count: None,
+                },
+            ],
         );
         let shader = world.load_asset(SHADER_ASSET_PATH);
         let pipeline_cache = world.resource::<PipelineCache>();
@@ -143,6 +168,46 @@ impl FromWorld for ShadowsPipeline {
         }
     }
 }
+
+#[derive(Resource)]
+pub struct ShadowsImageBindGroups([BindGroup; 2]);
+
+fn prepare_bind_group(
+    mut commands: Commands,
+    pipeline: Res<ShadowsPipeline>,
+    gpu_images: Res<RenderAssets<GpuImage>>,
+    shadows_images: Res<ShadowsImages>,
+    render_device: Res<RenderDevice>,
+) {
+    let view_a = gpu_images.get(&shadows_images.texture_a).unwrap();
+    let view_b = gpu_images.get(&shadows_images.texture_b).unwrap();
+    let view_left = gpu_images.get(&shadows_images.texture_left).unwrap();
+    let view_right = gpu_images.get(&shadows_images.texture_right).unwrap();
+    let bind_group = render_device.create_bind_group(
+        None,
+        &pipeline.texture_bind_group_layout,
+        &[
+            BindGroupEntry {
+                binding: 0,
+                resource: BindingResource::TextureView(&view_a.texture_view),
+            },
+            BindGroupEntry {
+                binding: 1,
+                resource: BindingResource::TextureView(&view_b.texture_view),
+            },
+            BindGroupEntry {
+                binding: 3,
+                resource: BindingResource::TextureView(&view_left.texture_view),
+            },
+            BindGroupEntry {
+                binding: 4,
+                resource: BindingResource::TextureView(&view_right.texture_view),
+            },
+        ],
+    );
+    commands.insert_resource(ShadowsImageBindGroups([bind_group.clone(), bind_group]));
+}
+
 enum ShadowsState {
     Loading,
     Init,

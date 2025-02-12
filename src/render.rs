@@ -21,10 +21,14 @@ pub fn render(
     let chunk_x_g = get_chunk_x_g(player_pos.x as i32);
     let chunk_y_g = get_chunk_y_g(player_pos.y as i32);
     for (material_handle, mut rendered_box_transform) in terrain_material_handle.iter_mut() {
-        let grid = &mut images.get_mut(&materials.get_mut(material_handle).unwrap().color_map).unwrap().data;
+        let material_handle = materials.get_mut(material_handle).unwrap();
+        let grid = &mut images.get_mut(&material_handle.color_map).unwrap().data;
+        let chunk_pos = &mut material_handle.chunk_position;
         if i == 0 { //top left
             if let Some(chunk) = chunk_map.get(&(chunk_x_g - 1, chunk_y_g + 1)) {
                 *grid = chunk.clone();
+                chunk_pos.x = chunk_x_g as f32 - 1.;
+                chunk_pos.y = chunk_y_g as f32 + 1.;
             } else {
                 chunk_event_writer.send(NewChunkEvent {
                     chunk_x_g: chunk_x_g - 1,
@@ -37,6 +41,8 @@ pub fn render(
         } else if i == 1 { //top center
             if let Some(chunk) = chunk_map.get(&(chunk_x_g, chunk_y_g + 1)) {
                 *grid = chunk.clone();
+                chunk_pos.x = chunk_x_g as f32;
+                chunk_pos.y = chunk_y_g as f32 + 1.;
             } else {
                 chunk_event_writer.send(NewChunkEvent {
                     chunk_x_g: chunk_x_g,
@@ -49,6 +55,8 @@ pub fn render(
         } else if i == 2 { //top right
             if let Some(chunk) = chunk_map.get(&(chunk_x_g + 1, chunk_y_g + 1)) {
                 *grid = chunk.clone();
+                chunk_pos.x = chunk_x_g as f32 + 1.;
+                chunk_pos.y = chunk_y_g as f32 + 1.;
             } else {
                 chunk_event_writer.send(NewChunkEvent {
                     chunk_x_g: chunk_x_g + 1,
@@ -61,6 +69,8 @@ pub fn render(
         } else if i == 3 { //center left
             if let Some(chunk) = chunk_map.get(&(chunk_x_g - 1, chunk_y_g)) {
                 *grid = chunk.clone();
+                chunk_pos.x = chunk_x_g as f32 - 1.;
+                chunk_pos.y = chunk_y_g as f32;
             } else {
                 chunk_event_writer.send(NewChunkEvent {
                     chunk_x_g: chunk_x_g - 1,
@@ -73,6 +83,8 @@ pub fn render(
         } else if i == 4 { //center center
             if let Some(chunk) = chunk_map.get(&(chunk_x_g, chunk_y_g)) {
                 *grid = chunk.clone();
+                chunk_pos.x = chunk_x_g as f32;
+                chunk_pos.y = chunk_y_g as f32;
             } else {
                 chunk_event_writer.send(NewChunkEvent {
                     chunk_x_g: chunk_x_g,
@@ -85,6 +97,8 @@ pub fn render(
         } else if i == 5 { //center right
             if let Some(chunk) = chunk_map.get(&(chunk_x_g + 1, chunk_y_g)) {
                 *grid = chunk.clone();
+                chunk_pos.x = chunk_x_g as f32 + 1.;
+                chunk_pos.y = chunk_y_g as f32;
             } else {
                 chunk_event_writer.send(NewChunkEvent {
                     chunk_x_g: chunk_x_g + 1,
@@ -97,6 +111,8 @@ pub fn render(
         } else if i == 6 { //bottom left
             if let Some(chunk) = chunk_map.get(&(chunk_x_g - 1, chunk_y_g - 1)) {
                 *grid = chunk.clone();
+                chunk_pos.x = chunk_x_g as f32 - 1.;
+                chunk_pos.y = chunk_y_g as f32 - 1.;
             } else {
                 chunk_event_writer.send(NewChunkEvent {
                     chunk_x_g: chunk_x_g - 1,
@@ -109,6 +125,8 @@ pub fn render(
         } else if i == 7 { //bottom center
             if let Some(chunk) = chunk_map.get(&(chunk_x_g, chunk_y_g - 1)) {
                 *grid = chunk.clone();
+                chunk_pos.x = chunk_x_g as f32;
+                chunk_pos.y = chunk_y_g as f32 - 1.;
             } else {
                 chunk_event_writer.send(NewChunkEvent {
                     chunk_x_g: chunk_x_g,
@@ -121,6 +139,7 @@ pub fn render(
         } else if i == 8 { //bottom right
             if let Some(chunk) = chunk_map.get(&(chunk_x_g + 1, chunk_y_g - 1)) {
                 *grid = chunk.clone();
+                chunk_pos.x = chunk_x_g as f32 + 1.;
             } else {
                 chunk_event_writer.send(NewChunkEvent {
                     chunk_x_g: chunk_x_g + 1,
