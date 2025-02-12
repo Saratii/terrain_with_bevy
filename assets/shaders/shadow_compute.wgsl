@@ -2,8 +2,17 @@
 
 @group(0) @binding(1) var output: texture_storage_2d<r32float, read_write>;
 
-const CHUNK_SIZE: f32 = 1200.0;
+const CHUNK_SIZE: f32 = 600.0;
 const SHADOW_RESOLUTION: f32 = 2048.;
+const LEFT: f32 = -1. * 1200. / 2.;
+const RIGHT: f32 = 1200. / 2.;
+const TOP: f32 = 1200. / 2.;
+const BOTTOM: f32 = -1. * 1200. / 2.;
+const LIGHT_PROJECTION : mat3x3<f32> = mat3x3<f32>(
+    2.0 / (RIGHT - LEFT), 0.0, 0.0,
+    0.0, -2.0 / (TOP - BOTTOM), 0.0,
+    -(RIGHT + LEFT) / (RIGHT - LEFT), (TOP + BOTTOM) / (TOP - BOTTOM), 1.0
+);
 
 @compute @workgroup_size(1, 1, 1)
 fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>, @builtin(num_workgroups) num_workgroups: vec3<u32>) {
@@ -13,17 +22,6 @@ fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>, @builtin(num_wo
         textureStore(output, vec2<i32>(flattened, 0), vec4<f32>(100000., 0., 0., 0.));
     } //jank as hell
 }
-
-const LEFT: f32 = -1. * 1200. / 2.;
-const RIGHT: f32 = 1200. / 2.;
-const TOP: f32 = 1200. / 2.;
-const BOTTOM: f32 = -1. * 1200. / 2.;
-
-const LIGHT_PROJECTION : mat3x3<f32> = mat3x3<f32>(
-    2.0 / (RIGHT - LEFT), 0.0, 0.0,
-    0.0, -2.0 / (TOP - BOTTOM), 0.0,
-    -(RIGHT + LEFT) / (RIGHT - LEFT), (TOP + BOTTOM) / (TOP - BOTTOM), 1.0
-);
 
 fn calculate_shadows(local_x: i32, local_y: i32) -> vec2<f32> {
     let global_x = get_global_x_coordinate(0., f32(local_x));

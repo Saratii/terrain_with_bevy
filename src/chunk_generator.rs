@@ -16,20 +16,18 @@ pub fn generate_chunk_listener(
 ) {
     for event in events.read() {
         let perlin = perlin_query.get_single().unwrap().handle;
-        let (grid, _local_height_map) = generate_chunk(event.chunk_x_g, event.chunk_y_g, &perlin);
+        let grid = generate_chunk(event.chunk_x_g, event.chunk_y_g, &perlin);
         let mut chunk_map = chunk_map_query.get_single_mut().unwrap();
         chunk_map.map.insert((event.chunk_x_g, event.chunk_y_g), grid);
     }
 }
 
-pub fn generate_chunk(chunk_x_g: i32, chunk_y_g: i32, perlin: &Perlin) -> (Vec<u8>, Vec<i32>) {
+pub fn generate_chunk(chunk_x_g: i32, chunk_y_g: i32, perlin: &Perlin) -> Vec<u8> {
     println!("Generating chunk at {}, {}", chunk_x_g, chunk_y_g);
-    let mut local_height_map = Vec::new();
     let mut grid = vec![0; (CHUNK_SIZE * CHUNK_SIZE) as usize];
     let mut grass_variant_pmf = grass_variant_pmf();
     let mut dirt_variant_pmf = dirt_variant_pmf();
     for x in 0..CHUNK_SIZE as usize {
-        let mut max_column_height = i32::MIN;
         let global_x = get_global_x_coordinate(chunk_x_g, x);
         let dirt_perlin =  perlin.get([global_x as f64 * DIRT_NOISE_SMOOTHNESS, 0.0]) * DIRT_VARIATION;
         let rock_perlin = perlin.get([global_x as f64 * ROCK_NOISE_SMOOTHNESS, 0.0]) * ROCK_VARIATION;
@@ -42,21 +40,14 @@ pub fn generate_chunk(chunk_x_g: i32, chunk_y_g: i32, perlin: &Perlin) -> (Vec<u
                 grid[index] = SKY;
             } else if global_y > grass_perlin_bottom as i32 - 5 {
                 grid[index] = grass_variant_pmf.next().unwrap();
-                if global_y > max_column_height {
-                    max_column_height = global_y;
-                }
             } else if global_y > dirt_perlin as i32 {
                 grid[index] = dirt_variant_pmf.next().unwrap();
-                if global_y > max_column_height {
-                    max_column_height = global_y;
-                }
             } else if global_y > -100 + rock_perlin as i32 {
                 grid[index] = dirt_variant_pmf.next().unwrap();
             } else {
                 grid[index] = ROCK;
             }
         }
-        local_height_map.push(max_column_height);
     }
-    (grid, local_height_map)
+    grid
 }

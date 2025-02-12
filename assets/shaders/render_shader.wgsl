@@ -9,10 +9,18 @@ struct Decoder {
 @group(2) @binding(2) var<uniform> decoder: Decoder;
 @group(2) @binding(4) var shadow_map: texture_2d<f32>;
 
-const SUN_ANGLE: f32 = -1.7;
-const SUN_VECTOR: vec2<f32> = vec2<f32>(cos(SUN_ANGLE), sin(SUN_ANGLE));
-const CHUNK_SIZE: f32 = 1200.0;
+const CHUNK_SIZE: f32 = 600.0;
 const SHADOW_RESOLUTION: f32 = 2048.;
+const LEFT: f32 = -1. * 1200. / 2.;
+const RIGHT: f32 = 1200. / 2.;
+const TOP: f32 = 1200. / 2.;
+const BOTTOM: f32 = -1. * 1200. / 2.;
+
+const LIGHT_PROJECTION : mat3x3<f32> = mat3x3<f32>(
+    2.0 / (RIGHT - LEFT), 0.0, 0.0,
+    0.0, -2.0 / (TOP - BOTTOM), 0.0,
+    -(RIGHT + LEFT) / (RIGHT - LEFT), (TOP + BOTTOM) / (TOP - BOTTOM), 1.0
+);
 
 @fragment
 fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
@@ -37,17 +45,6 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
     );
 }
 
-const LEFT: f32 = -1. * 1200. / 2.;
-const RIGHT: f32 = 1200. / 2.;
-const TOP: f32 = 1200. / 2.;
-const BOTTOM: f32 = -1. * 1200. / 2.;
-
-const LIGHT_PROJECTION : mat3x3<f32> = mat3x3<f32>(
-    2.0 / (RIGHT - LEFT), 0.0, 0.0,
-    0.0, -2.0 / (TOP - BOTTOM), 0.0,
-    -(RIGHT + LEFT) / (RIGHT - LEFT), (TOP + BOTTOM) / (TOP - BOTTOM), 1.0
-);
-
 fn shade(local_x: f32, local_y: f32) -> f32 {
     let global_x = get_global_x_coordinate(0., local_x);
     let global_y = get_global_y_coordinate(0., local_y);
@@ -58,7 +55,7 @@ fn shade(local_x: f32, local_y: f32) -> f32 {
         return 1.0;
     }
     let diff = light_position.y - shadow_y;
-    let maxDiff = 0.1;
+    let maxDiff = 0.15;
     return clamp(1.0 - diff / maxDiff, 0.0, 1.0);
 }
 

@@ -7,7 +7,7 @@ pub const NO_GRAVITY: bool = false;
 //Setup
 pub const WINDOW_WIDTH: usize = 1200;
 pub const WINDOW_HEIGHT: usize = 1200;
-pub const CHUNK_SIZE: f32 = 1200 as f32;
+pub const CHUNK_SIZE: f32 = 600 as f32;
 pub const LIGHTING_DEMO: bool = false;
 pub const SHADOW_RESOLUTION: f32 = 2048.;
 
