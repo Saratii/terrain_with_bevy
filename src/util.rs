@@ -143,7 +143,7 @@ pub fn get_local_x(global_x: i32) -> usize {
 }
 
 pub fn get_local_y(global_x: i32) -> usize {
-    (299 - global_x).rem_euclid(600) as usize
+    (CHUNK_SIZE as i32/2 - 1 - global_x).rem_euclid(CHUNK_SIZE as i32) as usize
 }
 
 pub fn get_chunk_x_g(x_g: i32) -> i32 {

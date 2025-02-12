@@ -2,18 +2,20 @@
 pub const MAX_SHOVEL_CAPACITY: usize = 20000000;
 pub const CURSOR_RADIUS: usize = 15 * 1;
 pub const CURSOR_ORBITAL_RADIUS: f32 = 100.* 1.;
+pub const NO_GRAVITY: bool = false;
 
 //Setup
 pub const WINDOW_WIDTH: usize = 1200;
 pub const WINDOW_HEIGHT: usize = 1200;
-pub const CHUNK_SIZE: f32 = 600.;
+pub const CHUNK_SIZE: f32 = 1200 as f32;
 pub const LIGHTING_DEMO: bool = false;
+pub const SHADOW_RESOLUTION: f32 = 2048.;
 
 //Player
 pub const PLAYER_WIDTH: usize = 20;
 pub const PLAYER_HEIGHT: usize = 60;
 pub const PLAYER_SPAWN_X: usize = 0;
-pub const PLAYER_SPAWN_Y: usize = 500;
+pub const PLAYER_SPAWN_Y: usize = 0;
 pub const SPAWN_PLAYER: bool = false;
 
 //other

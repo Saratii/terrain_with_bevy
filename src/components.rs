@@ -119,12 +119,4 @@ pub struct PerlinHandle {
 }
 
 #[derive(Component)]
-pub struct ShadowMap {
-    pub map: HashMap<usize, f32>,
-}
-
-#[derive(Component)]
-pub struct HeightMapTextureTag;
-
-#[derive(Component)]
 pub struct CameraTag;

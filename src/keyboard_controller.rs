@@ -20,7 +20,7 @@ pub fn process_key_event(
     let mut hoe_is_locked = hoe_is_locked_query.get_single_mut().unwrap();
     let mut player = player_query.get_single_mut().unwrap();
     let does_gravity_apply = does_gravity_apply_to_entity(player.0.translation, PLAYER_WIDTH as i32, PLAYER_HEIGHT as i32, &mut chunk_map.map, &mut chunk_event_writer);
-    if does_gravity_apply {
+    if does_gravity_apply{
         player.1.vy -= 300. * time.delta_seconds();
     } else {
         player.1.vy = 0.;

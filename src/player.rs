@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use bevy::{asset::Assets, math::{Vec2, Vec3}, prelude::{Commands, Image, Mesh, Rectangle, Res, ResMut, Transform}, sprite::MaterialMesh2dBundle, time::Time};
 
-use crate::{color_map::{apply_gamma_correction, BLACK, LIGHT, PLAYER_SKIN, RAW_DECODER_DATA, RED, SELL_BOX, SKY, WHITE}, components::{PlayerTag, Velocity}, constants::{CHUNK_SIZE, PLAYER_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, PLAYER_WIDTH}, sun::GridMaterial, tools::{CurrentTool, Tool}, util::{flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_local_x, get_local_y, grid_to_image}};
+use crate::{color_map::{apply_gamma_correction, BLACK, LIGHT, PLAYER_SKIN, RAW_DECODER_DATA, RED, SELL_BOX, SKY, WHITE}, components::{PlayerTag, Velocity}, constants::{CHUNK_SIZE, NO_GRAVITY, PLAYER_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, PLAYER_WIDTH}, sun::GridMaterial, tools::{CurrentTool, Tool}, util::{flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_local_x, get_local_y, grid_to_image}};
 
 
 pub fn spawn_player(
@@ -71,7 +71,9 @@ pub fn apply_velocity(
         velocity.vy = 0.;
     }
     entity_position_c.x += velocity.vx * time.delta_seconds();
-    entity_position_c.y += velocity.vy * time.delta_seconds();
+    if !NO_GRAVITY {
+        entity_position_c.y += velocity.vy * time.delta_seconds();
+    }
 }
 
 fn horizontal_collision(velocity: &f32, chunk_map: &HashMap<(i32, i32), Vec<u8>>, entity_position_c: &Vec3) -> bool {
