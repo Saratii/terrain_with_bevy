@@ -4,38 +4,115 @@ use bevy::{
         extract_resource::{ExtractResource, ExtractResourcePlugin},
         render_asset::{RenderAssetUsages, RenderAssets},
         render_graph::{self, RenderGraph, RenderLabel},
-        render_resource::{binding_types::texture_storage_2d, *},
+        render_resource::*,
         renderer::{RenderContext, RenderDevice},
         texture::GpuImage,
         Render, RenderApp, RenderSet,
     },
 };
+use bytemuck::{Pod, Zeroable};
+use wgpu::util;
 use std::borrow::Cow;
-use crate::{constants::{CHUNK_SIZE, SHADOW_RESOLUTION}, sun::{ChunkImageHandle, Othereers}, util::grid_to_image};
+use crate::{constants::{CHUNK_SIZE, SHADOW_RESOLUTION}, util::grid_to_image};
 
 const SHADER_ASSET_PATH: &str = "shaders/shadow_compute.wgsl";
 const INPUT_SIZE: (u32, u32) = (CHUNK_SIZE as u32 * 3, CHUNK_SIZE as u32);
 const OUTPUT_SIZE: (u32, u32) = (SHADOW_RESOLUTION as u32, 1);
 const WORKGROUP_SIZE: u32 = 1;
 
+#[repr(C)]
+#[derive(Resource, Copy, Clone, Pod, Zeroable)]
+pub struct CurrentPlayerChunk {
+    pub current_chunk: [i32; 2],
+    pub _padding: [u32; 2],
+}
+
+impl Default for CurrentPlayerChunk {
+    fn default() -> Self {
+        Self {
+            current_chunk: [0, 0],
+            _padding: [0, 0],
+        }
+    }
+}
+
 pub fn build_compute_shader(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
-    center_chunk_handle: Res<ChunkImageHandle>,
-    mut others: ResMut<Othereers>,
 ) {
-    let input_texture = images.get_mut(&center_chunk_handle.handle).unwrap();
-    input_texture.texture_descriptor.usage = TextureUsages::COPY_DST
-        | TextureUsages::STORAGE_BINDING
-        | TextureUsages::TEXTURE_BINDING;
-    let mut left_input_image = grid_to_image(&vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize], CHUNK_SIZE as u32, CHUNK_SIZE as u32, None);
+    commands.insert_resource::<CurrentPlayerChunk>(CurrentPlayerChunk::default());
+    let mut center_input_image = grid_to_image(
+        &vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize],
+        CHUNK_SIZE as u32,
+        CHUNK_SIZE as u32,
+        None,
+    );
+    center_input_image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
+    let center_input_handle = images.add(center_input_image);
+    let mut left_input_image = grid_to_image(
+        &vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize],
+        CHUNK_SIZE as u32,
+        CHUNK_SIZE as u32,
+        None,
+    );
     left_input_image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
     let left_input_handle = images.add(left_input_image);
-    others.handles.insert(3, left_input_handle.clone());
-    let mut right_input_image = grid_to_image(&vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize], CHUNK_SIZE as u32, CHUNK_SIZE as u32, None);
+    let mut right_input_image = grid_to_image(
+        &vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize],
+        CHUNK_SIZE as u32,
+        CHUNK_SIZE as u32,
+        None,
+    );
     right_input_image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
     let right_input_handle = images.add(right_input_image);
-    others.handles.insert(5, right_input_handle.clone());
+    let mut top_left_input_image = grid_to_image(
+        &vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize],
+        CHUNK_SIZE as u32,
+        CHUNK_SIZE as u32,
+        None,
+    );
+    top_left_input_image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
+    let top_left_input_handle = images.add(top_left_input_image);
+    let mut top_center_input_image = grid_to_image(
+        &vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize],
+        CHUNK_SIZE as u32,
+        CHUNK_SIZE as u32,
+        None,
+    );
+    top_center_input_image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
+    let top_center_input_handle = images.add(top_center_input_image);
+    let mut top_right_input_image = grid_to_image(
+        &vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize],
+        CHUNK_SIZE as u32,
+        CHUNK_SIZE as u32,
+        None,
+    );
+    top_right_input_image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
+    let top_right_input_handle = images.add(top_right_input_image);
+    let mut bottom_left_input_image = grid_to_image(
+        &vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize],
+        CHUNK_SIZE as u32,
+        CHUNK_SIZE as u32,
+        None,
+    );
+    bottom_left_input_image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
+    let bottom_left_input_handle = images.add(bottom_left_input_image);
+    let mut bottom_center_input_image = grid_to_image(
+        &vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize],
+        CHUNK_SIZE as u32,
+        CHUNK_SIZE as u32,
+        None,
+    );
+    bottom_center_input_image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
+    let bottom_center_input_handle = images.add(bottom_center_input_image);
+    let mut bottom_right_input_image = grid_to_image(
+        &vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize],
+        CHUNK_SIZE as u32,
+        CHUNK_SIZE as u32,
+        None,
+    );
+    bottom_right_input_image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
+    let bottom_right_input_handle = images.add(bottom_right_input_image);
     let mut output_texture = Image::new_fill(
         Extent3d {
             width: OUTPUT_SIZE.0,
@@ -48,22 +125,57 @@ pub fn build_compute_shader(
         RenderAssetUsages::RENDER_WORLD,
     );
     output_texture.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
-    let output_texture_handle = images.add(output_texture);
     commands.insert_resource(ShadowsImages {
-        texture_a: center_chunk_handle.handle.clone(),
-        texture_b: output_texture_handle,
-        texture_left: left_input_handle,
-        texture_right: right_input_handle,
+        center_texture: center_input_handle,
+        shadow_map_handle: images.add(output_texture),
+        left_texture: left_input_handle,
+        right_texture: right_input_handle,
+        top_left_texture: top_left_input_handle,
+        top_center_texture: top_center_input_handle,
+        top_right_texture: top_right_input_handle,
+        bottom_left_texture: bottom_left_input_handle,
+        bottom_center_texture: bottom_center_input_handle,
+        bottom_right_texture: bottom_right_input_handle,
     });
 }
 
 #[derive(Resource, Clone, ExtractResource)]
 pub struct ShadowsImages {
-    pub texture_a: Handle<Image>,
-    pub texture_b: Handle<Image>,
-    pub texture_left: Handle<Image>,
-    pub texture_right: Handle<Image>,
+    pub center_texture: Handle<Image>,
+    pub shadow_map_handle: Handle<Image>,
+    pub left_texture: Handle<Image>,
+    pub right_texture: Handle<Image>,
+    pub top_left_texture: Handle<Image>,
+    pub top_center_texture: Handle<Image>,
+    pub top_right_texture: Handle<Image>,
+    pub bottom_left_texture: Handle<Image>,
+    pub bottom_center_texture: Handle<Image>,
+    pub bottom_right_texture: Handle<Image>,
 }
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable, Debug)]
+pub struct CurrentChunkUniform {
+    pub current_chunk: [i32; 2],
+    pub _padding: [u32; 2],
+}
+
+impl Default for CurrentChunkUniform {
+    fn default() -> Self {
+        Self {
+            current_chunk: [0, 0],
+            _padding: [0, 0],
+        }
+    }
+}
+
+impl ExtractResource for CurrentPlayerChunk {
+    type Source = Self;
+    fn extract_resource(source: &Self::Source) -> Self {
+        *source
+    }
+}
+
 pub struct ShadowsComputePlugin;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
@@ -71,6 +183,7 @@ struct ShadowsLabel;
 
 impl Plugin for ShadowsComputePlugin {
     fn build(&self, app: &mut App) {
+        app.add_plugins(ExtractResourcePlugin::<CurrentPlayerChunk>::default());
         app.add_plugins(ExtractResourcePlugin::<ShadowsImages>::default());
         let render_app = app.sub_app_mut(RenderApp);
         render_app.add_systems(
@@ -118,6 +231,16 @@ impl FromWorld for ShadowsPipeline {
                         access: StorageTextureAccess::ReadWrite,
                         format: TextureFormat::R32Float,
                         view_dimension: TextureViewDimension::D2,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: BufferSize::new(16),
                     },
                     count: None,
                 },
@@ -177,12 +300,18 @@ fn prepare_bind_group(
     pipeline: Res<ShadowsPipeline>,
     gpu_images: Res<RenderAssets<GpuImage>>,
     shadows_images: Res<ShadowsImages>,
+    current_chunk: Res<CurrentPlayerChunk>,
     render_device: Res<RenderDevice>,
 ) {
-    let view_a = gpu_images.get(&shadows_images.texture_a).unwrap();
-    let view_b = gpu_images.get(&shadows_images.texture_b).unwrap();
-    let view_left = gpu_images.get(&shadows_images.texture_left).unwrap();
-    let view_right = gpu_images.get(&shadows_images.texture_right).unwrap();
+    let view_a = gpu_images.get(&shadows_images.center_texture).unwrap();
+    let view_b = gpu_images.get(&shadows_images.shadow_map_handle).unwrap();
+    let view_left = gpu_images.get(&shadows_images.left_texture).unwrap();
+    let view_right = gpu_images.get(&shadows_images.right_texture).unwrap();
+    let current_chunk_buffer = render_device.create_buffer_with_data(&util::BufferInitDescriptor {
+        label: Some("CurrentChunk Uniform Buffer"),
+        contents: bytemuck::bytes_of(&*current_chunk),
+        usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+    });
     let bind_group = render_device.create_bind_group(
         None,
         &pipeline.texture_bind_group_layout,
@@ -194,6 +323,10 @@ fn prepare_bind_group(
             BindGroupEntry {
                 binding: 1,
                 resource: BindingResource::TextureView(&view_b.texture_view),
+            },
+            BindGroupEntry {
+                binding: 2,
+                resource: current_chunk_buffer.as_entire_binding(),
             },
             BindGroupEntry {
                 binding: 3,

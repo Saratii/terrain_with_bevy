@@ -14,16 +14,15 @@ use bevy::utils::default;
 
 use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, transform::components::Transform};
 use noise::Perlin;
-use rand::rngs::ThreadRng;
 use rand::Rng;
 use crate::chunk_generator::NewChunkEvent;
 use crate::color_map::{apply_gamma_correction, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, GRAVITY_AFFECTED, LIGHT, RAW_DECODER_DATA, REFINED_COPPER, ROCK, SELL_BOX, SILVER, SKY};
 use crate::compute_shader::ShadowsImages;
 use crate::components::{CameraTag, ChunkMap, Count, GravityCoords, MoneyTextTag, PerlinHandle, SunTick, TerrainImageTag, TimerComponent};
 use crate::constants::{CHUNK_SIZE, SELL_BOX_HEIGHT, SELL_BOX_SPAWN_X, SELL_BOX_SPAWN_Y, SELL_BOX_WIDTH, SPAWN_SELL_BOX};
-use crate::sun::{ChunkImageHandle, GridMaterial, Othereers};
+use crate::sun::GridMaterial;
 // use crate::drill::DrillTag;
-use crate::util::{flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_global_y_coordinate, get_local_x, get_local_y, local_to_global_x};
+use crate::util::{flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_local_x, get_local_y};
 
 pub fn setup_camera(mut commands: Commands) {
     commands.spawn(PerfUiBundle::default());
@@ -36,9 +35,7 @@ pub fn setup_world(
     mut meshes: ResMut<Assets<Mesh>>,
     assets: Res<AssetServer>,
     mut chunk_event_writer: EventWriter<NewChunkEvent>,
-    center_image_handle: Res<ChunkImageHandle>,
-    other_fuckers: Res<Othereers>,
-    shadows_fucker: Res<ShadowsImages>,
+    screen_image_handles: Res<ShadowsImages>,
 ) {
     let mut rng = rand::rng();
     let perlin = Perlin::new(rng.random());
@@ -57,9 +54,25 @@ pub fn setup_world(
     for i in 0..9 {
         let image_handle;
         if i == 4 {
-            image_handle = center_image_handle.handle.clone();
+            image_handle = screen_image_handles.center_texture.clone();
+        } else if i == 3 {
+            image_handle = screen_image_handles.left_texture.clone();
+        } else if i == 5 {
+            image_handle = screen_image_handles.right_texture.clone();
+        } else if i == 0 {
+            image_handle = screen_image_handles.top_left_texture.clone();
+        } else if i == 1 {
+            image_handle = screen_image_handles.top_center_texture.clone();
+        } else if i == 2 {
+            image_handle = screen_image_handles.top_right_texture.clone();
+        } else if i == 6 {
+            image_handle = screen_image_handles.bottom_left_texture.clone();
+        } else if i == 7 {
+            image_handle = screen_image_handles.bottom_center_texture.clone();
+        } else if i == 8{
+            image_handle = screen_image_handles.bottom_right_texture.clone();
         } else {
-            image_handle = other_fuckers.handles.get(&(i as u32)).unwrap().clone();
+            panic!("go fuck yourself");
         }
         commands.spawn(TerrainImageTag)
                     .insert(MaterialMesh2dBundle {
@@ -67,7 +80,7 @@ pub fn setup_world(
                             color_map: image_handle,
                             size: Vec2::new(CHUNK_SIZE as f32, CHUNK_SIZE as f32),
                             decoder: apply_gamma_correction(RAW_DECODER_DATA),
-                            shadow_map: Some(shadows_fucker.texture_b.clone()),
+                            shadow_map: Some(screen_image_handles.shadow_map_handle.clone()),
                             chunk_position: Vec2::new(0., 0.),
                         }),
                         mesh: meshes.add(Rectangle { half_size: Vec2::new(CHUNK_SIZE/2., CHUNK_SIZE/2.) }).into(),
@@ -251,9 +264,9 @@ fn add_sell_box_to_grid(chunk_map: &mut HashMap<(i32, i32), Vec<u8>>, pos: &Vec3
 //     }
 // }
 
-pub fn seed_chunk_with_ore(chunk_pos: (i32, i32), chunk_map: &mut HashMap<(i32, i32), Vec<u8>>) {
-    let mut rng = rand::rng();
-    let mut rng2 = rand::rng();
+// pub fn seed_chunk_with_ore(chunk_pos: (i32, i32), chunk_map: &mut HashMap<(i32, i32), Vec<u8>>) {
+    // let mut rng = rand::rng();
+    // let mut rng2 = rand::rng();
     // let mut chunk_map = chunk_map_query.get_single_mut().unwrap();
     // let copper_random_multiplier = rng.gen_range(0.8..1.2);
     // let num_copper_seeds = CHUNKS_HORIZONTAL * CHUNKS_VERTICAL * CHUNK_SIZE * CHUNK_SIZE * 0.000007 * copper_random_multiplier;
@@ -283,27 +296,27 @@ pub fn seed_chunk_with_ore(chunk_pos: (i32, i32), chunk_map: &mut HashMap<(i32, 
     //     }
     //     grow_ore_seed(&mut rng, x, y, SILVER, &mut chunk_map.map, rng2.gen_range(10..40), rng2.gen_range(10..40), 0.2);
     // }
-    let copper_range_end = (chunk_pos.1 * -1 + 1) / 2 as i32;
-    if copper_range_end > 0 {
-        for c in 0..rng.random_range(0..chunk_pos.1 * -1 + 1) {
-            let x = rng.random_range(0..CHUNK_SIZE as i32);
-            let y = rng.random_range(0..CHUNK_SIZE as i32);
-            let x_g = local_to_global_x(chunk_pos.0, x as usize);
-            let y_g = get_global_y_coordinate(chunk_pos.1, y as usize);
-            grow_ore_seed(&mut rng2, x, y, COPPER, chunk_map, rng.random_range(30..80), rng.random_range(30..80), 0.1);
-        }
-    }
-    let silver_range_end = (chunk_pos.1 * -1 + 1) / 2 as i32;
-    if silver_range_end > 0 {
-        for s in 0..rng.random_range(0..((chunk_pos.1 * -1 + 1) / 2 as i32)) {
-            let x = rng.random_range(0..CHUNK_SIZE as i32);
-            let y = rng.random_range(0..CHUNK_SIZE as i32);
-            grow_ore_seed(&mut rng2, x, y, SILVER, chunk_map, rng.random_range(10..40), rng.random_range(10..40), 0.2);
-        }
-    }
-}
+//     let copper_range_end = (chunk_pos.1 * -1 + 1) / 2 as i32;
+//     if copper_range_end > 0 {
+//         for c in 0..rng.random_range(0..chunk_pos.1 * -1 + 1) {
+//             let x = rng.random_range(0..CHUNK_SIZE as i32);
+//             let y = rng.random_range(0..CHUNK_SIZE as i32);
+//             let x_g = local_to_global_x(chunk_pos.0, x as usize);
+//             let y_g = get_global_y_coordinate(chunk_pos.1, y as usize);
+//             grow_ore_seed(&mut rng2, x, y, COPPER, chunk_map, rng.random_range(30..80), rng.random_range(30..80), 0.1);
+//         }
+//     }
+//     let silver_range_end = (chunk_pos.1 * -1 + 1) / 2 as i32;
+//     if silver_range_end > 0 {
+//         for s in 0..rng.random_range(0..((chunk_pos.1 * -1 + 1) / 2 as i32)) {
+//             let x = rng.random_range(0..CHUNK_SIZE as i32);
+//             let y = rng.random_range(0..CHUNK_SIZE as i32);
+//             grow_ore_seed(&mut rng2, x, y, SILVER, chunk_map, rng.random_range(10..40), rng.random_range(10..40), 0.2);
+//         }
+//     }
+// }
 
-fn grow_ore_seed(rng: &mut ThreadRng, seed_x_g: i32, seed_y_g: i32, seed_type: u8, chunk_map: &mut HashMap<(i32, i32), Vec<u8>>, radius_x: i32, radius_y: i32, density: f32) {
+// fn grow_ore_seed(rng: &mut ThreadRng, seed_x_g: i32, seed_y_g: i32, seed_type: u8, chunk_map: &mut HashMap<(i32, i32), Vec<u8>>, radius_x: i32, radius_y: i32, density: f32) {
     // for x in seed_x_g - radius_x..seed_x_g + radius_x {
     //     for y in seed_y_g - radius_y..seed_y_g + radius_y {
     //         if (x - seed_x_g) as f32 * (x - seed_x_g) as f32 / (radius_x * radius_x) as f32 + (y - seed_y_g) as f32 * (y - seed_y_g) as f32 / (radius_y * radius_y) as f32 <= 1. {
@@ -321,7 +334,7 @@ fn grow_ore_seed(rng: &mut ThreadRng, seed_x_g: i32, seed_y_g: i32, seed_type: u
     //         }
     //     }
     // }
-}
+// }
 
 // fn generate_empty_chunk() -> Vec<u8> {
 //     vec![0; (CHUNK_SIZE * CHUNK_SIZE) as usize]

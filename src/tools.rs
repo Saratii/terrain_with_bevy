@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use bevy::{asset::Assets, ecs::{event::EventWriter, system::Res}, math::Vec2, prelude::{Camera, Commands, Component, GlobalTransform, Image, Mesh, Query, Rectangle, ResMut, Transform, Visibility, With, Without}, sprite::MaterialMesh2dBundle, window::{PrimaryWindow, Window}};
+use bevy::{asset::Assets, ecs::event::EventWriter, math::Vec2, prelude::{Camera, Commands, Component, GlobalTransform, Image, Mesh, Query, Rectangle, ResMut, Transform, Visibility, With, Without}, sprite::MaterialMesh2dBundle, window::{PrimaryWindow, Window}};
 
-use crate::{chunk_generator::NewChunkEvent, color_map::{apply_gamma_correction, gravel_variant_pmf, CLEAR, LIGHT, RAW_DECODER_DATA, RED, ROCK, SHOVEL_ABLE, SKY, STEEL, TRANSLUCENT_GREY, WHITE}, components::{Bool, CameraTag, ChunkMap, ContentList, GravityCoords, PlayerTag, Velocity}, constants::{CHUNK_SIZE, CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, HOE_HEIGHT, HOE_WIDTH, MAX_SHOVEL_CAPACITY}, sun::{GridMaterial}, util::{distance, flatten_index, flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_local_x, get_local_y, grid_to_image}};
+use crate::{chunk_generator::NewChunkEvent, color_map::{apply_gamma_correction, gravel_variant_pmf, CLEAR, LIGHT, RAW_DECODER_DATA, RED, ROCK, SHOVEL_ABLE, SKY, STEEL, TRANSLUCENT_GREY, WHITE}, components::{Bool, CameraTag, ChunkMap, ContentList, GravityCoords, PlayerTag, Velocity}, constants::{CHUNK_SIZE, CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, HOE_HEIGHT, HOE_WIDTH, MAX_SHOVEL_CAPACITY}, sun::GridMaterial, util::{distance, flatten_index, flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_local_x, get_local_y, grid_to_image}};
 
 #[derive(Component)]
 pub struct HoeTag;
@@ -179,7 +179,7 @@ pub fn update_tool(
                 let mut local_x = get_local_x(potential_x as i32);
                 let mut local_y = get_local_y(potential_y as i32);
                 let mut local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
-                let (mut chunk_x_g, mut chunk_y_g) = (get_chunk_x_g(potential_x as i32), get_chunk_y_g(potential_y as i32));
+                let (chunk_x_g, chunk_y_g) = (get_chunk_x_g(potential_x as i32), get_chunk_y_g(potential_y as i32));
                 match chunk_map.map.get(&(chunk_x_g, chunk_y_g)) {
                     Some(chunk) => {
                         while chunk[local_index] == SKY || chunk[local_index] == LIGHT {
