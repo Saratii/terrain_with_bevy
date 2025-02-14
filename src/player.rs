@@ -15,11 +15,13 @@ pub fn spawn_player(
             .insert(Velocity { vx: 0.0, vy: 0.0})
             .insert(MaterialMesh2dBundle {
                 material: materials.add(GridMaterial {
-                    color_map: images.add(generate_player_image()),
+                    color_map_handle: images.add(generate_player_image()),
                     size: Vec2::new(PLAYER_WIDTH as f32, PLAYER_HEIGHT as f32),
                     decoder: apply_gamma_correction(RAW_DECODER_DATA),
                     shadow_map: None,
-                    chunk_position: Vec2::new(0., 0.),
+                    global_chunk_pos: Vec2::new(0., 0.),
+                    on_screen_chunk_position: [0, 0],
+                    player_pos: Vec2::new(0., 0.),
                 }),
                 mesh: meshes
                 .add(Rectangle {

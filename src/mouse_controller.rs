@@ -27,7 +27,7 @@ pub fn check_mouse_click(
             Tool::Shovel => {
                 let mut gravity_coords = gravity_coords_query.get_single_mut().unwrap();
                 let shovel_material_handle = shovel_material_handle.get_single().unwrap();
-                let shovel_id = materials.get_mut(shovel_material_handle).unwrap().color_map.clone();
+                let shovel_id = materials.get_mut(shovel_material_handle).unwrap().color_map_handle.clone();
                 let mut shovel_image = images.remove(&shovel_id).unwrap();
                 left_click_shovel(&shovel_position_query.get_single_mut().unwrap(), &mut cursor_contents.contents, &mut chunk_map.map, &mut shovel_image.data, &mut gravity_coords, &mut chunk_writer);    
                 images.insert(&shovel_id, shovel_image);        
@@ -66,7 +66,7 @@ pub fn check_mouse_click(
                 let mut gravity_coords = gravity_coords_query.get_single_mut().unwrap();
                 let tool_position = shovel_position_query.get_single_mut().unwrap();
                 let shovel_material_handle = shovel_material_handle.get_single().unwrap();
-                let shovel_id = materials.get_mut(shovel_material_handle).unwrap().color_map.clone();
+                let shovel_id = materials.get_mut(shovel_material_handle).unwrap().color_map_handle.clone();
                 let mut shovel_image = images.remove(&shovel_id).unwrap();
                 right_click_shovel(&mut shovel_image.data, &mut chunk_map.map, &tool_position, &mut cursor_contents.contents, &mut gravity_coords);
                 images.insert(&shovel_id, shovel_image);

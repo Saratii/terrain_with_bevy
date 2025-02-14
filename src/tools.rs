@@ -41,11 +41,13 @@ pub fn spawn_tools(
     commands.spawn(HoeTag)
             .insert(MaterialMesh2dBundle {
                 material: materials.add(GridMaterial {
-                    color_map: images.add(hoe_image),
+                    color_map_handle: images.add(hoe_image),
                     size: Vec2::new(HOE_WIDTH as f32, HOE_HEIGHT as f32),
                     decoder: apply_gamma_correction(RAW_DECODER_DATA),
                     shadow_map: None,
-                    chunk_position: Vec2::new(0., 0.),
+                    global_chunk_pos: Vec2::new(0., 0.),
+                    on_screen_chunk_position: [0, 0],
+                    player_pos: Vec2::new(0., 0.),
                 }),
                 mesh: meshes
                 .add(Rectangle {
@@ -59,11 +61,13 @@ pub fn spawn_tools(
     commands.spawn(ShovelTag)
             .insert(MaterialMesh2dBundle {
                 material: materials.add(GridMaterial {
-                    color_map: images.add(shovel_image),
+                    color_map_handle: images.add(shovel_image),
                     size: Vec2::new((CURSOR_RADIUS * 2) as f32, (CURSOR_RADIUS * 2) as f32),
                     decoder: apply_gamma_correction(RAW_DECODER_DATA),
                     shadow_map: None,
-                    chunk_position: Vec2::new(0., 0.),
+                    global_chunk_pos: Vec2::new(0., 0.),
+                    on_screen_chunk_position: [0, 0],
+                    player_pos: Vec2::new(0., 0.),
                 }),
                 mesh: meshes
                 .add(Rectangle {
@@ -76,11 +80,13 @@ pub fn spawn_tools(
     commands.spawn(PickaxeTag)
             .insert(MaterialMesh2dBundle {
                 material: materials.add(GridMaterial {
-                    color_map: images.add(pickaxe_image),
+                    color_map_handle: images.add(pickaxe_image),
                     size: Vec2::new((CURSOR_RADIUS * 2) as f32, (CURSOR_RADIUS * 2) as f32),
                     decoder: apply_gamma_correction(RAW_DECODER_DATA),
                     shadow_map: None,
-                    chunk_position: Vec2::new(0., 0.),
+                    global_chunk_pos: Vec2::new(0., 0.),
+                    on_screen_chunk_position: [0, 0],
+                    player_pos: Vec2::new(0., 0.),
                 }),
                 mesh: meshes
                 .add(Rectangle {

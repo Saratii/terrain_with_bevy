@@ -1,26 +1,19 @@
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
-
-use bevy::asset::Assets;
 use bevy::color::palettes::css::GOLD;
 use bevy::ecs::event::EventWriter;
-use bevy::math::Vec2;
-use bevy::prelude::{Mesh, Query, Rectangle, ResMut, TextBundle, With};
-use bevy::sprite::MaterialMesh2dBundle;
+use bevy::prelude::{Query, TextBundle, With};
 use bevy::text::{TextSection, TextStyle};
 use bevy::time::{Time, Timer, TimerMode};
 use iyes_perf_ui::entries::PerfUiBundle;
 use bevy::utils::default;
-
-use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3, transform::components::Transform};
+use bevy::{asset::AssetServer, core_pipeline::core_2d::Camera2dBundle, ecs::system::{Commands, Res}, math::Vec3};
 use noise::Perlin;
 use rand::Rng;
 use crate::chunk_generator::NewChunkEvent;
-use crate::color_map::{apply_gamma_correction, COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, GRAVITY_AFFECTED, LIGHT, RAW_DECODER_DATA, REFINED_COPPER, ROCK, SELL_BOX, SILVER, SKY};
-use crate::compute_shader::ShadowsImages;
+use crate::color_map::{COPPER, DIRT1, DIRT2, DIRT3, GRAVEL1, GRAVEL2, GRAVEL3, GRAVITY_AFFECTED, LIGHT, REFINED_COPPER, ROCK, SELL_BOX, SILVER, SKY};
 use crate::components::{CameraTag, ChunkMap, Count, GravityCoords, MoneyTextTag, PerlinHandle, SunTick, TerrainImageTag, TimerComponent};
 use crate::constants::{CHUNK_SIZE, SELL_BOX_HEIGHT, SELL_BOX_SPAWN_X, SELL_BOX_SPAWN_Y, SELL_BOX_WIDTH, SPAWN_SELL_BOX};
-use crate::sun::GridMaterial;
 // use crate::drill::DrillTag;
 use crate::util::{flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_local_x, get_local_y};
 
@@ -31,11 +24,8 @@ pub fn setup_camera(mut commands: Commands) {
 
 pub fn setup_world(
     mut commands: Commands,
-    mut materials: ResMut<Assets<GridMaterial>>,
-    mut meshes: ResMut<Assets<Mesh>>,
     assets: Res<AssetServer>,
     mut chunk_event_writer: EventWriter<NewChunkEvent>,
-    screen_image_handles: Res<ShadowsImages>,
 ) {
     let mut rng = rand::rng();
     let perlin = Perlin::new(rng.random());
@@ -51,44 +41,6 @@ pub fn setup_world(
     }
     commands.spawn(GravityCoords { coords: HashSet::new() });
     commands.spawn(ChunkMap { map: chunk_map });
-    for i in 0..9 {
-        let image_handle;
-        if i == 4 {
-            image_handle = screen_image_handles.center_texture.clone();
-        } else if i == 3 {
-            image_handle = screen_image_handles.left_texture.clone();
-        } else if i == 5 {
-            image_handle = screen_image_handles.right_texture.clone();
-        } else if i == 0 {
-            image_handle = screen_image_handles.top_left_texture.clone();
-        } else if i == 1 {
-            image_handle = screen_image_handles.top_center_texture.clone();
-        } else if i == 2 {
-            image_handle = screen_image_handles.top_right_texture.clone();
-        } else if i == 6 {
-            image_handle = screen_image_handles.bottom_left_texture.clone();
-        } else if i == 7 {
-            image_handle = screen_image_handles.bottom_center_texture.clone();
-        } else if i == 8{
-            image_handle = screen_image_handles.bottom_right_texture.clone();
-        } else {
-            panic!("go fuck yourself");
-        }
-        commands.spawn(TerrainImageTag)
-                    .insert(MaterialMesh2dBundle {
-                        material: materials.add(GridMaterial {
-                            color_map: image_handle,
-                            size: Vec2::new(CHUNK_SIZE as f32, CHUNK_SIZE as f32),
-                            decoder: apply_gamma_correction(RAW_DECODER_DATA),
-                            shadow_map: Some(screen_image_handles.shadow_map_handle.clone()),
-                            chunk_position: Vec2::new(0., 0.),
-                        }),
-                        mesh: meshes.add(Rectangle { half_size: Vec2::new(CHUNK_SIZE/2., CHUNK_SIZE/2.) }).into(),
-                        transform: Transform { translation: Vec3::new(Default::default(), Default::default(), -5.), ..Default::default() },
-                        ..Default::default()
-                    });
-        
-    }
     commands.spawn(TimerComponent { timer: Timer::new(Duration::from_millis(7), TimerMode::Repeating) }).insert(TerrainImageTag);
     // commands.spawn(TimerComponent { timer: Timer::new(Duration::from_millis(20), TimerMode::Repeating) }).insert(DrillTag);
     commands.spawn(SunTick { timer: Timer::new(Duration::from_millis(1000), TimerMode::Repeating) });

@@ -2,17 +2,19 @@
 @group(0) @binding(3) var tile_map_left: texture_storage_2d<r8unorm, read>;
 @group(0) @binding(4) var tile_map_right: texture_storage_2d<r8unorm, read>;
 @group(0) @binding(1) var output: texture_storage_2d<r32float, read_write>;
-@group(0) @binding(2) var<uniform> current_chunk: vec2<i32>;
+@group(0) @binding(2) var<uniform> player_global_pos: vec2<f32>;
+@group(0) @binding(5) var tile_map_top_left: texture_storage_2d<r8unorm, read>;
+@group(0) @binding(6) var tile_map_top: texture_storage_2d<r8unorm, read>;
+@group(0) @binding(7) var tile_map_top_right: texture_storage_2d<r8unorm, read>;
+@group(0) @binding(8) var tile_map_bottom_left: texture_storage_2d<r8unorm, read>;
+@group(0) @binding(9) var tile_map_bottom: texture_storage_2d<r8unorm, read>;
+@group(0) @binding(10) var tile_map_bottom_right: texture_storage_2d<r8unorm, read>;
 
 const CHUNK_SIZE: f32 = 600.0;
 const SHADOW_RESOLUTION: f32 = 2048.;
-const LEFT: f32 = -900.0;
-const RIGHT: f32 = 900.0;
-const TOP: f32 = 1200. / 2.;
-const BOTTOM: f32 = -1. * 1200. / 2.;
 const LIGHT_PROJECTION : mat3x3<f32> = mat3x3<f32>(
-    2.0 / (RIGHT - LEFT),        0.0,                          0.0,
-    0.0,                         -2.0 / (TOP - BOTTOM),         0.0,
+    2.0 / (CHUNK_SIZE * 2),        0.0,                          0.0,
+    0.0,                         -2.0 / (CHUNK_SIZE * 2),         0.0,
     0.0, 0.0, 1.0
 );
 
@@ -26,13 +28,14 @@ fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>, @builtin(num_wo
 }
 
 fn calculate_shadows(local_x: i32, local_y: i32, relative_chunk_x: i32, relative_chunk_y: i32) -> vec2<f32> {
-    let absolute_chunk_x: i32 = current_chunk.x + relative_chunk_x;
-    let absolute_chunk_y: i32 = current_chunk.y + relative_chunk_y;
+    let player_global_chunk = vec2<i32>(get_chunk_x_g(i32(player_global_pos.x)), get_chunk_y_g(i32(player_global_pos.y)));
+    let absolute_chunk_x: i32 = player_global_chunk.x + relative_chunk_x;
+    let absolute_chunk_y: i32 = player_global_chunk.y + relative_chunk_y;
     let clamped_local_x = clamp(local_x, 0, i32(CHUNK_SIZE) - 1);
     let clamped_local_y = clamp(local_y, 0, i32(CHUNK_SIZE) - 1);
     let global_x = get_global_x_coordinate(f32(absolute_chunk_x), f32(clamped_local_x));
     let global_y = get_global_y_coordinate(f32(absolute_chunk_y), f32(clamped_local_y));
-    let light_position = LIGHT_PROJECTION * vec3<f32>(global_x, global_y, 1.0);
+    let light_position = LIGHT_PROJECTION * vec3<f32>(global_x - player_global_pos.x, global_y - player_global_pos.y, 1.0);
     let shadow_x = ((light_position.x + 1.0) * 0.5 * SHADOW_RESOLUTION);
     var tile_map_value: f32;
     if (relative_chunk_x == -1) {
@@ -73,4 +76,24 @@ fn get_global_x_coordinate(chunk_x_g: f32, local_x: f32) -> f32 {
 
 fn get_global_y_coordinate(chunk_y_g: f32, local_y: f32) -> f32 {
     return chunk_y_g * CHUNK_SIZE + CHUNK_SIZE / 2.0 - local_y;
+}
+
+fn get_chunk_x_g(x_g: i32) -> i32 {
+    return div_euclid(x_g + i32(CHUNK_SIZE) / 2, i32(CHUNK_SIZE));
+}
+
+fn get_chunk_y_g(y_g: i32) -> i32 {
+    return div_euclid(y_g + i32(CHUNK_SIZE) / 2, i32(CHUNK_SIZE));
+}
+
+fn div_euclid(a : i32, b : i32) -> i32 {
+    let quotient = a / b;
+    let remainder = a % b;
+    if remainder < 0 && b > 0 {
+        return quotient - 1;
+    } else if remainder > 0 && b < 0 {
+        return quotient - 1;
+    } else {
+        return quotient;
+    }
 }

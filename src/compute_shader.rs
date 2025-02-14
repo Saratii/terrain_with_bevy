@@ -1,3 +1,5 @@
+use std::{borrow::Cow, collections::HashMap};
+
 use bevy::{
     prelude::*,
     render::{
@@ -8,12 +10,11 @@ use bevy::{
         renderer::{RenderContext, RenderDevice},
         texture::GpuImage,
         Render, RenderApp, RenderSet,
-    },
+    }, sprite::MaterialMesh2dBundle,
 };
 use bytemuck::{Pod, Zeroable};
 use wgpu::util;
-use std::borrow::Cow;
-use crate::{constants::{CHUNK_SIZE, SHADOW_RESOLUTION}, util::grid_to_image};
+use crate::{color_map::{apply_gamma_correction, RAW_DECODER_DATA}, components::TerrainImageTag, constants::{CHUNK_SIZE, SHADOW_RESOLUTION}, sun::GridMaterial, util::grid_to_image};
 
 const SHADER_ASSET_PATH: &str = "shaders/shadow_compute.wgsl";
 const INPUT_SIZE: (u32, u32) = (CHUNK_SIZE as u32 * 3, CHUNK_SIZE as u32);
@@ -22,15 +23,15 @@ const WORKGROUP_SIZE: u32 = 1;
 
 #[repr(C)]
 #[derive(Resource, Copy, Clone, Pod, Zeroable)]
-pub struct CurrentPlayerChunk {
-    pub current_chunk: [i32; 2],
+pub struct CurrentPlayerPosition {
+    pub position: [f32; 2],
     pub _padding: [u32; 2],
 }
 
-impl Default for CurrentPlayerChunk {
+impl Default for CurrentPlayerPosition {
     fn default() -> Self {
         Self {
-            current_chunk: [0, 0],
+            position: [0., 0.],
             _padding: [0, 0],
         }
     }
@@ -39,80 +40,10 @@ impl Default for CurrentPlayerChunk {
 pub fn build_compute_shader(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
+    mut materials: ResMut<Assets<GridMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    commands.insert_resource::<CurrentPlayerChunk>(CurrentPlayerChunk::default());
-    let mut center_input_image = grid_to_image(
-        &vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-        CHUNK_SIZE as u32,
-        CHUNK_SIZE as u32,
-        None,
-    );
-    center_input_image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
-    let center_input_handle = images.add(center_input_image);
-    let mut left_input_image = grid_to_image(
-        &vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-        CHUNK_SIZE as u32,
-        CHUNK_SIZE as u32,
-        None,
-    );
-    left_input_image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
-    let left_input_handle = images.add(left_input_image);
-    let mut right_input_image = grid_to_image(
-        &vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-        CHUNK_SIZE as u32,
-        CHUNK_SIZE as u32,
-        None,
-    );
-    right_input_image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
-    let right_input_handle = images.add(right_input_image);
-    let mut top_left_input_image = grid_to_image(
-        &vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-        CHUNK_SIZE as u32,
-        CHUNK_SIZE as u32,
-        None,
-    );
-    top_left_input_image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
-    let top_left_input_handle = images.add(top_left_input_image);
-    let mut top_center_input_image = grid_to_image(
-        &vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-        CHUNK_SIZE as u32,
-        CHUNK_SIZE as u32,
-        None,
-    );
-    top_center_input_image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
-    let top_center_input_handle = images.add(top_center_input_image);
-    let mut top_right_input_image = grid_to_image(
-        &vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-        CHUNK_SIZE as u32,
-        CHUNK_SIZE as u32,
-        None,
-    );
-    top_right_input_image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
-    let top_right_input_handle = images.add(top_right_input_image);
-    let mut bottom_left_input_image = grid_to_image(
-        &vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-        CHUNK_SIZE as u32,
-        CHUNK_SIZE as u32,
-        None,
-    );
-    bottom_left_input_image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
-    let bottom_left_input_handle = images.add(bottom_left_input_image);
-    let mut bottom_center_input_image = grid_to_image(
-        &vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-        CHUNK_SIZE as u32,
-        CHUNK_SIZE as u32,
-        None,
-    );
-    bottom_center_input_image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
-    let bottom_center_input_handle = images.add(bottom_center_input_image);
-    let mut bottom_right_input_image = grid_to_image(
-        &vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-        CHUNK_SIZE as u32,
-        CHUNK_SIZE as u32,
-        None,
-    );
-    bottom_right_input_image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
-    let bottom_right_input_handle = images.add(bottom_right_input_image);
+    commands.insert_resource::<CurrentPlayerPosition>(CurrentPlayerPosition::default());
     let mut output_texture = Image::new_fill(
         Extent3d {
             width: OUTPUT_SIZE.0,
@@ -125,32 +56,46 @@ pub fn build_compute_shader(
         RenderAssetUsages::RENDER_WORLD,
     );
     output_texture.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
-    commands.insert_resource(ShadowsImages {
-        center_texture: center_input_handle,
-        shadow_map_handle: images.add(output_texture),
-        left_texture: left_input_handle,
-        right_texture: right_input_handle,
-        top_left_texture: top_left_input_handle,
-        top_center_texture: top_center_input_handle,
-        top_right_texture: top_right_input_handle,
-        bottom_left_texture: bottom_left_input_handle,
-        bottom_center_texture: bottom_center_input_handle,
-        bottom_right_texture: bottom_right_input_handle,
+    let shadows_output_texture_handle = images.add(output_texture);
+    let mut map = HashMap::new();
+    for x in [-1, 0, 1] {
+        for y in [-1, 0, 1] {
+            let mut input_image = grid_to_image(
+                &vec![188; (CHUNK_SIZE * CHUNK_SIZE) as usize],
+                CHUNK_SIZE as u32,
+                CHUNK_SIZE as u32,
+                None,
+            );
+            input_image.texture_descriptor.usage = TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
+            let input_handle = images.add(input_image);
+            map.insert([x, y], input_handle.clone());
+            commands.spawn(TerrainImageTag)
+                    .insert(MaterialMesh2dBundle {
+                        material: materials.add(GridMaterial {
+                            color_map_handle: input_handle,
+                            size: Vec2::new(CHUNK_SIZE as f32, CHUNK_SIZE as f32),
+                            decoder: apply_gamma_correction(RAW_DECODER_DATA),
+                            shadow_map: Some(shadows_output_texture_handle.clone()),
+                            global_chunk_pos: Vec2::new(x as f32, y as f32),
+                            on_screen_chunk_position: [x, y],
+                            player_pos: Vec2::new(0., 0.),
+                        }),
+                        mesh: meshes.add(Rectangle { half_size: Vec2::new(CHUNK_SIZE/2., CHUNK_SIZE/2.) }).into(),
+                        transform: Transform { translation: Vec3::new(Default::default(), Default::default(), -5.), ..Default::default() },
+                        ..Default::default()
+                    });
+        }
+    }
+    commands.insert_resource(ScreenImageHandles {
+        map,
+        shadow_map_handle: shadows_output_texture_handle.clone(),
     });
 }
 
 #[derive(Resource, Clone, ExtractResource)]
-pub struct ShadowsImages {
-    pub center_texture: Handle<Image>,
+pub struct ScreenImageHandles {
+    pub map: HashMap<[i8; 2], Handle<Image>>,
     pub shadow_map_handle: Handle<Image>,
-    pub left_texture: Handle<Image>,
-    pub right_texture: Handle<Image>,
-    pub top_left_texture: Handle<Image>,
-    pub top_center_texture: Handle<Image>,
-    pub top_right_texture: Handle<Image>,
-    pub bottom_left_texture: Handle<Image>,
-    pub bottom_center_texture: Handle<Image>,
-    pub bottom_right_texture: Handle<Image>,
 }
 
 #[repr(C)]
@@ -169,7 +114,7 @@ impl Default for CurrentChunkUniform {
     }
 }
 
-impl ExtractResource for CurrentPlayerChunk {
+impl ExtractResource for CurrentPlayerPosition {
     type Source = Self;
     fn extract_resource(source: &Self::Source) -> Self {
         *source
@@ -183,8 +128,8 @@ struct ShadowsLabel;
 
 impl Plugin for ShadowsComputePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(ExtractResourcePlugin::<CurrentPlayerChunk>::default());
-        app.add_plugins(ExtractResourcePlugin::<ShadowsImages>::default());
+        app.add_plugins(ExtractResourcePlugin::<CurrentPlayerPosition>::default());
+        app.add_plugins(ExtractResourcePlugin::<ScreenImageHandles>::default());
         let render_app = app.sub_app_mut(RenderApp);
         render_app.add_systems(
             Render,
@@ -264,6 +209,66 @@ impl FromWorld for ShadowsPipeline {
                     },
                     count: None,
                 },
+                BindGroupLayoutEntry {
+                    binding: 5,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::StorageTexture {
+                        access: StorageTextureAccess::ReadOnly,
+                        format: TextureFormat::R8Unorm,
+                        view_dimension: TextureViewDimension::D2,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 6,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::StorageTexture {
+                        access: StorageTextureAccess::ReadOnly,
+                        format: TextureFormat::R8Unorm,
+                        view_dimension: TextureViewDimension::D2,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 7,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::StorageTexture {
+                        access: StorageTextureAccess::ReadOnly,
+                        format: TextureFormat::R8Unorm,
+                        view_dimension: TextureViewDimension::D2,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 8,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::StorageTexture {
+                        access: StorageTextureAccess::ReadOnly,
+                        format: TextureFormat::R8Unorm,
+                        view_dimension: TextureViewDimension::D2,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 9,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::StorageTexture {
+                        access: StorageTextureAccess::ReadOnly,
+                        format: TextureFormat::R8Unorm,
+                        view_dimension: TextureViewDimension::D2,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 10,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::StorageTexture {
+                        access: StorageTextureAccess::ReadOnly,
+                        format: TextureFormat::R8Unorm,
+                        view_dimension: TextureViewDimension::D2,
+                    },
+                    count: None,
+                },
             ],
         );
         let shader = world.load_asset(SHADER_ASSET_PATH);
@@ -299,14 +304,20 @@ fn prepare_bind_group(
     mut commands: Commands,
     pipeline: Res<ShadowsPipeline>,
     gpu_images: Res<RenderAssets<GpuImage>>,
-    shadows_images: Res<ShadowsImages>,
-    current_chunk: Res<CurrentPlayerChunk>,
+    shadows_images: Res<ScreenImageHandles>,
+    current_chunk: Res<CurrentPlayerPosition>,
     render_device: Res<RenderDevice>,
 ) {
-    let view_a = gpu_images.get(&shadows_images.center_texture).unwrap();
+    let view_a = gpu_images.get(shadows_images.map.get(&[0, 0]).unwrap()).unwrap();
     let view_b = gpu_images.get(&shadows_images.shadow_map_handle).unwrap();
-    let view_left = gpu_images.get(&shadows_images.left_texture).unwrap();
-    let view_right = gpu_images.get(&shadows_images.right_texture).unwrap();
+    let view_left = gpu_images.get(shadows_images.map.get(&[-1, 0]).unwrap()).unwrap();
+    let view_right = gpu_images.get(shadows_images.map.get(&[1, 0]).unwrap()).unwrap();
+    let view_top_left = gpu_images.get(shadows_images.map.get(&[-1, 1]).unwrap()).unwrap();
+    let view_top_center = gpu_images.get(shadows_images.map.get(&[0, 1]).unwrap()).unwrap();
+    let view_top_right = gpu_images.get(shadows_images.map.get(&[1, 1]).unwrap()).unwrap();
+    let view_bottom_left = gpu_images.get(shadows_images.map.get(&[-1, -1]).unwrap()).unwrap();
+    let view_bottom_center = gpu_images.get(shadows_images.map.get(&[0, -1]).unwrap()).unwrap();
+    let view_bottom_right = gpu_images.get(shadows_images.map.get(&[1, -1]).unwrap()).unwrap();
     let current_chunk_buffer = render_device.create_buffer_with_data(&util::BufferInitDescriptor {
         label: Some("CurrentChunk Uniform Buffer"),
         contents: bytemuck::bytes_of(&*current_chunk),
@@ -335,6 +346,30 @@ fn prepare_bind_group(
             BindGroupEntry {
                 binding: 4,
                 resource: BindingResource::TextureView(&view_right.texture_view),
+            },
+            BindGroupEntry {
+                binding: 5,
+                resource: BindingResource::TextureView(&view_top_left.texture_view),
+            },
+            BindGroupEntry {
+                binding: 6,
+                resource: BindingResource::TextureView(&view_top_center.texture_view),
+            },
+            BindGroupEntry {
+                binding: 7,
+                resource: BindingResource::TextureView(&view_top_right.texture_view),
+            },
+            BindGroupEntry {
+                binding: 8,
+                resource: BindingResource::TextureView(&view_bottom_left.texture_view),
+            },
+            BindGroupEntry {
+                binding: 9,
+                resource: BindingResource::TextureView(&view_bottom_center.texture_view),
+            },
+            BindGroupEntry {
+                binding: 10,
+                resource: BindingResource::TextureView(&view_bottom_right.texture_view),
             },
         ],
     );

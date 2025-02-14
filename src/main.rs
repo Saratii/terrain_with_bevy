@@ -34,7 +34,6 @@ use mouse_controller::check_mouse_click;
 use player::spawn_player;
 use sun::initialize_shadows;
 use sun::GridMaterial;
-// use sun::ShadowMapMaterial;
 use tools::spawn_tools;
 use tools::update_tool;
 use world_generation::setup_camera;

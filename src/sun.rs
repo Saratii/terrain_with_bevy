@@ -11,13 +11,16 @@ pub struct GridMaterial {
     #[uniform(0)]
     pub size: Vec2,
     #[texture(1)]
-    pub color_map: Handle<Image>,
+    pub color_map_handle: Handle<Image>,
     #[uniform(2)]
     pub decoder: [Vec4; 24],
     #[texture(4)]
     pub shadow_map: Option<Handle<Image>>,
     #[uniform(5)]
-    pub chunk_position: Vec2,
+    pub global_chunk_pos: Vec2,
+    pub on_screen_chunk_position: [i8; 2],
+    #[uniform(6)]
+    pub player_pos: Vec2,
 }
 
 impl Material2d for GridMaterial {
