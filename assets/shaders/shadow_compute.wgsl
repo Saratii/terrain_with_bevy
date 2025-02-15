@@ -1,4 +1,4 @@
-@group(2) @binding(4) var<storage, read_write> shadow_map: array<vec4<f32>, u32(SHADOW_RESOLUTION)>;
+@group(2) @binding(4) var<storage, read_write> shadow_map: array<atomic<i32>, u32(SHADOW_RESOLUTION)>;
 @group(0) @binding(0) var tile_map: texture_storage_2d<r8unorm, read>;
 @group(0) @binding(3) var tile_map_left: texture_storage_2d<r8unorm, read>;
 @group(0) @binding(4) var tile_map_right: texture_storage_2d<r8unorm, read>;
@@ -23,7 +23,7 @@ fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>, @builtin(num_wo
     let location = vec2<i32>(i32(invocation_id.x), i32(invocation_id.y));
     let flattened = location.x + location.y * i32(CHUNK_SIZE);
     if (flattened < i32(SHADOW_RESOLUTION)) {
-        shadow_map[flattened].x = 100000.0;
+        shadow_map[flattened] = bitcast<i32>(100000.0);
     }
 }
 
@@ -95,9 +95,9 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
             shadow_coord = calculate_shadows(local_x, local_y, 1, -1);
         }
     }
-    let old_shadow = shadow_map[i32(shadow_coord.x)].x;
+    let old_shadow = bitcast<f32>(shadow_map[i32(shadow_coord.x)]);
     if (shadow_coord.y < old_shadow) {
-        shadow_map[i32(shadow_coord.x)][0] = shadow_coord.y;
+        shadow_map[i32(shadow_coord.x)] = bitcast<i32>(shadow_coord.y);
     }
 }
 
