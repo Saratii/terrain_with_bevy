@@ -17,7 +17,7 @@ use wgpu::util;
 use crate::{color_map::{apply_gamma_correction, RAW_DECODER_DATA}, components::TerrainImageTag, constants::{CHUNK_SIZE, SHADOW_RESOLUTION}, sun::GridMaterial, util::grid_to_image};
 
 const SHADER_ASSET_PATH: &str = "shaders/shadow_compute.wgsl";
-const INPUT_SIZE: (u32, u32) = (CHUNK_SIZE as u32 * 3, CHUNK_SIZE as u32);
+const INPUT_SIZE: (u32, u32) = (CHUNK_SIZE as u32 * 3, CHUNK_SIZE as u32 * 3);
 const OUTPUT_SIZE: (u32, u32) = (SHADOW_RESOLUTION as u32, 1);
 const WORKGROUP_SIZE: u32 = 1;
 
