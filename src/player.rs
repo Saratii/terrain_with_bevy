@@ -1,15 +1,16 @@
 use std::collections::HashMap;
 
-use bevy::{asset::Assets, math::{Vec2, Vec3}, prelude::{Commands, Image, Mesh, Rectangle, Res, ResMut, Transform}, sprite::MaterialMesh2dBundle, time::Time};
+use bevy::{asset::Assets, math::{Vec2, Vec3}, prelude::{Commands, Image, Mesh, Rectangle, Res, ResMut, Transform}, render::renderer::RenderDevice, sprite::MaterialMesh2dBundle, time::Time};
+use wgpu::BufferDescriptor;
 
 use crate::{color_map::{apply_gamma_correction, BLACK, LIGHT, PLAYER_SKIN, RAW_DECODER_DATA, RED, SELL_BOX, SKY, WHITE}, components::{PlayerTag, Velocity}, constants::{CHUNK_SIZE, NO_GRAVITY, PLAYER_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, PLAYER_WIDTH}, sun::GridMaterial, tools::{CurrentTool, Tool}, util::{flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_local_x, get_local_y, grid_to_image}};
-
 
 pub fn spawn_player(
     mut commands: Commands,
     mut materials: ResMut<Assets<GridMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut meshes: ResMut<Assets<Mesh>>,
+    render_device: ResMut<RenderDevice>,
 ) {
     commands.spawn(PlayerTag)
             .insert(Velocity { vx: 0.0, vy: 0.0})
@@ -18,9 +19,14 @@ pub fn spawn_player(
                     color_map_handle: images.add(generate_player_image()),
                     size: Vec2::new(PLAYER_WIDTH as f32, PLAYER_HEIGHT as f32),
                     decoder: apply_gamma_correction(RAW_DECODER_DATA),
-                    shadow_map: None,
                     global_chunk_pos: Vec2::new(0., 0.),
                     on_screen_chunk_position: [0, 0],
+                    shadow_map: render_device.create_buffer(&BufferDescriptor {
+                        label: Some("CurrentChunk Uniform Buffer"),
+                        usage: wgpu::BufferUsages::STORAGE,
+                        size: 32768,
+                        mapped_at_creation: false,
+                    }),
                     player_pos: Vec2::new(0., 0.),
                 }),
                 mesh: meshes

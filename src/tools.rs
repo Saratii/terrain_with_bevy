@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use bevy::{asset::Assets, ecs::event::EventWriter, math::Vec2, prelude::{Camera, Commands, Component, GlobalTransform, Image, Mesh, Query, Rectangle, ResMut, Transform, Visibility, With, Without}, sprite::MaterialMesh2dBundle, window::{PrimaryWindow, Window}};
+use bevy::{asset::Assets, ecs::event::EventWriter, math::Vec2, prelude::{Camera, Commands, Component, GlobalTransform, Image, Mesh, Query, Rectangle, ResMut, Transform, Visibility, With, Without}, render::renderer::RenderDevice, sprite::MaterialMesh2dBundle, window::{PrimaryWindow, Window}};
+use wgpu:: BufferDescriptor;
 
 use crate::{chunk_generator::NewChunkEvent, color_map::{apply_gamma_correction, gravel_variant_pmf, CLEAR, LIGHT, RAW_DECODER_DATA, RED, ROCK, SHOVEL_ABLE, SKY, STEEL, TRANSLUCENT_GREY, WHITE}, components::{Bool, CameraTag, ChunkMap, ContentList, GravityCoords, PlayerTag, Velocity}, constants::{CHUNK_SIZE, CURSOR_BORDER_WIDTH, CURSOR_ORBITAL_RADIUS, CURSOR_RADIUS, HOE_HEIGHT, HOE_WIDTH, MAX_SHOVEL_CAPACITY}, sun::GridMaterial, util::{distance, flatten_index, flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_local_x, get_local_y, grid_to_image}};
 
@@ -31,6 +32,7 @@ pub fn spawn_tools(
     mut materials: ResMut<Assets<GridMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut meshes: ResMut<Assets<Mesh>>,
+    render_device: ResMut<RenderDevice>,
 ) {
     let shovel_grid = generate_shovel_grid();
     let pickaxe_grid = generate_pickaxe_grid();
@@ -44,10 +46,15 @@ pub fn spawn_tools(
                     color_map_handle: images.add(hoe_image),
                     size: Vec2::new(HOE_WIDTH as f32, HOE_HEIGHT as f32),
                     decoder: apply_gamma_correction(RAW_DECODER_DATA),
-                    shadow_map: None,
                     global_chunk_pos: Vec2::new(0., 0.),
                     on_screen_chunk_position: [0, 0],
                     player_pos: Vec2::new(0., 0.),
+                    shadow_map: render_device.create_buffer(&BufferDescriptor {
+                        label: Some("CurrentChunk Uniform Buffer"),
+                        usage: wgpu::BufferUsages::STORAGE,
+                        size: 32768,
+                        mapped_at_creation: false,
+                    }),            
                 }),
                 mesh: meshes
                 .add(Rectangle {
@@ -64,10 +71,15 @@ pub fn spawn_tools(
                     color_map_handle: images.add(shovel_image),
                     size: Vec2::new((CURSOR_RADIUS * 2) as f32, (CURSOR_RADIUS * 2) as f32),
                     decoder: apply_gamma_correction(RAW_DECODER_DATA),
-                    shadow_map: None,
                     global_chunk_pos: Vec2::new(0., 0.),
                     on_screen_chunk_position: [0, 0],
                     player_pos: Vec2::new(0., 0.),
+                    shadow_map: render_device.create_buffer(&BufferDescriptor {
+                        label: Some("CurrentChunk Uniform Buffer"),
+                        usage: wgpu::BufferUsages::STORAGE,
+                        size: 32768,
+                        mapped_at_creation: false,
+                    }),  
                 }),
                 mesh: meshes
                 .add(Rectangle {
@@ -83,10 +95,15 @@ pub fn spawn_tools(
                     color_map_handle: images.add(pickaxe_image),
                     size: Vec2::new((CURSOR_RADIUS * 2) as f32, (CURSOR_RADIUS * 2) as f32),
                     decoder: apply_gamma_correction(RAW_DECODER_DATA),
-                    shadow_map: None,
                     global_chunk_pos: Vec2::new(0., 0.),
                     on_screen_chunk_position: [0, 0],
                     player_pos: Vec2::new(0., 0.),
+                    shadow_map: render_device.create_buffer(&BufferDescriptor {
+                        label: Some("CurrentChunk Uniform Buffer"),
+                        usage: wgpu::BufferUsages::STORAGE,
+                        size: 32768,
+                        mapped_at_creation: false,
+                    }),                
                 }),
                 mesh: meshes
                 .add(Rectangle {

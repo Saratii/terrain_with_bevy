@@ -1,7 +1,7 @@
+@group(2) @binding(4) var<storage, read_write> shadow_map: array<vec4<f32>, u32(SHADOW_RESOLUTION)>;
 @group(0) @binding(0) var tile_map: texture_storage_2d<r8unorm, read>;
 @group(0) @binding(3) var tile_map_left: texture_storage_2d<r8unorm, read>;
 @group(0) @binding(4) var tile_map_right: texture_storage_2d<r8unorm, read>;
-@group(0) @binding(1) var output: texture_storage_2d<r32float, read_write>;
 @group(0) @binding(2) var<uniform> player_global_pos: vec2<f32>;
 @group(0) @binding(5) var tile_map_top_left: texture_storage_2d<r8unorm, read>;
 @group(0) @binding(6) var tile_map_top: texture_storage_2d<r8unorm, read>;
@@ -18,12 +18,12 @@ const LIGHT_PROJECTION : mat3x3<f32> = mat3x3<f32>(
     0.0, 0.0, 1.0
 );
 
-@compute @workgroup_size(1, 1, 1)
+@compute @workgroup_size(1)
 fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>, @builtin(num_workgroups) num_workgroups: vec3<u32>) {
     let location = vec2<i32>(i32(invocation_id.x), i32(invocation_id.y));
     let flattened = location.x + location.y * i32(CHUNK_SIZE);
     if (flattened < i32(SHADOW_RESOLUTION)) {
-        textureStore(output, vec2<i32>(flattened, 0), vec4<f32>(100000.0, 0.0, 0.0, 0.0));
+        shadow_map[flattened].x = 100000.0;
     }
 }
 
@@ -65,7 +65,7 @@ fn calculate_shadows(local_x: i32, local_y: i32, relative_chunk_x: i32, relative
     return vec2<f32>(shadow_x, light_position.y);
 }
 
-@compute @workgroup_size(1, 1, 1)
+@compute @workgroup_size(1)
 fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     var shadow_coord: vec2<f32>;
     let local_x = i32(invocation_id.x) % i32(CHUNK_SIZE);
@@ -95,9 +95,9 @@ fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
             shadow_coord = calculate_shadows(local_x, local_y, 1, -1);
         }
     }
-    let old_shadow = textureLoad(output, vec2<i32>(i32(shadow_coord.x), 0));
-    if (shadow_coord.y < old_shadow.x) {
-        textureStore(output, vec2<i32>(i32(shadow_coord.x), 0), vec4<f32>(shadow_coord.y, 0.0, 0.0, 0.0));
+    let old_shadow = shadow_map[i32(shadow_coord.x)].x;
+    if (shadow_coord.y < old_shadow) {
+        shadow_map[i32(shadow_coord.x)][0] = shadow_coord.y;
     }
 }
 

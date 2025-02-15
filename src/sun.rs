@@ -1,7 +1,7 @@
 
 use std::collections::HashMap;
 
-use bevy::{asset::{Asset, Assets, Handle}, ecs::{component::Component, system::Resource}, math::{Vec2, Vec4}, prelude::{Commands, Image, ResMut}, render::render_resource::{AsBindGroup, ShaderRef}, sprite::Material2d};
+use bevy::{asset::{Asset, Assets, Handle}, ecs::{component::Component, system::Resource}, math::{Vec2, Vec4}, prelude::{Commands, Image, ResMut}, render::render_resource::{AsBindGroup, Buffer, ShaderRef}, sprite::Material2d};
 use bevy_reflect::TypePath;
 
 use crate::{constants::CHUNK_SIZE, util::grid_to_image};
@@ -14,13 +14,13 @@ pub struct GridMaterial {
     pub color_map_handle: Handle<Image>,
     #[uniform(2)]
     pub decoder: [Vec4; 24],
-    #[texture(4)]
-    pub shadow_map: Option<Handle<Image>>,
     #[uniform(5)]
     pub global_chunk_pos: Vec2,
     pub on_screen_chunk_position: [i8; 2],
     #[uniform(6)]
     pub player_pos: Vec2,
+    #[storage(4, read_only, buffer)]
+    pub shadow_map: Buffer,
 }
 
 impl Material2d for GridMaterial {
