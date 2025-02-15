@@ -13,7 +13,7 @@ use bevy::{
 };
 use bytemuck::{Pod, Zeroable};
 use wgpu::util;
-use crate::{color_map::{apply_gamma_correction, RAW_DECODER_DATA}, components::TerrainImageTag, constants::{CHUNK_SIZE, SHADOW_RESOLUTION}, sun::GridMaterial, util::grid_to_image};
+use crate::{color_map::{apply_gamma_correction, RAW_DECODER_DATA}, components::TerrainImageTag, constants::{CHUNK_SIZE, SHADOW_RESOLUTION}, materials::GridMaterial, util::grid_to_image};
 
 const SHADER_ASSET_PATH: &str = "shaders/shadow_compute.wgsl";
 const INPUT_SIZE: (u32, u32) = (CHUNK_SIZE as u32 * 3, CHUNK_SIZE as u32 * 3);

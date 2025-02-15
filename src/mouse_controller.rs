@@ -1,6 +1,6 @@
 use bevy::{asset::{Assets, Handle}, ecs::event::EventWriter, input::ButtonInput, prelude::{Camera, GlobalTransform, Image, MouseButton, Query, Res, ResMut, Transform, With, Without}, window::{PrimaryWindow, Window}};
 
-use crate::{chunk_generator::NewChunkEvent, components::{Bool, CameraTag, ChunkMap, ContentList, GravityCoords, TerrainImageTag}, constants::MAX_SHOVEL_CAPACITY, sun::GridMaterial, tools::{left_click_hoe, left_click_pickaxe, left_click_shovel, right_click_hoe, right_click_shovel, CurrentTool, HoeTag, PickaxeTag, ShovelTag, Tool}};
+use crate::{chunk_generator::NewChunkEvent, components::{Bool, CameraTag, ChunkMap, ContentList, GravityCoords, TerrainImageTag}, constants::MAX_SHOVEL_CAPACITY, materials::DefaultMaterial, tools::{left_click_hoe, left_click_pickaxe, left_click_shovel, right_click_hoe, right_click_shovel, CurrentTool, HoeTag, PickaxeTag, ShovelTag, Tool}};
 
 pub fn check_mouse_click(
     buttons: Res<ButtonInput<MouseButton>>,
@@ -11,9 +11,9 @@ pub fn check_mouse_click(
     mut gravity_coords_query: Query<&mut GravityCoords>,
     current_tool_query: Query<&CurrentTool>,
     mut is_hoe_locked: Query<&mut Bool, With<HoeTag>>,
-    mut materials: ResMut<Assets<GridMaterial>>,
+    mut materials: ResMut<Assets<DefaultMaterial>>,
     mut images: ResMut<Assets<Image>>,
-    shovel_material_handle: Query<&Handle<GridMaterial>, (With<ShovelTag>, Without<TerrainImageTag>)>,
+    shovel_material_handle: Query<&Handle<DefaultMaterial>, (With<ShovelTag>, Without<TerrainImageTag>)>,
     q_windows: Query<&Window, With<PrimaryWindow>>,
     q_camera: Query<(&Camera, &GlobalTransform), With<CameraTag>>,
     mut chunk_map_query: Query<&mut ChunkMap>,

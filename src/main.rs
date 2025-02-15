@@ -6,7 +6,7 @@ pub mod util;
 pub mod mouse_controller;
 pub mod keyboard_controller;
 pub mod fog;
-pub mod sun;
+pub mod materials;
 pub mod tools;
 pub mod color_map;
 pub mod ui;
@@ -32,8 +32,8 @@ use iyes_perf_ui::PerfUiPlugin;
 use keyboard_controller::process_key_event;
 use mouse_controller::check_mouse_click;
 use player::spawn_player;
-use sun::initialize_shadows;
-use sun::GridMaterial;
+use materials::DefaultMaterial;
+use materials::GridMaterial;
 use tools::spawn_tools;
 use tools::update_tool;
 use world_generation::setup_camera;
@@ -58,6 +58,7 @@ fn main() {
           EntityCountDiagnosticsPlugin,
           SystemInformationDiagnosticsPlugin,
           Material2dPlugin::<GridMaterial>::default(),
+          Material2dPlugin::<DefaultMaterial>::default(),
           ShadowsComputePlugin,
           PerfUiPlugin,
         ))
@@ -73,7 +74,7 @@ fn main() {
       app.add_systems(Update, (spawn_random_squares, render));
     } else {
       app.add_event::<chunk_generator::NewChunkEvent>();
-      app.add_systems(Startup, (setup_camera, initialize_shadows, apply_deferred, build_compute_shader, apply_deferred, setup_world, spawn_player, apply_deferred, spawn_tools).chain());
+      app.add_systems(Startup, (setup_camera, apply_deferred, build_compute_shader, apply_deferred, setup_world, spawn_player, apply_deferred, spawn_tools).chain());
       app.add_systems(Update, (process_key_event, update_tool, check_mouse_click, grid_tick, render, generate_chunk_listener));
     }
     app.run();
