@@ -28,7 +28,10 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
     // if (i32(tile_map_value) == 21 || i32(tile_map_value) == 4) && light < 0.2 {
     //     color = decoder.colors[5];
     // }
-    let is_lit = shade(f32(local_coord.x), f32(local_coord.y), global_chunk_position.x, global_chunk_position.y);
+    var is_lit = shade(f32(local_coord.x), f32(local_coord.y), global_chunk_position.x, global_chunk_position.y);
+    if tile_map_value == 0.0 {
+        is_lit = 0.65 + 0.35 * is_lit;
+    }
     return vec4<f32>(
         color.r * is_lit,
         color.g * is_lit,
