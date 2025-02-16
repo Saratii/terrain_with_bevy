@@ -10,6 +10,7 @@
 @group(0) @binding(9) var tile_map_bottom: texture_storage_2d<r8unorm, read>;
 @group(0) @binding(10) var tile_map_bottom_right: texture_storage_2d<r8unorm, read>;
 
+const WORKGROUP_SIZE: u32 = 2;
 const CHUNK_SIZE: f32 = 600.0;
 const SHADOW_RESOLUTION: f32 = 2048.;
 const LIGHT_PROJECTION : mat3x3<f32> = mat3x3<f32>(
@@ -18,11 +19,12 @@ const LIGHT_PROJECTION : mat3x3<f32> = mat3x3<f32>(
     0.0, 0.0, 1.0
 );
 
-@compute @workgroup_size(1)
-fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>, @builtin(num_workgroups) num_workgroups: vec3<u32>) {
-    let location = vec2<i32>(i32(invocation_id.x), i32(invocation_id.y));
-    let flattened = location.x + location.y * i32(CHUNK_SIZE);
-    if (flattened < i32(SHADOW_RESOLUTION)) {
+@compute @workgroup_size(WORKGROUP_SIZE)
+fn init(@builtin(local_invocation_id) local_id: vec3<u32>, @builtin(workgroup_id) group_id:  vec3<u32>) {
+    let gx = i32(group_id.x * WORKGROUP_SIZE + local_id.x);
+    let gy = i32(group_id.y * WORKGROUP_SIZE + local_id.y);
+    let flattened = gx + gy * i32(CHUNK_SIZE);
+    if (flattened < i32(SHADOW_RESOLUTION) && flattened >= 0) {
         shadow_map[flattened] = bitcast<i32>(100000.0);
     }
 }
@@ -65,33 +67,35 @@ fn calculate_shadows(local_x: i32, local_y: i32, relative_chunk_x: i32, relative
     return vec2<f32>(shadow_x, light_position.y);
 }
 
-@compute @workgroup_size(1)
-fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
+@compute @workgroup_size(WORKGROUP_SIZE)
+fn update(@builtin(local_invocation_id) local_id: vec3<u32>, @builtin(workgroup_id) group_id:  vec3<u32>) {
+    let gx = i32(group_id.x * WORKGROUP_SIZE + local_id.x);
+    let gy = i32(group_id.y * WORKGROUP_SIZE + local_id.y);
     var shadow_coord: vec2<f32>;
-    let local_x = i32(invocation_id.x) % i32(CHUNK_SIZE);
-    let local_y = i32(invocation_id.y) % i32(CHUNK_SIZE);
-    if (i32(invocation_id.x) < i32(CHUNK_SIZE)) {
-        if i32(invocation_id.y) < i32(CHUNK_SIZE) {
+    let local_x = i32(gx) % i32(CHUNK_SIZE);
+    let local_y = i32(gy) % i32(CHUNK_SIZE);
+    if (i32(gx) < i32(CHUNK_SIZE)) {
+        if i32(gy) < i32(CHUNK_SIZE) {
             shadow_coord = calculate_shadows(local_x, local_y, -1, 1);
-        } else if i32(invocation_id.y) < i32(CHUNK_SIZE) * 2 {
+        } else if i32(gy) < i32(CHUNK_SIZE) * 2 {
             shadow_coord = calculate_shadows(local_x, local_y, -1, 0);
-        } else if i32(invocation_id.y) < i32(CHUNK_SIZE) * 3 {
+        } else if i32(gy) < i32(CHUNK_SIZE) * 3 {
             shadow_coord = calculate_shadows(local_x, local_y, -1, -1);
         }
-    } else if (i32(invocation_id.x) < i32(CHUNK_SIZE * 2)) {
-        if i32(invocation_id.y) < i32(CHUNK_SIZE) {
+    } else if (i32(gx) < i32(CHUNK_SIZE * 2)) {
+        if i32(gy) < i32(CHUNK_SIZE) {
             shadow_coord = calculate_shadows(local_x, local_y, 0, 1);
-        } else if i32(invocation_id.y) < i32(CHUNK_SIZE) * 2 {
+        } else if i32(gy) < i32(CHUNK_SIZE) * 2 {
             shadow_coord = calculate_shadows(local_x, local_y, 0, 0);
-        } else if i32(invocation_id.y) < i32(CHUNK_SIZE) * 3 {
+        } else if i32(gy) < i32(CHUNK_SIZE) * 3 {
             shadow_coord = calculate_shadows(local_x, local_y, 0, -1);
         }
-    } else if (i32(invocation_id.x) < i32(CHUNK_SIZE * 3)) {
-        if i32(invocation_id.y) < i32(CHUNK_SIZE) {
+    } else if (i32(gx) < i32(CHUNK_SIZE * 3)) {
+        if i32(gy) < i32(CHUNK_SIZE) {
             shadow_coord = calculate_shadows(local_x, local_y, 1, 1);
-        } else if i32(invocation_id.y) < i32(CHUNK_SIZE) * 2 {
+        } else if i32(gy) < i32(CHUNK_SIZE) * 2 {
             shadow_coord = calculate_shadows(local_x, local_y, 1, 0);
-        } else if i32(invocation_id.y) < i32(CHUNK_SIZE) * 3 {
+        } else if i32(gy) < i32(CHUNK_SIZE) * 3 {
             shadow_coord = calculate_shadows(local_x, local_y, 1, -1);
         }
     }

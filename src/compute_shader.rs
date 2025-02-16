@@ -17,7 +17,7 @@ use crate::{color_map::{apply_gamma_correction, RAW_DECODER_DATA}, components::T
 
 const SHADER_ASSET_PATH: &str = "shaders/shadow_compute.wgsl";
 const INPUT_SIZE: (u32, u32) = (CHUNK_SIZE as u32 * 3, CHUNK_SIZE as u32 * 3);
-const WORKGROUP_SIZE: u32 = 1;
+const WORKGROUP_SIZE: u32 = 2;
 const OUTPUT_BUFFER_SIZE: u64 = SHADOW_RESOLUTION as u64 * std::mem::size_of::<f32>() as u64 * 4;
 
 #[derive(Resource, Clone, ExtractResource)]
