@@ -175,7 +175,7 @@ pub fn update_tool(
                 let mut local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
                 let (chunk_x_g, chunk_y_g) = (get_chunk_x_g(potential_x as i32), get_chunk_y_g(potential_y as i32));
                 match chunk_map.map.get(&(chunk_x_g, chunk_y_g)) {
-                    Some(chunk) => {
+                    Some(mut chunk) => {
                         while chunk[local_index] == SKY || chunk[local_index] == LIGHT {
                             potential_x += dx as f32;
                             potential_y += dy as f32;
@@ -189,6 +189,15 @@ pub fn update_tool(
                             local_x = get_local_x(potential_x as i32);
                             local_y = get_local_y(potential_y as i32);
                             local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize); 
+                            let chunk_x_g = get_chunk_x_g(potential_x as i32);
+                            let chunk_y_g = get_chunk_y_g(potential_y as i32);
+                            match chunk_map.map.get(&(chunk_x_g, chunk_y_g)) {
+                                Some(new_chunk) => {
+                                    chunk = new_chunk;
+                                },
+                                None => {
+                                }
+                            }
                         }
                     },
                     None => {}
