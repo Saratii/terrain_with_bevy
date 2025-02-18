@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use bevy::{asset::Assets, math::{Vec2, Vec3}, prelude::{Commands, Image, Mesh, Rectangle, Res, ResMut, Transform}, sprite::MaterialMesh2dBundle, time::Time};
 
-use crate::{color_map::{apply_gamma_correction, BLACK, LIGHT, PLAYER_SKIN, RAW_DECODER_DATA, RED, SELL_BOX, SKY, WHITE}, components::{PlayerTag, Velocity}, constants::{CHUNK_SIZE, NO_GRAVITY, PLAYER_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, PLAYER_WIDTH}, materials::DefaultMaterial, tools::{CurrentTool, Tool}, util::{flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_local_x, get_local_y, grid_to_image}};
+use crate::{color_map::{apply_gamma_correction, BLACK, LIGHT, PLAYER_SKIN, RAW_DECODER_DATA, RED, SELL_BOX, SKY, WHITE}, components::{PlayerTag, Velocity}, constants::{CHUNK_SIZE, MAX_STEP_HEIGHT, NO_GRAVITY, PLAYER_HEIGHT, PLAYER_SPAWN_X, PLAYER_SPAWN_Y, PLAYER_WIDTH}, materials::DefaultMaterial, tools::{CurrentTool, Tool}, util::{flatten_index_standard_grid, get_chunk_x_g, get_chunk_y_g, get_local_x, get_local_y, grid_to_image}};
 
 pub fn spawn_player(
     mut commands: Commands,
@@ -62,8 +62,13 @@ pub fn apply_velocity(
     chunk_map: &HashMap<(i32, i32), Vec<u8>>,
     time: &Res<Time>,
 ) {
-    if velocity.vx != 0. && horizontal_collision(&velocity.vx, chunk_map, &entity_position_c) {
-        velocity.vx = 0.;
+    let horizontal_collision = horizontal_collision(&velocity.vx, chunk_map, entity_position_c);
+    if velocity.vx != 0. && horizontal_collision.0 {
+        if horizontal_collision.1 as i32 <= MAX_STEP_HEIGHT {
+            entity_position_c.y += horizontal_collision.1;
+        } else {
+            velocity.vx = 0.;
+        }
     }
     if velocity.vy > 0. && vertical_collision(chunk_map, &entity_position_c) {
         velocity.vy = 0.;
@@ -74,7 +79,9 @@ pub fn apply_velocity(
     }
 }
 
-fn horizontal_collision(velocity: &f32, chunk_map: &HashMap<(i32, i32), Vec<u8>>, entity_position_c: &Vec3) -> bool {
+fn horizontal_collision(velocity: &f32, chunk_map: &HashMap<(i32, i32), Vec<u8>>, entity_position_c: &Vec3) -> (bool, f32) {
+    let mut max_height_found = 0.;
+    let mut flag = false;
     if velocity < &0. || velocity > &0. {
         for y in entity_position_c.y as i32 - PLAYER_HEIGHT as i32/2 + 1..entity_position_c.y as i32 + PLAYER_HEIGHT as i32/2 {
             let chunk_x_g: i32;
@@ -90,11 +97,18 @@ fn horizontal_collision(velocity: &f32, chunk_map: &HashMap<(i32, i32), Vec<u8>>
             let local_y = get_local_y(y);
             let local_index = flatten_index_standard_grid(&local_x, &local_y, CHUNK_SIZE as usize);
             if chunk_map.get(&(chunk_x_g, chunk_y_g)).unwrap()[local_index] != SKY && chunk_map.get(&(chunk_x_g, chunk_y_g)).unwrap()[local_index] != SELL_BOX {
-                return true
+                max_height_found += 1.;
+                if y > MAX_STEP_HEIGHT + (entity_position_c.y as i32 - PLAYER_HEIGHT as i32/2 + 1) as i32 {
+                    return (true, max_height_found);
+                }
+                flag = true;
             }
         }
     }
-    false
+    if flag {
+        return (true, max_height_found);
+    }
+    (false, max_height_found)
 }
 
 fn vertical_collision(chunk_map: &HashMap<(i32, i32), Vec<u8>>, entity_position_c: &Vec3) -> bool {

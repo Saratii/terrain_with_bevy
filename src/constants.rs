@@ -15,8 +15,9 @@ pub const SHADOW_RESOLUTION: f32 = 2048.;
 pub const PLAYER_WIDTH: usize = 20;
 pub const PLAYER_HEIGHT: usize = 60;
 pub const PLAYER_SPAWN_X: usize = 0;
-pub const PLAYER_SPAWN_Y: usize = 0;
+pub const PLAYER_SPAWN_Y: usize = 1000;
 pub const SPAWN_PLAYER: bool = false;
+pub const MAX_STEP_HEIGHT: i32 = 3;
 
 //other
 pub const MAX_PLAYER_SPEED: f32 = 80.;
